@@ -1150,128 +1150,128 @@ All tunings are similar as above on the device under test with the following con
 
  These are the devices that will receive and forward packets on the device under test to the guest.
 
-PMD MASK for 2 PMDS
-A Hex mask for using one core/2HT pair and 2 core/4HT
-Example with a layout such as seen from the output of lscpu and cpu_layout.py
-cpu_layout.py can be obtained from the dpdk repository source code dpdk.org
-Architecture:          x86_64
-CPU op-mode(s):        32-bit, 64-bit
-Byte Order:            Little Endian
-CPU(s):                48
-On-line CPU(s) list:   0-47
-Thread(s) per core:    2
-Core(s) per socket:    12
-Socket(s):             2
-NUMA node(s):          2
-Vendor ID:             GenuineIntel
-CPU family:            6
-Model:                 79
-Model name:            Intel(R) Xeon(R) CPU E5-2687W v4 @ 3.00GHz
-Stepping:              1
-CPU MHz:               3000.044
-BogoMIPS:              6005.35
-Virtualization:        VT-x
-L1d cache:             32K
-L1i cache:             32K
-L2 cache:              256K
-L3 cache:              30720K
-NUMA node0 CPU(s):     0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46
-NUMA node1 CPU(s):     1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43
+    PMD MASK for 2 PMDS
+    A Hex mask for using one core/2HT pair and 2 core/4HT
+    Example with a layout such as seen from the output of lscpu and cpu_layout.py
+    cpu_layout.py can be obtained from the dpdk repository source code dpdk.org
+    Architecture:          x86_64
+    CPU op-mode(s):        32-bit, 64-bit
+    Byte Order:            Little Endian
+    CPU(s):                48
+    On-line CPU(s) list:   0-47
+    Thread(s) per core:    2
+    Core(s) per socket:    12
+    Socket(s):             2
+    NUMA node(s):          2
+    Vendor ID:             GenuineIntel
+    CPU family:            6
+    Model:                 79
+    Model name:            Intel(R) Xeon(R) CPU E5-2687W v4 @ 3.00GHz
+    Stepping:              1
+    CPU MHz:               3000.044
+    BogoMIPS:              6005.35
+    Virtualization:        VT-x
+    L1d cache:             32K
+    L1i cache:             32K
+    L2 cache:              256K
+    L3 cache:              30720K
+    NUMA node0 CPU(s):     0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46
+    NUMA node1 CPU(s):     1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43
 
-python cpu_layout.py
-======================================================================
-Core and Socket Information (as reported by '/sys/devices/system/cpu')
-======================================================================
+    python cpu_layout.py
+    ======================================================================
+    Core and Socket Information (as reported by '/sys/devices/system/cpu')
+    ======================================================================
 
-cores =  [0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13]
-sockets =  [0, 1]
+    cores =  [0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13]
+    sockets =  [0, 1]
 
-        Socket 0        Socket 1
-        --------        --------
-Core 0  [0, 24]         [1, 25]
-Core 1  [2, 26]         [3, 27]
-Core 2  [4, 28]         [5, 29]
-Core 3  [6, 30]         [7, 31]
-Core 4  [8, 32]         [9, 33]
-Core 5  [10, 34]        [11, 35]
-Core 8  [12, 36]        [13, 37]
-Core 9  [14, 38]        [15, 39]
-Core 10 [16, 40]        [17, 41]
-Core 11 [18, 42]        [19, 43]
-Core 12 [20, 44]        [21, 45]
-Core 13 [22, 46]        [23, 47]
+            Socket 0        Socket 1
+            --------        --------
+    Core 0  [0, 24]         [1, 25]
+    Core 1  [2, 26]         [3, 27]
+    Core 2  [4, 28]         [5, 29]
+    Core 3  [6, 30]         [7, 31]
+    Core 4  [8, 32]         [9, 33]
+    Core 5  [10, 34]        [11, 35]
+    Core 8  [12, 36]        [13, 37]
+    Core 9  [14, 38]        [15, 39]
+    Core 10 [16, 40]        [17, 41]
+    Core 11 [18, 42]        [19, 43]
+    Core 12 [20, 44]        [21, 45]
+    Core 13 [22, 46]        [23, 47]
 
-To use cores 44,20 if your NIC is on Numa 0 you would use a mask of 040000040000
-To use cores 44,20 and 42,18 I would use a mask of 050000050000
+    To use cores 44,20 if your NIC is on Numa 0 you would use a mask of 040000040000
+    To use cores 44,20 and 42,18 I would use a mask of 050000050000
 
-PMD2MASK="040000040000"
-PMD4MASK="050000050000"
+    PMD2MASK="040000040000"
+    PMD4MASK="050000050000"
 
-Virtual NIC Guest CPU Binding
-Using the same scripts above assign first VCPU to a single core. Then assign
-VCPU2 and VCPU3 to a core/HT pair such as 4,28. Should not be a core already
-in use by the PMD MASK. All CPU assignments should be on different
-Hyperthreads.
+    Virtual NIC Guest CPU Binding
+    Using the same scripts above assign first VCPU to a single core. Then assign
+    VCPU2 and VCPU3 to a core/HT pair such as 4,28. Should not be a core already
+    in use by the PMD MASK. All CPU assignments should be on different
+    Hyperthreads.
 
-VCPU1=""
-VCPU2=""
-VCPU3=""
+    VCPU1=""
+    VCPU2=""
+    VCPU3=""
 
-Will need additional VCPUs for 2 queue test
+    Will need additional VCPUs for 2 queue test
 
-VCPU4=""
-VCPU5=""
+    VCPU4=""
+    VCPU5=""
 
-Based on the output above this is a sample set of settings
-NIC1="p6p1"
-NIC2="p6p2"
-PMD2MASK="040000040000"
-PMD4MASK="050000050000"
-VCPU1="2"
-VCPU2="4"
-VCPU3="28"
-VCPU4="6"
-VCPU5="30"
+    Based on the output above this is a sample set of settings
+    NIC1="p6p1"
+    NIC2="p6p2"
+    PMD2MASK="040000040000"
+    PMD4MASK="050000050000"
+    VCPU1="2"
+    VCPU2="4"
+    VCPU3="28"
+    VCPU4="6"
+    VCPU5="30"
 
-Specify your Trex information in the conf file based on your T-Rex server.
+    Specify your Trex information in the conf file based on your T-Rex server.
 
-TRAFFICGEN_TREX_HOST_IP_ADDR=''
-TRAFFICGEN_TREX_USER=''
-TRAFFICGEN_TREX_BASE_DIR is the place, where 't-rex-64' file is stored on
-Trex Server such as /root/trex-core/scripts/
-Note the trailing / in the path
-TRAFFICGEN_TREX_BASE_DIR=''
-Mac addresses of the ports configured in TRex Server as found in
+    TRAFFICGEN_TREX_HOST_IP_ADDR=''
+    TRAFFICGEN_TREX_USER=''
+    TRAFFICGEN_TREX_BASE_DIR is the place, where 't-rex-64' file is stored on
+    Trex Server such as /root/trex-core/scripts/
+    Note the trailing / in the path
+    TRAFFICGEN_TREX_BASE_DIR=''
+    Mac addresses of the ports configured in TRex Server as found in
 
-  cat /etc/trex_cfg.yaml
+      cat /etc/trex_cfg.yaml
 
-### Config file generated by dpdk_setup_ports.py ###
+    ### Config file generated by dpdk_setup_ports.py ###
 
-- port_limit: 2
-  version: 2
-  interfaces: ['04:00.0', '04:00.1']
-  port_info:
-      - dest_mac: a0:36:9f:65:ee:7a # MAC OF LOOPBACK TO IT'S DUAL INTERFACE
-        src_mac:  a0:36:9f:65:ee:78
-      - dest_mac: a0:36:9f:65:ee:78 # MAC OF LOOPBACK TO IT'S DUAL INTERFACE
-        src_mac:  a0:36:9f:65:ee:7a
+    - port_limit: 2
+      version: 2
+      interfaces: ['04:00.0', '04:00.1']
+      port_info:
+          - dest_mac: a0:36:9f:65:ee:7a # MAC OF LOOPBACK TO IT'S DUAL INTERFACE
+            src_mac:  a0:36:9f:65:ee:78
+          - dest_mac: a0:36:9f:65:ee:78 # MAC OF LOOPBACK TO IT'S DUAL INTERFACE
+            src_mac:  a0:36:9f:65:ee:7a
 
-  platform:
-      master_thread_id: 4
-      latency_thread_id: 6
-      dual_if:
-        - socket: 0
-          threads: [2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46]
+      platform:
+          master_thread_id: 4
+          latency_thread_id: 6
+          dual_if:
+            - socket: 0
+              threads: [2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46]
 
-TRAFFICGEN_TREX_PORT1='a0:36:9f:65:ee:7a'
-TRAFFICGEN_TREX_PORT2='a0:36:9f:65:ee:78'
-TRAFFICGEN_TREX_LINE_SPEED_GBPS='10' # line speed of the ports generating traffic.
+    TRAFFICGEN_TREX_PORT1='a0:36:9f:65:ee:7a'
+    TRAFFICGEN_TREX_PORT2='a0:36:9f:65:ee:78'
+    TRAFFICGEN_TREX_LINE_SPEED_GBPS='10' # line speed of the ports generating traffic.
 
-SR-IOV Information
-To run SR-IOV tests please complete the following info
-NIC Device name for VF on NIC1 and NIC2 Example p6p1_0 for vf0 on p6p1
-NIC1_VF=""
-NIC2_VF=""
+    SR-IOV Information
+    To run SR-IOV tests please complete the following info
+    NIC Device name for VF on NIC1 and NIC2 Example p6p1_0 for vf0 on p6p1
+    NIC1_VF=""
+    NIC2_VF=""
 
 Once all settings are complete one should be able to execute Perf-Verify.sh to start execution
 of VSPerf tests. The script will do some checks to try and verify the setup is complete and
