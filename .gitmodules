@@ -1,0 +1,3 @@
+[submodule "ovs_perf"]
+	path = ovs_perf
+	url = https://github.com/chaudron/ovs_perf.git
