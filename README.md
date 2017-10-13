@@ -1150,10 +1150,11 @@ All tunings are similar as above on the device under test with the following con
 
  These are the devices that will receive and forward packets on the device under test to the guest.
 
-    PMD MASK for 2 PMDS
-    A Hex mask for using one core/2HT pair and 2 core/4HT
-    Example with a layout such as seen from the output of lscpu and cpu_layout.py
-    cpu_layout.py can be obtained from the dpdk repository source code dpdk.org
+ PMD MASK for 2 PMDS
+ A Hex mask for using one core/2HT pair and 2 core/4HT
+ Example with a layout such as seen from the output of lscpu and cpu_layout.py
+ cpu_layout.py can be obtained from the dpdk repository source code dpdk.org
+
     Architecture:          x86_64
     CPU op-mode(s):        32-bit, 64-bit
     Byte Order:            Little Endian
@@ -1201,28 +1202,29 @@ All tunings are similar as above on the device under test with the following con
     Core 12 [20, 44]        [21, 45]
     Core 13 [22, 46]        [23, 47]
 
-    To use cores 44,20 if your NIC is on Numa 0 you would use a mask of 040000040000
-    To use cores 44,20 and 42,18 I would use a mask of 050000050000
+ To use cores 44,20 if your NIC is on Numa 0 you would use a mask of 040000040000
+ To use cores 44,20 and 42,18 I would use a mask of 050000050000
 
     PMD2MASK="040000040000"
     PMD4MASK="050000050000"
 
-    Virtual NIC Guest CPU Binding
-    Using the same scripts above assign first VCPU to a single core. Then assign
-    VCPU2 and VCPU3 to a core/HT pair such as 4,28. Should not be a core already
-    in use by the PMD MASK. All CPU assignments should be on different
-    Hyperthreads.
+ Virtual NIC Guest CPU Binding
+ Using the same scripts above assign first VCPU to a single core. Then assign
+ VCPU2 and VCPU3 to a core/HT pair such as 4,28. Should not be a core already
+ in use by the PMD MASK. All CPU assignments should be on different
+ Hyperthreads.
 
     VCPU1=""
     VCPU2=""
     VCPU3=""
 
-    Will need additional VCPUs for 2 queue test
+ Will need additional VCPUs for 2 queue test
 
     VCPU4=""
     VCPU5=""
 
-    Based on the output above this is a sample set of settings
+ Based on the output above this is a sample set of settings
+
     NIC1="p6p1"
     NIC2="p6p2"
     PMD2MASK="040000040000"
@@ -1233,15 +1235,17 @@ All tunings are similar as above on the device under test with the following con
     VCPU4="6"
     VCPU5="30"
 
-    Specify your Trex information in the conf file based on your T-Rex server.
+ Specify your Trex information in the conf file based on your T-Rex server.
 
     TRAFFICGEN_TREX_HOST_IP_ADDR=''
     TRAFFICGEN_TREX_USER=''
-    TRAFFICGEN_TREX_BASE_DIR is the place, where 't-rex-64' file is stored on
-    Trex Server such as /root/trex-core/scripts/
-    Note the trailing / in the path
+    TRAFFICGEN_TREX_BASE_DIR
+ The place, where 't-rex-64' file is stored on Trex Server such as /root/trex-core/scripts/
+ Note the trailing / in the path
+
     TRAFFICGEN_TREX_BASE_DIR=''
-    Mac addresses of the ports configured in TRex Server as found in
+
+ Mac addresses of the ports configured in TRex Server as found in
 
       cat /etc/trex_cfg.yaml
 
@@ -1267,9 +1271,10 @@ All tunings are similar as above on the device under test with the following con
     TRAFFICGEN_TREX_PORT2='a0:36:9f:65:ee:78'
     TRAFFICGEN_TREX_LINE_SPEED_GBPS='10' # line speed of the ports generating traffic.
 
-    SR-IOV Information
-    To run SR-IOV tests please complete the following info
-    NIC Device name for VF on NIC1 and NIC2 Example p6p1_0 for vf0 on p6p1
+ SR-IOV Information
+ To run SR-IOV tests please complete the following info
+ NIC Device name for VF on NIC1 and NIC2 Example p6p1_0 for vf0 on p6p1
+
     NIC1_VF=""
     NIC2_VF=""
 
@@ -1278,57 +1283,57 @@ of VSPerf tests. The script will do some checks to try and verify the setup is c
 ready for testing. Any issues will be shown on the screen. Once the inital test has been running
 for 5+ minutes it should be ready to run for the 12 hours.
 
-***********************************************************
-*** Running 64/1500 Bytes 2PMD OVS/DPDK PVP VSPerf TEST ***
-***********************************************************
+    ***********************************************************
+    *** Running 64/1500 Bytes 2PMD OVS/DPDK PVP VSPerf TEST ***
+    ***********************************************************
 
-...running for 5 minutes
+    ...running for 5 minutes
 
-The tests will verify that performance has passed required specifications per the following guidelines.
+ The tests will verify that performance has passed required specifications per the following guidelines.
 
-  DPDK tests
-  - 64 bytes PVP will achieve 3 Mpps at 0 loss for 10 minutes
-  - 1500 bytes PVP will achieve 1.5 Mpps at 0 loss for 10 minutes
-  - 2000 byte jumbo frames physical to physical loopback at 1100000 Mpps at 0 loss for 10 minutes
-  - 9000 byte jumbo frames physical to physical loopback at 250 Kpps at 0 loss for 10 minutes
-  Kernel OVS tests
-  - 64 bytes PVP will achieve 100 Kpps at 0.002 loss for 10 minutes
-  - 1500 bytes PVP will achieve 100 Kpps at 0.002 loss for 10 minutes
+ DPDK tests
+ - 64 bytes PVP will achieve 3 Mpps at 0 loss for 10 minutes
+ - 1500 bytes PVP will achieve 1.5 Mpps at 0 loss for 10 minutes
+ - 2000 byte jumbo frames physical to physical loopback at 1100000 Mpps at 0 loss for 10 minutes
+ - 9000 byte jumbo frames physical to physical loopback at 250 Kpps at 0 loss for 10 minutes
+ Kernel OVS tests
+ - 64 bytes PVP will achieve 100 Kpps at 0.002 loss for 10 minutes
+ - 1500 bytes PVP will achieve 100 Kpps at 0.002 loss for 10 minutes
 
-If a test fails to achieve the proper performance the script will exit so the configuration and or fixes
-can be applied. If one wishes to bypass the pass fail you can execute the Perf-Verify.sh script with a
---donotfail argument to bypass the pass/fail option.
+ If a test fails to achieve the proper performance the script will exit so the configuration and or fixes
+ can be applied. If one wishes to bypass the pass fail you can execute the Perf-Verify.sh script with a
+ --donotfail argument to bypass the pass/fail option.
 
-Once all tests have passed or completed the next script will execute a VSPerf tests using SR-IOV
-to bypass the switch and send packets from a VF directly to the guest.
+ Once all tests have passed or completed the next script will execute a VSPerf tests using SR-IOV
+ to bypass the switch and send packets from a VF directly to the guest.
 
-Enable SR-IOV on the NICs under test.
+ Enable SR-IOV on the NICs under test.
 
-Verify the VFs can be seen
+ Verify the VFs can be seen
 
-ip link show p6p1
-14: p6p1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
-    link/ether 90:e2:ba:cb:b4:78 brd ff:ff:ff:ff:ff:ff
-    vf 0 MAC 36:34:66:94:28:d2, spoof checking on, link-state auto, trust off, query_rss off
-    vf 1 MAC 02:18:7c:11:3b:dd, spoof checking on, link-state auto, trust off, query_rss off
-    vf 2 MAC 5a:f3:c5:5a:bc:ce, spoof checking on, link-state auto, trust off, query_rss off
+    ip link show p6p1
+    14: p6p1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+        link/ether 90:e2:ba:cb:b4:78 brd ff:ff:ff:ff:ff:ff
+        vf 0 MAC 36:34:66:94:28:d2, spoof checking on, link-state auto, trust off, query_rss off
+        vf 1 MAC 02:18:7c:11:3b:dd, spoof checking on, link-state auto, trust off, query_rss off
+        vf 2 MAC 5a:f3:c5:5a:bc:ce, spoof checking on, link-state auto, trust off, query_rss off
 
-Now execute the Perf-Verify-sriov.sh test which will run for 3-4 hours.
+ Now execute the Perf-Verify-sriov.sh test which will run for 3-4 hours.
 
-If the test has been running for 5 minutes then it should run the full 3-4 hours.
+ If the test has been running for 5 minutes then it should run the full 3-4 hours.
 
-************************************************
-*** Running 64/1500 Bytes SR-IOV VSPerf TEST ***
-************************************************
+    ************************************************
+    *** Running 64/1500 Bytes SR-IOV VSPerf TEST ***
+    ************************************************
 
-...running for 5 minutes
+    ...running for 5 minutes
 
-For this test to pass the following performance must meet the following specifications
+ For this test to pass the following performance must meet the following specifications
 
-  - 64 Bytes PVP passthrough will achieve 10 Mpps at 0 loss for 10 minutes
-  - 1500 Bytes PVP passthrough will achieve 1.6 Mpps at 0 loss for 10 minutes
+ - 64 Bytes PVP passthrough will achieve 10 Mpps at 0 loss for 10 minutes
+ - 1500 Bytes PVP passthrough will achieve 1.6 Mpps at 0 loss for 10 minutes
 
-Once this test has passed disable SR-IOV and begin execution of the functional QE scripts
+ Once this test has passed disable SR-IOV and begin execution of the functional QE scripts
 
 ## Running the _OVS functional qualification_
 
