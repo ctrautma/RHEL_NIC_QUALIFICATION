@@ -1497,9 +1497,9 @@ The tests will execute for 4-6 hours and report the results at the end.
 
 ## Analyzing and gathering the results
 
-To collect the results for the performance and functional tests execute the collections.sh script which will
-attempt to retrieve the most recent results from the system and provide a file. Provide this file to the
-certification team for review.
+To collect the results for the performance and functional tests execute the collections.sh script on the
+client only which will attempt to retrieve the most recent results from the system and provide a file.
+Provide this file to the certification team for review.
 
 ```
     ./collection.sh
