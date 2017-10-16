@@ -1437,13 +1437,16 @@ that must be completed as follows
 
      b. Populate the values needed for a pre-defined switch name or create a new one
 
-```
+
          set SWITCH(5010,ostype)         "cisco-nxos"
+
          set SWITCH(5010,login)          "redhat@10.x.x.x"
+
          set SWITCH(5010,passwd)         "password"
+
          set SWITCH(5010,prompt)         "sw-5010"
+
          set SWITCH(5010,spid)           -1
-```
 
      c. 'ostype' needs to be the type of switch
 
