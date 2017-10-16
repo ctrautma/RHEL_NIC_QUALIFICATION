@@ -1386,6 +1386,7 @@ the test to work both the server and client must be plugged into a Juniper or Ci
 Most of the tests will pass if still connected back to back as per the above tests, however;
 the bonding tests require a switch as a broadcast domain to work correctly.
 
+```
    +---------+                +--------+               +---------+
    |         | p5p1     e1/9  |        |               |         |
    |         +----------------+        | e1/11    p5p1 |         |
@@ -1397,7 +1398,7 @@ the bonding tests require a switch as a broadcast domain to work correctly.
         +--------------------------+------------------------+
                                    |
                               To Internet
-
+```
 
 To setup these tests git clone the qualification suite onto the Server.
 
