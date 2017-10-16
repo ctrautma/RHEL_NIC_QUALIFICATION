@@ -982,11 +982,10 @@ cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
 #                                                      #
 # 64   Byte 2PMD OVS/DPDK PVP test result: ${array[0]} #
 # 1500 Byte 2PMD OVS/DPDK PVP test result: ${array[1]} #
-
 EOT
 
 
-mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_phy2phy_2pmd_jumbo.log | awk '{print $11}' )
+mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_2pmd_jumbo.log | awk '{print $11}' )
 cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
 # 2000 Byte 2PMD OVS/DPDK Phy2Phy test result: ${array[0]} #
 # 9000 Byte 2PMD OVS/DPDK Phy2Phy test result: ${array[1]} #
@@ -1006,7 +1005,7 @@ cat $NIC_LOG_FOLDER//vsperf_results.txt
 copy_config_files_to_log_folder() {
 
 cp /root/vswitchperf/conf/* $NIC_LOG_FOLDER
-cp /root/NicQual/Perf-Verify.conf $NIC_LOG_FOLDER
+cp /root/RHEL_NIC_QUALIFICATION/Perf-Verify.conf $NIC_LOG_FOLDER
 
 }
 
