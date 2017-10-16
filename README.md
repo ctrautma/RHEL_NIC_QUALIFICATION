@@ -1376,7 +1376,9 @@ potion of the test to know if you setup everything correctly for VSPerf to execu
 These tests follow a server/client model where the client is the DUT and the server will
 be used to execute certain functions to verify the client.
 
-If you are going to use the T-Rex server, please stop the T-Rex client before continuing.
+If you are going to use the T-Rex server as the server system, please stop the T-Rex client
+before continuing. You may need to unbind the NICs that were used for T-Rex using dpdk-devbind
+or simply reboot the system.
 
 Also there are bonding tests that require a switch configuration to pass. For this part of
 the test to work both the server and client must be plugged into a Juniper or Cisco switch.
@@ -1384,22 +1386,18 @@ the test to work both the server and client must be plugged into a Juniper or Ci
 Most of the tests will pass if still connected back to back as per the above tests, however;
 the bonding tests require a switch as a broadcast domain to work correctly.
 
-# +---------+                +--------+               +---------+
-# |         | p5p1     e1/9  |        |               |         |
-# |         +----------------+        | e1/11    p5p1 |         |
-# | CLIENTS |                | Switch +---------------+ SERVERS |
-# |         +----------------+        |               |         |
-# |         | p5p2     e1/10 |        |               |         |
-# +----+----+                +----+---+               +----+----+
-#      |                          |                        |
-#      +--------------------------+------------------------+
-#                                 |
-#                            To Internet
-#
-#
-# + Internet connections is used to install needed packages
-#   in the test from Internet
-#   For the needed packages, please see env.sh in each test module
+ +---------+                +--------+               +---------+
+ |         | p5p1     e1/9  |        |               |         |
+ |         +----------------+        | e1/11    p5p1 |         |
+ | CLIENTS |                | Switch +---------------+ SERVERS |
+ |         +----------------+        |               |         |
+ |         | p5p2     e1/10 |        |               |         |
+ +----+----+                +----+---+               +----+----+
+      |                          |                        |
+      +--------------------------+------------------------+
+                                 |
+                            To Internet
+
 
 To setup these tests git clone the qualification suite onto the Server.
 
@@ -1422,58 +1420,58 @@ side.
 Inside the rh_nic_cert folder is a rh_nic_cert.sh script. This script has settings at the top
 that must be completed as follows
 
-    1. 'CLIENTS' must be set to the DUT hostname
+  1. 'CLIENTS' must be set to the DUT hostname
 
-    2. 'SERVERS' must be set to the server hostname
+  2. 'SERVERS' must be set to the server hostname
 
-    3. 'NIC_CLIENT' must be set to the NIC device names on the DUT
+  3. 'NIC_CLIENT' must be set to the NIC device names on the DUT
 
-    4. 'NIC_SERVER' must be set to the NIC device name on the server which will be used to send traffic
+  4. 'NIC_SERVER' must be set to the NIC device name on the server which will be used to send traffic
 
-    5. If doing the topology with a switch then it must be defined correctly in the bin/swlist file
-       and referenced by the correct name for the 'SW_NAME' parameter in the rh_nic_cert.sh. The following
-       must be correct in the bin/swlist file. This only needs to be done on the client side.
-           a. Make sure the SW_NAME specified in the rh_nic_cert.sh 'SW_NAME' appears in the SWITCH LIST
-           b. Populate the values needed for a pre-defined switch name or create a new one
+  5. If doing the topology with a switch then it must be defined correctly in the bin/swlist file
+     and referenced by the correct name for the 'SW_NAME' parameter in the rh_nic_cert.sh. The following
+     must be correct in the bin/swlist file. This only needs to be done on the client side.
+         a. Make sure the SW_NAME specified in the rh_nic_cert.sh 'SW_NAME' appears in the SWITCH LIST
+         b. Populate the values needed for a pre-defined switch name or create a new one
+         ```
+         set SWITCH(5010,ostype)         "cisco-nxos"
+         set SWITCH(5010,login)          "redhat@10.x.x.x"
+         set SWITCH(5010,passwd)         "password"
+         set SWITCH(5010,prompt)         "sw-5010"
+         set SWITCH(5010,spid)           -1
+         ```
+         c. 'ostype' needs to be the type of switch
+         d. 'login' needs to be the username and ip for ssh login
+         e. 'passwd' password for the switch
+         f. 'prompt' the prompt on the switch CLI
+         g. 'spid' leave it as -1
 
-           ```
-           set SWITCH(5010,ostype)         "cisco-nxos"
-           set SWITCH(5010,login)          "redhat@10.x.x.x"
-           set SWITCH(5010,passwd)         "password"
-           set SWITCH(5010,prompt)         "sw-5010"
-           set SWITCH(5010,spid)           -1
-           ```
-           c. 'ostype' needs to be the type of switch
-           d. 'login' needs to be the username and ip for ssh login
-           e. 'passwd' password for the switch
-           f. 'prompt' the prompt on the switch CLI
-           g. 'spid' leave it as -1
+  6. Back to the rh_nic_cert.sh continue with 'SW_PORT_CLIENT' the switch ports the client side is connected
+     to
 
-    6. Back to the rh_nic_cert.sh continue with 'SW_PORT_CLIENT' the switch ports the client side is connected
-       to
+  7. 'SW_PORT_SERVER' the switch port where the server is connected
 
-    7. 'SW_PORT_SERVER' the switch port where the server is connected
+  8. 'IMG_GUEST' this is an internal setting only, no need to modify this
 
-    8. 'IMG_GUEST' this is an internal setting only, no need to modify this
+  9. 'SRC_NETPERF' set to use the following location
 
-    9. 'SRC_NETPERF' set to use the following location
+  10. 'RPM_KERNEL' leave alone, internal use only
 
-    10. 'RPM_KERNEL' leave alone, internal use only
+  11. 'IPERF_RPM' leave alone, already set to an external location to download iperf
 
-    11. 'IPERF_RPM' leave alone, already set to an external location to download iperf
+  12. 'SETENFORCE' leave alone
 
-    12. 'SETENFORCE' leave alone
+  13. 'QE_SKIP_TEST' can be set to skip particular tests, leave alone unless wanting to skip bonding tests
 
-    13. 'QE_SKIP_TEST' can be set to skip particular tests, leave alone unless wanting to skip bonding tests
+  14. 'QE_TEST' leave alone unless wanting to run a specific test only
 
-    14. 'QE_TEST' leave alone unless wanting to run a specific test only
+  15. 'BONDING_TEST' set of bonding tests to execute, can be modified if wishing to run a specific test only
 
-    15. 'BONDING_TEST' set of bonding tests to execute, can be modified if wishing to run a specific test only
+  16. 'RPM_OVS' change to the current RPM name from
 
-    16. 'RPM_OVS' change to the current RPM name from
-    ```
+```
     rpm -qa | grep openvswitch
-    ```
+```
 
 Make sure the settings in rh_nic_cert.sh are completed on both the server and client systems.
 
