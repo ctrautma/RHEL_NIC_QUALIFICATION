@@ -1433,9 +1433,9 @@ that must be completed as follows
      and referenced by the correct name for the 'SW_NAME' parameter in the rh_nic_cert.sh. The following
      must be correct in the bin/swlist file. This only needs to be done on the client side.
 
-         a. Make sure the SW_NAME specified in the rh_nic_cert.sh 'SW_NAME' appears in the SWITCH LIST
+     a. Make sure the SW_NAME specified in the rh_nic_cert.sh 'SW_NAME' appears in the SWITCH LIST
 
-         b. Populate the values needed for a pre-defined switch name or create a new one
+     b. Populate the values needed for a pre-defined switch name or create a new one
 
 ```
          set SWITCH(5010,ostype)         "cisco-nxos"
@@ -1445,15 +1445,15 @@ that must be completed as follows
          set SWITCH(5010,spid)           -1
 ```
 
-         c. 'ostype' needs to be the type of switch
+     c. 'ostype' needs to be the type of switch
 
-         d. 'login' needs to be the username and ip for ssh login
+     d. 'login' needs to be the username and ip for ssh login
 
-         e. 'passwd' password for the switch
+     e. 'passwd' password for the switch
 
-         f. 'prompt' the prompt on the switch CLI
+     f. 'prompt' the prompt on the switch CLI
 
-         g. 'spid' leave it as -1
+     g. 'spid' leave it as -1
 
   6. Back to the rh_nic_cert.sh continue with 'SW_PORT_CLIENT' the switch ports the client side is connected
      to
