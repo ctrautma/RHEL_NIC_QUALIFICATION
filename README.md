@@ -34,7 +34,6 @@ on the DUT and two ports on the T-Rex which are connected as shown below.
 The two NIC ports on the DUT must be the brand and type of NICs which are to be
 qualified. The first set of performance tests use a topology as seen below.
 
-__TODO: NEED TO MAKE SURE OVS_PERF WORKS WITH 7.4, ADJUST DOC IF NEEDED__ 
 
 ```_
        +---------------------------------------------------+  |
@@ -77,12 +76,6 @@ sum of both ports in frames per second.
 
 
 ## Setup the TRex traffic generator
-
-__TODO:  UPDATE THIS DOC TO MAKE SURE IT USES RHEL 7.4__
-
-
-__TODO:  MAKE SURE THESE INSTRUCTION WILL ALSO WORK WITH THE Perf-Verify.sh__
-
 One of the two machines we will use for the TRex traffic generator. We will
 also use this machine to run the actual PVP script, so some additional setup
 steps are related to this.
@@ -111,6 +104,15 @@ Successfully attached a subscription for: xxxxxxxxxxxxxxxxxx
 
 
 ### Install the packages we need
+We need _"Red Hat Enterprise Linux Fast Datapath 7"_ for the DPDK package.
+If you do not have access to these repositories, please contact your Red Had
+representative.
+
+```
+subscription-manager repos --enable=rhel-7-fast-datapath-rpms
+```
+
+
 Add the epel repository for some of the python packages:
 
 ```
@@ -128,8 +130,9 @@ Now we can install the packages we need:
 ```
 yum -y clean all
 yum -y update
-yum -y install lshw emacs gcc git python-devel python-setuptools python-pip \
-               tmux tuned-profiles-cpu-partitioning wget dpdk-tools dpdk
+yum -y install dpdk dpdk-tools emacs gcc git lshw pciutils python-devel \
+               python-setuptools python-pip tmux \
+               tuned-profiles-cpu-partitioning wget
 ```
 
 
@@ -139,7 +142,7 @@ adjust this to your system's specifications. In this step we also enable iommu
 needed by some of the DPDK PMD drivers used by TRex:
 
 ```
-sed -i -e 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepagesz=1G hugepages=32 iommu=on intel_iommu=pt /'  /etc/default/grub
+sed -i -e 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepagesz=1G hugepages=32 iommu=pt intel_iommu=on /'  /etc/default/grub
 grub2-mkconfig -o /boot/grub2/grub.cfg
 ```
 
@@ -233,10 +236,7 @@ to not dedicate all CPUs to TRex. Below you see what we changed in the
 /etc/trex_cfg.yaml file to exclude threads 1-3:
 
 ```
-17c17
-<           threads: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26]
----
->           threads: [4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26]
+    threads: [4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26]
 ```
 
 
@@ -375,11 +375,11 @@ Now we can install the packages we need:
 yum -y clean all
 yum -y update
 yum -y install aspell aspell-en autoconf automake bc checkpolicy \
-               desktop-file-utils dpdk dpdk-tools driverctl emacs gcc gcc-c++ gdb \
-               git graphviz groff hwloc intltool kernel-devel libcap-ng \
-               libcap-ng-devel libguestfs libguestfs-tools-c libtool \
-               libvirt lshw openssl  openssl-devel openvswitch procps-ng \
-               python python-six python-twisted-core python-zope-interface \
+               desktop-file-utils dpdk dpdk-tools driverctl emacs gcc \
+               gcc-c++ gdb git graphviz groff hwloc intltool kernel-devel \
+               libcap-ng libcap-ng-devel libguestfs libguestfs-tools-c libtool \
+               libvirt lshw openssl openssl-devel openvswitch procps-ng python \
+               python-six python-twisted-core python-zope-interface \
                qemu-kvm-rhev rpm-build selinux-policy-devel sshpass sysstat \
                systemd-units tcpdump time tmux tuned-profiles-cpu-partitioning \
                virt-install virt-manager wget
@@ -463,11 +463,6 @@ configured 1G huge pages:
 # cat /proc/cmdline
 BOOT_IMAGE=/vmlinuz-3.10.0-693.1.1.el7.x86_64 root=/dev/mapper/rhel_wsfd--netdev67-root ro default_hugepagesz=1G hugepagesz=1G hugepages=4 crashkernel=auto rd.lvm.lv=rhel_wsfd-netdev67/root rd.lvm.lv=rhel_wsfd-netdev67/swap console=ttyS1,115200 nohz=on nohz_full=1-13,15-27 rcu_nocbs=1-13,15-27 tuned.non_isolcpus=00004001 intel_pstate=disable nosoftlockup
 ```
-
-
-## Running the _OVSPerf_ script
-
-__TODO: Add this__
 
 
 ## Running the _ovs\_perf_ script for the DPDK datapath
@@ -894,6 +889,7 @@ NOTE: Make sure you are passing the basic test as explained in "Running the
 
 What datapath are you using, DPDK or Linux Kernel [dpdk/kernel]? dpdk
 What is the IP address where the DUT (Open vSwitch) is running? 10.19.17.133
+What is the root password of the DUT? root
 What is the IP address of the virtual machine running on the DUT? 192.168.122.186
 What is the IP address of the TRex tester? localhost
 What is the physical interface being used, i.e. dpdk0, em1, p4p5? dpdk0
@@ -1140,11 +1136,30 @@ All tunings are similar as above on the device under test with the following con
   2. The total length of time for these tests is 12 to 14 hours approximately.
   3. The openvswitch service must be stopped. This is because VSPerf does a custom startup
      and a running instance will cause the tests to fail.
-  4. The NICs to be tested are bound by kernel drivers. VSPerf will bind and unbind the NICs
+
+     ```
+     systemctl stop openvswitch
+     systemctl disable openvswitch
+     ```
+
+
+  4. The loopback virtual machine must be shutdown.
+
+     ```
+     virsh shutdown rhel_loopback
+     virsh shutdown rhel_loopback_kerneldp
+     ```
+
+  5. The NICs to be tested are bound by kernel drivers. VSPerf will bind and unbind the NICs
      at the start and completion of a test.
-  5. You have at least 8 1G hugepages available.
-  6. The device under test has an internet connection available to download a custom VNF image.
-  7. The server has enough cores to support a PMD mask of 4 threads plus 5 VCPUs for the VNF image
+
+     ```
+     driverctl -v unset-override 0000:01:00.0
+     ```
+
+  6. You have at least 8 1G hugepages available.
+  7. The device under test has an internet connection available to download a custom VNF image.
+  8. The server has enough cores to support a PMD mask of 4 threads plus 5 VCPUs for the VNF image
      where the cores are on the same NUMA as the NIC if you are running on a multi numa system.
 
  The tests are located in the QE folder of the git cloned repository. You MUST specify ALL values
