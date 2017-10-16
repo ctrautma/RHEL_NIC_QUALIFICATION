@@ -117,6 +117,11 @@ Add the epel repository for some of the python packages:
 yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 ```
 
+Add the extras channel for the dpdk-tools package:
+
+```
+subscription-manager repos --enable rhel-7-server-extras-rpms
+```
 
 Now we can install the packages we need:
 
@@ -124,7 +129,7 @@ Now we can install the packages we need:
 yum -y clean all
 yum -y update
 yum -y install lshw emacs gcc git python-devel python-setuptools python-pip \
-               tmux tuned-profiles-cpu-partitioning wget
+               tmux tuned-profiles-cpu-partitioning wget dpdk-tools dpdk
 ```
 
 
@@ -288,13 +293,9 @@ git submodule update --init --recursive
 ln -s ~/RHEL_NIC_QUALIFICATION/ovs_perf/ ~/ovs_perf
 ```
 
-### Install additional packages needed by the VSPerf script
-
-__TODO: Add additional installation info here if needed__
-
-
 ### Install additional packages needed by the PVP script
 We need to install a bunch of Python libraries we need for the PVP script.
+
 We will use pip to do this:
 
 ```
@@ -350,12 +351,14 @@ Successfully attached a subscription for: xxxxxxxxxxxxxxxxxx
 
 ### Add the packages we need
 We need _"Red Hat Enterprise Linux Fast Datapath 7"_ for Open vSwitch,
-and _"Red Hat Virtualization 4"_ for Qemu. If you do not have access to these
-repositories, please contact your Red Had representative.
+_"RHEL Extras"_ for dpdk rpms, and _"Red Hat Virtualization 4"_
+for Qemu. If you do not have access to these repositories, please contact
+your Red Had representative.
 
 ```
 subscription-manager repos --enable=rhel-7-fast-datapath-rpms
 subscription-manager repos --enable=rhel-7-server-rhv-4-mgmt-agent-rpms
+subscription-manager repos --enable rhel-7-server-extras-rpms
 ```
 
 
@@ -372,15 +375,16 @@ Now we can install the packages we need:
 yum -y clean all
 yum -y update
 yum -y install aspell aspell-en autoconf automake bc checkpolicy \
-               desktop-file-utils driverctl emacs gcc gcc-c++ gdb git graphviz \
-               groff hwloc intltool kernel-devel libcap-ng libcap-ng-devel \
-               libguestfs libguestfs-tools-c libtool libvirt lshw openssl \
-               openssl-devel openvswitch procps-ng python python-six \
-               python-twisted-core python-zope-interface qemu-kvm-rhev \
-               rpm-build selinux-policy-devel sshpass sysstat systemd-units \
-               tcpdump time tmux tuned-profiles-cpu-partitioning \
+               desktop-file-utils dpdk dpdk-tools driverctl emacs gcc gcc-c++ gdb \
+               git graphviz groff hwloc intltool kernel-devel libcap-ng \
+               libcap-ng-devel libguestfs libguestfs-tools-c libtool \
+               libvirt lshw openssl  openssl-devel openvswitch procps-ng \
+               python python-six python-twisted-core python-zope-interface \
+               qemu-kvm-rhev rpm-build selinux-policy-devel sshpass sysstat \
+               systemd-units tcpdump time tmux tuned-profiles-cpu-partitioning \
                virt-install virt-manager wget
 ```
+
 
 
 ### Tweak the system for OVS-DPDK and Qemu usage
@@ -1241,9 +1245,11 @@ All tunings are similar as above on the device under test with the following con
     TRAFFICGEN_TREX_USER=''
     TRAFFICGEN_TREX_BASE_DIR
  The place, where 't-rex-64' file is stored on Trex Server such as /root/trex-core/scripts/
- Note the trailing / in the path
+ If you setup according to the instructions above then /root/trex/v2.29/ should work
 
-    TRAFFICGEN_TREX_BASE_DIR=''
+ ***Note*** the trailing / in the path
+
+    TRAFFICGEN_TREX_BASE_DIR='/root/trex/v2.29'
 
  Mac addresses of the ports configured in TRex Server as found in
 
@@ -1278,10 +1284,25 @@ All tunings are similar as above on the device under test with the following con
     NIC1_VF=""
     NIC2_VF=""
 
+NOTE: One will need to set up ssh login to not use passwords between the server
+running Trex and the device under test (running the VSPERF test
+infrastructure). This is because VSPERF on one server uses 'ssh' to
+configure and run Trex upon the other server. This needs to be executed on both
+the T-Rex server and the device under test.
+
+One can set up this ssh access by doing the following on both servers:
+
+    ssh-keygen -b 2048 -t rsa
+
+    ** NOTE ** Make sure to leave the password field blank.
+
+    ssh-copy-id <other server>
+
 Once all settings are complete one should be able to execute Perf-Verify.sh to start execution
 of VSPerf tests. The script will do some checks to try and verify the setup is complete and
-ready for testing. Any issues will be shown on the screen. Once the inital test has been running
-for 5+ minutes it should be ready to run for the 12 hours.
+ready for testing. Any issues will be shown on the screen. Once the initial test has been running
+for 5+ minutes it should be good to run for the 12 hours. The initial 5 minutes are the critical
+potion of the test to know if you setup everything correctly for VSPerf to execute.
 
     ***********************************************************
     *** Running 64/1500 Bytes 2PMD OVS/DPDK PVP VSPerf TEST ***
