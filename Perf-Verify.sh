@@ -824,7 +824,7 @@ EOF
 scl enable python33 - << \EOF
 source /root/vsperfenv/bin/activate
 source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
-python ./vsperf phy2phy_tput --test-params="TRAFFICGEN_PKT_SIZES=2000,9000; VSWITCH_JUMBO_FRAMES_ENABLED=True" &>$NIC_LOG_FOLDER/vsperf_phy2phy_2pmd_jumbo.log &
+python ./vsperf pvp_tput --test-params="TRAFFICGEN_PKT_SIZES=2000,9000; VSWITCH_JUMBO_FRAMES_ENABLED=True" &>$NIC_LOG_FOLDER/vsperf_pvp_2pmd_jumbo.log &
 EOF
 
     sleep 2
@@ -832,16 +832,16 @@ EOF
 
     spinner $vsperf_pid
 
-    if [[ `grep "Overall test report written to" $NIC_LOG_FOLDER/vsperf_phy2phy_2pmd_jumbo.log` ]]
+    if [[ `grep "Overall test report written to" $NIC_LOG_FOLDER/vsperf_pvp_2pmd_jumbo.log` ]]
     then
 
         echo ""
         echo "########################################################"
 
-        mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_phy2phy_2pmd_jumbo.log | awk '{print $11}' )
+        mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_2pmd_jumbo.log | awk '{print $11}' )
         if [ "${array[0]%%.*}" -gt 1100000 ]
         then
-            echo "# 2000 Byte 2PMD OVS/DPDK Phy2Phy test result: ${array[0]} #"
+            echo "# 2000 Byte 2PMD OVS/DPDK PVP test result: ${array[0]} #"
         else
             echo "# 2000 Bytes 2 PMD OVS/DPDK PVP failed to reach required 1.1 Mpps got ${array[0]} #"
         fi

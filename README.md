@@ -1465,7 +1465,7 @@ that must be completed as follows
 
   8. 'IMG_GUEST' this is an internal setting only, no need to modify this
 
-  9. 'SRC_NETPERF' set to use the following location
+  9. 'SRC_NETPERF' set to use the following location people.redhat.com/ctrautma/netperf-20160222.tar.bz2
 
   10. 'RPM_KERNEL' leave alone, internal use only
 
