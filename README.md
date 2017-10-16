@@ -1162,7 +1162,7 @@ All tunings are similar as above on the device under test with the following con
   8. The server has enough cores to support a PMD mask of 4 threads plus 5 VCPUs for the VNF image
      where the cores are on the same NUMA as the NIC if you are running on a multi numa system.
 
- The tests are located in the QE folder of the git cloned repository. You MUST specify ALL values
+ The tests are located in the root folder of the git cloned repository. You MUST specify ALL values
  in the Perf-Verify.conf file. The settings are as follows.
 
  NIC1 and NIC2 NIC Device names such as p6p1 p6p2 enclosed in quotation marks
@@ -1373,12 +1373,124 @@ potion of the test to know if you setup everything correctly for VSPerf to execu
 
 ## Running the _OVS functional qualification_
 
-__TODO: Add this__
+These tests follow a server/client model where the client is the DUT and the server will
+be used to execute certain functions to verify the client.
 
+If you are going to use the T-Rex server, please stop the T-Rex client before continuing.
 
+Also there are bonding tests that require a switch configuration to pass. For this part of
+the test to work both the server and client must be plugged into a Juniper or Cisco switch.
 
+Most of the tests will pass if still connected back to back as per the above tests, however;
+the bonding tests require a switch as a broadcast domain to work correctly.
 
+# +---------+                +--------+               +---------+
+# |         | p5p1     e1/9  |        |               |         |
+# |         +----------------+        | e1/11    p5p1 |         |
+# | CLIENTS |                | Switch +---------------+ SERVERS |
+# |         +----------------+        |               |         |
+# |         | p5p2     e1/10 |        |               |         |
+# +----+----+                +----+---+               +----+----+
+#      |                          |                        |
+#      +--------------------------+------------------------+
+#                                 |
+#                            To Internet
+#
+#
+# + Internet connections is used to install needed packages
+#   in the test from Internet
+#   For the needed packages, please see env.sh in each test module
+
+To setup these tests git clone the qualification suite onto the Server.
+
+```
+    git clone https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
+```
+
+To execute the functional tests you need to expand the rh_nic_cert.tar file on both systems.
+
+From the root of the git cloned folder expand the tar file.
+
+```
+    tar -xvf rh_nic_cert.tar
+```
+
+The files will expand into the rh_nic_cert folder. The settings in the Perf-Verify.conf
+are used for a single test in this suite of tests so verify the conf file is correct on the client
+side.
+
+Inside the rh_nic_cert folder is a rh_nic_cert.sh script. This script has settings at the top
+that must be completed as follows
+
+    1. 'CLIENTS' must be set to the DUT hostname
+
+    2. 'SERVERS' must be set to the server hostname
+
+    3. 'NIC_CLIENT' must be set to the NIC device names on the DUT
+
+    4. 'NIC_SERVER' must be set to the NIC device name on the server which will be used to send traffic
+
+    5. If doing the topology with a switch then it must be defined correctly in the bin/swlist file
+       and referenced by the correct name for the 'SW_NAME' parameter in the rh_nic_cert.sh. The following
+       must be correct in the bin/swlist file. This only needs to be done on the client side.
+           a. Make sure the SW_NAME specified in the rh_nic_cert.sh 'SW_NAME' appears in the SWITCH LIST
+           b. Populate the values needed for a pre-defined switch name or create a new one
+
+           ```
+           set SWITCH(5010,ostype)         "cisco-nxos"
+           set SWITCH(5010,login)          "redhat@10.x.x.x"
+           set SWITCH(5010,passwd)         "password"
+           set SWITCH(5010,prompt)         "sw-5010"
+           set SWITCH(5010,spid)           -1
+           ```
+           c. 'ostype' needs to be the type of switch
+           d. 'login' needs to be the username and ip for ssh login
+           e. 'passwd' password for the switch
+           f. 'prompt' the prompt on the switch CLI
+           g. 'spid' leave it as -1
+
+    6. Back to the rh_nic_cert.sh continue with 'SW_PORT_CLIENT' the switch ports the client side is connected
+       to
+
+    7. 'SW_PORT_SERVER' the switch port where the server is connected
+
+    8. 'IMG_GUEST' this is an internal setting only, no need to modify this
+
+    9. 'SRC_NETPERF' set to use the following location
+
+    10. 'RPM_KERNEL' leave alone, internal use only
+
+    11. 'IPERF_RPM' leave alone, already set to an external location to download iperf
+
+    12. 'SETENFORCE' leave alone
+
+    13. 'QE_SKIP_TEST' can be set to skip particular tests, leave alone unless wanting to skip bonding tests
+
+    14. 'QE_TEST' leave alone unless wanting to run a specific test only
+
+    15. 'BONDING_TEST' set of bonding tests to execute, can be modified if wishing to run a specific test only
+
+    16. 'RPM_OVS' change to the current RPM name from
+    ```
+    rpm -qa | grep openvswitch
+    ```
+
+Make sure the settings in rh_nic_cert.sh are completed on both the server and client systems.
+
+Then you can execute rh_nic_cert.sh from both the server and client systems.
+
+```
+    ./rh_nic_cert.sh
+```
+
+The tests will execute for 4-6 hours and report the results at the end.
 
 ## Analyzing and gathering the results
 
-__TODO: Add this__
+To collect the results for the performance and functional tests execute the collections.sh script which will
+attempt to retrieve the most recent results from the system and provide a file. Provide this file to the
+certification team for review.
+
+```
+    ./collection.sh
+```
