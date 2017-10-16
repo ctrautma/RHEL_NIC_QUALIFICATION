@@ -1432,19 +1432,27 @@ that must be completed as follows
   5. If doing the topology with a switch then it must be defined correctly in the bin/swlist file
      and referenced by the correct name for the 'SW_NAME' parameter in the rh_nic_cert.sh. The following
      must be correct in the bin/swlist file. This only needs to be done on the client side.
+
          a. Make sure the SW_NAME specified in the rh_nic_cert.sh 'SW_NAME' appears in the SWITCH LIST
+
          b. Populate the values needed for a pre-defined switch name or create a new one
-         ```
+
+```
          set SWITCH(5010,ostype)         "cisco-nxos"
          set SWITCH(5010,login)          "redhat@10.x.x.x"
          set SWITCH(5010,passwd)         "password"
          set SWITCH(5010,prompt)         "sw-5010"
          set SWITCH(5010,spid)           -1
-         ```
+```
+
          c. 'ostype' needs to be the type of switch
+
          d. 'login' needs to be the username and ip for ssh login
+
          e. 'passwd' password for the switch
+
          f. 'prompt' the prompt on the switch CLI
+
          g. 'spid' leave it as -1
 
   6. Back to the rh_nic_cert.sh continue with 'SW_PORT_CLIENT' the switch ports the client side is connected
