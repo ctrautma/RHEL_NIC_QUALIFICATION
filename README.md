@@ -1330,8 +1330,8 @@ potion of the test to know if you setup everything correctly for VSPerf to execu
  DPDK tests
  - 64 bytes PVP will achieve 3 Mpps at 0 loss for 10 minutes
  - 1500 bytes PVP will achieve 1.5 Mpps at 0 loss for 10 minutes
- - 2000 byte jumbo frames physical to physical loopback at 1100000 Mpps at 0 loss for 10 minutes
- - 9000 byte jumbo frames physical to physical loopback at 250 Kpps at 0 loss for 10 minutes
+ - 2000 byte jumbo frames PVP will achieve 1100000 Mpps at 0 loss for 10 minutes
+ - 9000 byte jumbo frames PVP will achieve 250 Kpps at 0 loss for 10 minutes
  Kernel OVS tests
  - 64 bytes PVP will achieve 100 Kpps at 0.002 loss for 10 minutes
  - 1500 bytes PVP will achieve 100 Kpps at 0.002 loss for 10 minutes
