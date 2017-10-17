@@ -755,7 +755,7 @@ EOF
 
         if [ "${array[0]%%.*}" -lt 3000000 ] || [ "${array[1]%%.*}" -lt 1500000 ]
         then
-            if $DONOTFAIL -eq 0
+            if [ $DONOTFAIL -eq 0 ]
             then
                 fail "64/1500 Byte 2PMD PVP" "Failed to achieve required pps on tests"
             fi
@@ -858,7 +858,10 @@ EOF
 
         if [ "${array[0]%%.*}" -lt 1100000 ] || [ "${array[1]%%.*}" -lt 250000 ]
         then
-            fail "2000/9000 Byte 2PMD PVP" "Failed to achieve required pps on tests"
+            if [ $DONOTFAIL -eq 0 ]
+            then
+                fail "2000/9000 Byte 2PMD PVP" "Failed to achieve required pps on tests"
+            fi
         fi
     else
         echo "!!! VSPERF Test Failed !!!!"
@@ -911,7 +914,10 @@ EOF
 
         if [ "${array[0]%%.*}" -lt 100000 ] || [ "${array[1]%%.*}" -lt 100000 ]
         then
-            fail "64/1500 OVS Kernel PVP" "Failed to achieve required pps on tests"
+            if [ $DONOTFAIL -eq 0 ]
+            then
+                fail "64/1500 OVS Kernel PVP" "Failed to achieve required pps on tests"
+            fi
         fi
     else
         echo "!!! VSPERF Test Failed !!!!"
@@ -1034,8 +1040,8 @@ customize_VSPerf_code
 download_VNF_image
 download_conf_files
 generate_2queue_conf
-run_ovs_dpdk_tests
-run_ovs_kernel_tests
+run_ovs_dpdk_tests $DONOTFAIL
+run_ovs_kernel_tests $DONOTFAIL
 print_results
 copy_config_files_to_log_folder
 }
