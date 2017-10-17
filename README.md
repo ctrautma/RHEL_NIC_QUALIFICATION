@@ -1354,6 +1354,10 @@ potion of the test to know if you setup everything correctly for VSPerf to execu
         vf 1 MAC 02:18:7c:11:3b:dd, spoof checking on, link-state auto, trust off, query_rss off
         vf 2 MAC 5a:f3:c5:5a:bc:ce, spoof checking on, link-state auto, trust off, query_rss off
 
+ You can enable a single vf per port as 3 vfs are not required. Just verify the setting in the
+ Perf-Verify.conf for the vf names is appropriate 'NIC1_VF' 'NIC2_VF' and points to the correct
+ vf device.
+
  Now execute the Perf-Verify-sriov.sh test which will run for 3-4 hours.
 
  If the test has been running for 5 minutes then it should run the full 3-4 hours.
@@ -1368,6 +1372,33 @@ potion of the test to know if you setup everything correctly for VSPerf to execu
 
  - 64 Bytes PVP passthrough will achieve 10 Mpps at 0 loss for 10 minutes
  - 1500 Bytes PVP passthrough will achieve 1.6 Mpps at 0 loss for 10 minutes
+
+ There is no donotfail option for the SR-IOV test script as it is a single test so pass or fail it
+ will finish after the one test has completed.
+
+ Result logs are placed into the following folder '/root/RHEL_NIC_QUAL_LOGS/<date_time>'
+
+ The contents will appear as something similar to below.
+
+```
+drwxr-xr-x. 2 root root   83 Oct 16 16:27 2017-10-16-16:24:44
+drwxr-xr-x. 2 root root    6 Oct 16 16:30 2017-10-16-16:30:45
+drwxr-xr-x. 2 root root  116 Oct 16 16:38 2017-10-16-16:34:59
+drwxr-xr-x. 2 root root 4096 Oct 16 16:59 2017-10-16-16:49:26
+drwxr-xr-x. 2 root root   83 Oct 16 17:02 2017-10-16-17:02:03
+drwxr-xr-x. 2 root root 4096 Oct 16 17:30 2017-10-16-17:19:41
+drwxr-xr-x. 2 root root 4096 Oct 16 17:44 2017-10-16-17:34:07
+drwxr-xr-x. 2 root root  116 Oct 16 17:50 2017-10-16-17:47:14
+drwxr-xr-x. 2 root root  116 Oct 17 09:45 2017-10-17-09:41:09
+drwxr-xr-x. 2 root root 4096 Oct 17 10:06 2017-10-17-09:55:18
+drwxr-xr-x. 2 root root   83 Oct 17 10:08 2017-10-17-10:07:09
+drwxr-xr-x. 2 root root  149 Oct 17 11:07 2017-10-17-11:00:41
+-rw-r--r--. 1 root root   60 Oct 17 11:00 vsperf_logs_folder.txt
+```
+
+ The vsperf_logs_folder.txt contains the most recent folder of execution which is used by
+ the collections script to collect the logs. If you wish to review the VSPerf output you
+ can look at the logs in the appropriate folder.
 
  Once this test has passed disable SR-IOV and begin execution of the functional QE scripts
 
@@ -1498,9 +1529,17 @@ The tests will execute for 4-6 hours and report the results at the end.
 ## Analyzing and gathering the results
 
 To collect the results for the performance and functional tests execute the collections.sh script on the
-client only which will attempt to retrieve the most recent results from the system and provide a file.
+client only which will attempt to retrieve the most recent results from the system and provides a file.
 Provide this file to the certification team for review.
 
 ```
     ./collection.sh
+    ......collection output
+    Please provide file <hostname>_2017-10-17-11:18:08.tar to Redhat Certification Team
 ```
+
+The collection script will install sos if it is not already installed and run an sos report. It will also
+collect the "LAST" iteration of the performance QE tests and functional tests. It is assumed that the
+last run was the iteration you wish to send for review. If you have a different iteration you wish to
+submit modify the txt files in RHEL_NIC_QUAL_LOGS to point to the dated folder you wish to submit and
+run the collection script again.

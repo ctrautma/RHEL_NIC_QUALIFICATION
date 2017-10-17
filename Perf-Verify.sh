@@ -71,6 +71,7 @@ log_folder_check() {
     NIC_LOG_FOLDER="/root/RHEL_NIC_QUAL_LOGS/$time_stamp"
     mkdir $NIC_LOG_FOLDER || fail "log folder creation" "Cannot create time stamp folder for logs in root home folder"
     echo "NIC_LOG_FOLDER=$NIC_LOG_FOLDER" > /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
+    echo "*** Placing all output logs to $NIC_LOG_FOLDER"
 
 }
 
