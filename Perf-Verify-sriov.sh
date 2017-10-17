@@ -31,7 +31,7 @@ echo "*** SR-IOV MUST be enabled already for this test to work!!!! ***"
 
 append_log() {
 
-if test -f root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
+if test -f /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
 then
     source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
 else
@@ -40,7 +40,7 @@ else
     mkdir $NIC_LOG_FOLDER || fail "log folder creation" "Cannot create time stamp folder for logs in root home folder"
     echo "NIC_LOG_FOLDER=$NIC_LOG_FOLDER" > /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
 fi
-
+    echo "*** Placing all output logs to $NIC_LOG_FOLDER"
 }
 generate_sriov_conf() {
 
@@ -107,7 +107,7 @@ run_sriov_tests() {
 cd /root/vswitchperf
 scl enable python33 - << \EOF
 source /root/vsperfenv/bin/activate
-source /root/RHEL_NIC_QUAL_LOGS/current_folder.txt
+source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
 python ./vsperf pvp_tput --conf-file=/root/vswitchperf/sriov.conf --vswitch=none --vnf=QemuPciPassthrough &> $NIC_LOG_FOLDER/vsperf_pvp_sriov.log &
 EOF
 
