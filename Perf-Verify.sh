@@ -212,6 +212,14 @@ customize_VSPerf_code() {
 
     echo "*** Customizing VSPerf source code ***"
 
+    # add Trex learning packets
+    sed -i '0,/stats = self.generate_traffic(traffic_duration)/s/        stats = self.generate_traffic(traffic, duration)/        self._logger.info("T-Rex sending learning packets")\
+        learning_thresh_traffic = copy.deepcopy(traffic)\
+        learning_thresh_traffic["frame_rate"] = 1\
+        self.generate_traffic(learning_thresh_traffic, 180)\
+        self._logger.info("T-Rex finished learning packets")\
+        time.sleep(3) # allow packets to complete before starting test traffic\n&/' /root/vswitchperf/tools/pkt_gen/trex/trex.py
+
     # remove drive sharing
     sed -i "/                     '-drive',$/,+3 d" ~/vswitchperf/vnfs/qemu/qemu.py
     sed -i "/self._copy_fwd_tools_for_all_guests()/c\#self._copy_fwd_tools_for_all_guests()" ~/vswitchperf/testcases/testcase.py
@@ -588,7 +596,7 @@ GUEST_HUGEPAGES_NR = ['1']
 
 GUEST_TESTPMD_FWD_MODE = ['io']
 
-GUEST_TESTPMD_PARAMS = ['-l 0,1,2 -n 4 --socket-mem 512 -- '
+GUEST_TESTPMD_PARAMS = ['-l 0,1,2 -n 4 --socket-mem 1024 -- '
                         '--burst=64 -i --txqflags=0xf00 '
                         '--disable-hw-vlan --nb-cores=2, --txq=1 --rxq=1 --rxd=512 --txd=512']
 
