@@ -140,7 +140,7 @@ EOF
         echo "########################################################"
         echo ""
 
-        if [ "${array[0]%%.*}" -lt 400000 ] || [ "${array[1]%%.*}" -lt 300000 ]
+        if [ "${array[0]%%.*}" -lt 10000000 ] || [ "${array[1]%%.*}" -lt 1600000 ]
         then
             fail "64/1500 SR-IOV Passthrough PVP" "Failed to achieve required pps on tests"
         fi
