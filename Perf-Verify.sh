@@ -652,7 +652,7 @@ EOT
 }
 
 download_VNF_image() {
-    if [ ! -f RHEL7-4VNF-1Q.qcow2 ] || [ ! -f RHEL7-4VNF-1Q.qcow2 ]
+    if [ ! -f RHEL7-4VNF-1Q.qcow2 ] || [ ! -f RHEL7-4VNF-2Q.qcow2 ]
     then
         echo ""
         echo "***********************************************************************"

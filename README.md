@@ -1313,11 +1313,18 @@ One can set up this ssh access by doing the following on both servers:
 
     ssh-copy-id <other server>
 
+The T-Rex application must now be running on the T-Rex server for VSPerf to connect
+to it using the Python API as part of its execution. The program should be located
+in the scripts folder of the T-Rex install location.
+
+./t-rex-64 -i
+
 Once all settings are complete one should be able to execute Perf-Verify.sh to start execution
-of VSPerf tests. The script will do some checks to try and verify the setup is complete and
-ready for testing. Any issues will be shown on the screen. Once the initial test has been running
-for 5+ minutes it should be good to run for the 12 hours. The initial 5 minutes are the critical
-potion of the test to know if you setup everything correctly for VSPerf to execute.
+of VSPerf tests. This only needs to be executed on the DUT. Not on the T-Rex server. The script
+will do some checks to try and verify the setup is complete and ready for testing. Any issues
+will be shown on the screen. Once the initial test has been running for 5+ minutes it should be
+good to run for the 12 hours. The initial 5 minutes are the critical portion of the test to know
+if you setup everything correctly for VSPerf to execute.
 
     ***********************************************************
     *** Running 64/1500 Bytes 2PMD OVS/DPDK PVP VSPerf TEST ***
