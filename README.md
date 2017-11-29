@@ -1161,6 +1161,11 @@ All tunings are similar as above on the device under test with the following con
   7. The device under test has an internet connection available to download a custom VNF image.
   8. The server has enough cores to support a PMD mask of 4 threads plus 5 VCPUs for the VNF image
      where the cores are on the same NUMA as the NIC if you are running on a multi numa system.
+  9. Activate rhel-7-server-optional repository for libpcap-devel package that will be installed
+     by the script. 
+     ```
+     subscription-manager repos --enable=rhel-7-server-optional-rpms
+     ```
 
  The tests are located in the root folder of the git cloned repository. You MUST specify ALL values
  in the Perf-Verify.conf file. The settings are as follows.
