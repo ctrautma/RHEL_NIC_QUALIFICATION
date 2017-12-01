@@ -1229,6 +1229,9 @@ All tunings are similar as above on the device under test with the following con
  To use cores 44,20 if your NIC is on Numa 0 you would use a mask of 040000040000
  To use cores 44,20 and 42,18 I would use a mask of 050000050000
 
+ If you need help calculating a mask string you can use the pmdmask.sh script
+ which will calculate out the hex string for you.
+
     PMD2MASK="040000040000"
     PMD4MASK="050000050000"
 
