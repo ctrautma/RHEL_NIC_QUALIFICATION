@@ -28,6 +28,22 @@
 # Detect OS name and version from systemd based os-release file
 . /etc/os-release
 
+if [ $VERSION_ID == "7.5" ]
+then
+    dpdk_ver="1711"
+    one_queue_image="RHEL7-5VNF-1Q.qcow2"
+    two_queue_image="RHEL7-5VNF-2Q.qcow2"
+    one_queue_zip="RHEL7-5VNF-1Q.qcow2.lrz"
+    two_queue_zip="RHEL7-5VNF-2Q.qcow2.lrz"
+elif [ $VERSION_ID == "7.4" ]
+then
+    dpdk_ver="1705"
+    one_queue_image="RHEL7-4VNF-1Q.qcow2"
+    two_queue_image="RHEL7-4VNF-1Q.qcow2"
+    one_queue_zip="RHEL7-4VNF-1Q.qcow2.lrz"
+    two_queue_zip="RHEL7-4VNF-2Q.qcow2.lrz"
+fi
+
 OS_checks() {
 
     echo "*** Running System Checks ***"
@@ -243,7 +259,7 @@ customize_VSPerf_code() {
             'mount -t hugetlbfs hugetlbfs /dev/hugepages')
 
         self.execute_and_wait('cat /proc/meminfo')
-        self.execute_and_wait('rpm -ivh ~/dpdkrpms/1705/*.rpm ')
+        self.execute_and_wait('rpm -ivh ~/dpdkrpms/$dpdk_ver/*.rpm ')
         self.execute_and_wait('cat /proc/cmdline')
         self.execute_and_wait('dpdk-devbind --status')
 
@@ -575,7 +591,7 @@ GUEST_SMP = ['3']
 
 GUEST_CORE_BINDING = [('$VCPU1', '$VCPU2', '$VCPU3')]
 
-GUEST_IMAGE = ['RHEL7-4VNF-1Q.qcow2']
+GUEST_IMAGE = ['$one_queue_image']
 
 GUEST_BOOT_DRIVE_TYPE = ['ide']
 GUEST_SHARED_DRIVE_TYPE = ['ide']
@@ -590,7 +606,7 @@ GUEST_NICS = [[{'device' : 'eth0', 'mac' : '#MAC(00:00:00:00:00:01,2)', 'pci' : 
                {'device' : 'eth3', 'mac' : '#MAC(cc:00:00:00:00:02,2)', 'pci' : '00:07.0', 'ip' : '#IP(192.168.1.5,4)/24'},
              ]]
 
-GUEST_MEMORY = ['4096']
+GUEST_MEMORY = ['8192']
 
 GUEST_HUGEPAGES_NR = ['1']
 
@@ -652,19 +668,19 @@ EOT
 }
 
 download_VNF_image() {
-    if [ ! -f RHEL7-4VNF-1Q.qcow2 ] || [ ! -f RHEL7-4VNF-2Q.qcow2 ]
+    if [ ! -f $one_queue_image ] || [ ! -f $two_queue_image ]
     then
         echo ""
         echo "***********************************************************************"
         echo "*** Downloading and decompressing VNF image. This may take a while! ***"
         echo "***********************************************************************"
         echo ""
-        wget people.redhat.com/ctrautma/RHEL7-4VNF-1Q.qcow2.lrz || fail "VNF download" "Unabled to download VNF"
-        wget people.redhat.com/ctrautma/RHEL7-4VNF-2Q.qcow2.lrz || fail "VNF download" "Unable to download VNF 2Q"
-        lrzip -d RHEL7-4VNF-1Q.qcow2.lrz || fail "VNF decompress" "Unable to decompress VNF zip"
-        lrzip -d RHEL7-4VNF-2Q.qcow2.lrz || fail "VNF decompress" "Unable to decompress VNF zip"
-        rm -f RHEL7-4VNF-1Q.qcow2.lrz
-        rm -f RHEL7-4VNF-2Q.qcow2.lrz
+        wget people.redhat.com/ctrautma/$one_queue_zip || fail "VNF download" "Unabled to download VNF"
+        wget people.redhat.com/ctrautma/$two_queue_zip || fail "VNF download" "Unable to download VNF 2Q"
+        lrzip -d $one_queue_zip || fail "VNF decompress" "Unable to decompress VNF zip"
+        lrzip -d $two_queue_zip || fail "VNF decompress" "Unable to decompress VNF zip"
+        rm -f $one_queue_zip
+        rm -f $two_queue_zip
     fi
 
 }
@@ -684,7 +700,6 @@ fail() {
 generate_2queue_conf() {
 
 cat <<EOT >>/root/vswitchperf/twoqueue.conf
-
 GUEST_TESTPMD_PARAMS = ['-l 0,1,2,3,4 -n 4 --socket-mem 512 -- '
                         '--burst=64 -i --txqflags=0xf00 '
                         '--disable-hw-vlan --nb-cores=4, --txq=2 --rxq=2 --rxd=512 --txd=512']
@@ -695,7 +710,7 @@ GUEST_SMP = ['5']
 
 GUEST_CORE_BINDING = [('$VCPU1', '$VCPU2', '$VCPU3', '$VCPU4', '$VCPU5')]
 
-GUEST_IMAGE = ['RHEL7-4VNF-2Q.qcow2']
+GUEST_IMAGE = ['$two_queue_image']
 
 VSWITCH_DPDK_MULTI_QUEUES = 2
 GUEST_NIC_QUEUES = [2]
