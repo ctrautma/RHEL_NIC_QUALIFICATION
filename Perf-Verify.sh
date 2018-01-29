@@ -820,7 +820,7 @@ EOF
         then
             echo "# 64   Byte 2 queue 4PMD OVS/DPDK PVP test result: ${array[0]} #"
         else
-            echo "# 64 Bytes 2 queue 4 PMD OVS/DPDK PVP failed to reach required 3.5 Mpps got ${array[0]} #"
+            echo "# 64 Bytes 2 queue 4 PMD OVS/DPDK PVP failed to reach required 6.0 Mpps got ${array[0]} #"
         fi
 
         if [ "${array[1]%%.*}" -gt 1500000 ]
