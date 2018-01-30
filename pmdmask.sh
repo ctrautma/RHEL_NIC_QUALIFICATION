@@ -8,13 +8,10 @@ read -a arr <<<$cpus
 foo="'p/x "
 for i in "${arr[@]}"
 do
-    foo="$foo 1<<$i |"
+    foo="$foo 1ULL<<$i |"
 done
 foo=`echo $foo | rev | cut -c 2- | rev`
-#foo="echo $foo"
-#foo="$foo ' | gdb"
-#OUTPUT=`'echo $foo'`
-#echo $OUTPUT
+
 foo="echo $foo ' | gdb"
 eval "${foo}" >mask.txt
 cat mask.txt | awk /=/ | awk '{print $4}'
