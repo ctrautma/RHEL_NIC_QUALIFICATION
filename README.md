@@ -1521,7 +1521,8 @@ that must be completed as follows
 
   7. 'SW_PORT_SERVER' the switch port where the server is connected
 
-  8. 'IMG_GUEST' this is an internal setting only, no need to modify this
+  8. 'IMG_GUEST' this specifies the location of the IMG to use for testing. For 7.4 testing leave it as is. For 7.5
+     please modify the location to http://people.redhat.com/ctrautma/RHEL7-5VNF-1Q.qcow2.lrz
 
   9. 'SRC_NETPERF' set to use the following location people.redhat.com/ctrautma/netperf-20160222.tar.bz2
 
