@@ -453,6 +453,18 @@ systemctl start tuned
 echo isolated_cores=1-13,15-27 >> /etc/tuned/cpu-partitioning-variables.conf
 tuned-adm profile cpu-partitioning
 ```
+<a name="isolcpus"/>
+
+In addition, we would also like to remove these CPUs from the  SMP balancing
+and scheduler algroithms. With the tuned cpu-partitioning starting with version
+2.9.0-1 this can be done with the no_balance_cores= option. As this is not yet
+available to us, we have to do this using the isolcpus option on the kernel
+command line. This can be done as follows:
+
+```
+sed -i -e 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="isolcpus=1-13,15-27 /'  /etc/default/grub
+grub2-mkconfig -o /boot/grub2/grub.cfg
+```
 
 
 Now it's time to reboot the machine to active the isolated cores, and use the
@@ -889,7 +901,7 @@ a day to finish. For more details and background information on this see the
 documentation. This is done running the included __runfullday.sh__ script.
 
 ```
-$./runfullday.sh
+$ ./runfullday.sh
 This script will run the tests as explained in the "Full day PVP test"
 section. It will start the scripts according to the configuration given below,
 and will archive the results.
@@ -897,13 +909,21 @@ and will archive the results.
 NOTE: Make sure you are passing the basic test as explained in "Running the
       PVP script" before starting the full day run!
 
-What datapath are you using, DPDK or Linux Kernel [dpdk/kernel]? dpdk
+This script will run the tests as explained in the "Full day PVP test"
+section. It will start the scripts according to the configuration given below,
+and will archive the results.
+
+NOTE: Make sure you are passing the basic test as explained in "Running the
+      PVP script" before starting the full day run!
+
+What datapath are you using, DPDK or Linux Kernel [dpdk/kernel/tc]? dpdk
 What is the IP address where the DUT (Open vSwitch) is running? 10.19.17.133
 What is the root password of the DUT? root
 What is the IP address of the virtual machine running on the DUT? 192.168.122.186
 What is the IP address of the TRex tester? localhost
 What is the physical interface being used, i.e. dpdk0, em1, p4p5? dpdk0
 What is the virtual interface being used, i.e. vhost0, vnet0? vhost0
+What is the virtual interface PCI id? 0000:00:06.0
 What is the TRex tester physical interface being used? 0
 - Connecting to the tester...
 - Connecting to DUT, "10.19.17.1
@@ -929,117 +949,16 @@ With the above setup, we ran the PVP tests with the Open vSwitch DPDK datapath.
 This section assumes you have the previous configuration running, and explains
 the steps to convert it to a Linux datapath setup.
 
-### Release the DPDK NIC back to the kernel
-Log into the DUT, and do the following to release the NIC back to the kernel:
+### Configuring the Linux Kernel datapath
 
-```
-ovs-vsctl --if-exists del-br ovs_pvp_br0
-systemctl stop openvswitch
-driverctl -v unset-override 0000:01:00.0
-systemctl start openvswitch
-```
-
-You could use the _lshw_ tool to verify that _em1_ is released back to the
-kernel:
-
-```
-# lshw -c network -businfo
-Bus info          Device     Class          Description
-=======================================================
-pci@0000:01:00.0  em1        network        82599ES 10-Gigabit SFI/SFP+ Network
-pci@0000:01:00.1  em2        network        82599ES 10-Gigabit SFI/SFP+ Network
-pci@0000:07:00.0  em3        network        I350 Gigabit Network Connection
-pci@0000:07:00.1  em4        network        I350 Gigabit Network Connection
-```
-
-
-### Recreate the OVS bridge
-
-In the previous step, we deleted the OVS DPDK bridge, which now needs to be
-recreated for the kernel datapath. Recreate the bridge as follows:
-
-```
-ovs-vsctl --if-exists del-br ovs_pvp_br0
-ovs-vsctl add-br ovs_pvp_br0
-ovs-vsctl add-port ovs_pvp_br0 em1 -- \
-          set Interface em1 ofport_request=1
-```
-__NOTE__: You might be surprised the VM is not added here, but that is done
-automatically by Qemu when the VM is started.
-
-
-### Creating a VM for use with the Open vSwitch bridge
-
-First, we need to stop the existing VM, and clone it:
-
-```
-virsh shutdown rhel_loopback
-virt-clone --connect=qemu:///system \
-  -o rhel_loopback \
-  -n rhel_loopback_kerneldp \
-  --auto-clone
-```
-
-
-Now we need to change the _vhostuser_ type network interface to an Open vSwitch
-bridge. We need to edit the VM configuration manually, using the _virsh edit_
-command:
-
-```
-# virsh edit rhel_loopback_kerneldp
-
-diff:
-@@ -82,7 +82,9 @@
-     </controller>
--    <interface type='vhostuser'>
-+    <interface type='bridge'>
-       <mac address='52:54:00:d8:3f:4a'/>
--      <source type='unix' path='/tmp/vhost-sock0' mode='server'/>
-+      <source bridge='ovs_pvp_br0'/>
-+      <virtualport type='openvswitch'/>
-       <model type='virtio'/>
--      <driver queues='2'/>
-       <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
-```
-
-Now we can start the VM, and we will see it being added to our OVS bridge as _vnet0_:
-
-```
-# virsh start rhel_loopback_kerneldp
-Domain rhel_loopback_kerneldp started
-
-# ovs-vsctl show
-5b334fb3-7447-46c4-900b-db78d8fc5a96
-    Bridge "ovs_pvp_br0"
-        Port "em1"
-            Interface "em1"
-        Port "ovs_pvp_br0"
-            Interface "ovs_pvp_br0"
-                type: internal
-        Port "vnet0"
-            Interface "vnet0"
-    ovs_version: "2.8.0"
-```
-
-One final thing to do is getting the IP address assigned to the VM:
-
-```
-# virsh console rhel_loopback_kerneldp
-
-[root@localhost ~]# ip address show eth1
-3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000
-    link/ether 52:54:00:85:5e:e1 brd ff:ff:ff:ff:ff:ff
-    inet 192.168.122.88/24 brd 192.168.122.255 scope global dynamic eth1
-       valid_lft 3443sec preferred_lft 3443sec
-    inet6 fe80::1c38:e5d7:1687:d254/64 scope link
-       valid_lft forever preferred_lft forever
-```
+See the main  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf#open-vswitch-with-linux-kernel-datapath)
+on how to configure the Kernel datapath.
 
 
 ### Run the PVP performance script
 
-The PVP script should now work as before with some slide changes to the 
-interfaces being used. Below is the same _quick 64 bytes packet run with 1000 
+The PVP script should now work as before with some slide changes to the
+interfaces being used. Below is the same _quick 64 bytes packet run with 1000
 flows_ as ran before on the DPDK datapath:
 
 ```
@@ -1102,7 +1021,7 @@ a day to finish. For more details and background information on this see the
 documentation. This is done running the included __runfullday.sh__ script.
 
 ```
-$./runfullday.sh
+$ ./runfullday.sh
 This script will run the tests as explained in the "Full day PVP test"
 section. It will start the scripts according to the configuration given below,
 and will archive the results.
@@ -1110,12 +1029,14 @@ and will archive the results.
 NOTE: Make sure you are passing the basic test as explained in "Running the
       PVP script" before starting the full day run!
 
-What datapath are you using, DPDK or Linux Kernel [dpdk/kernel]? kernel
+What datapath are you using, DPDK or Linux Kernel [dpdk/kernel/tc]? kernel
 What is the IP address where the DUT (Open vSwitch) is running? 10.19.17.133
+What is the root password of the DUT? root
 What is the IP address of the virtual machine running on the DUT? 192.168.122.186
 What is the IP address of the TRex tester? localhost
 What is the physical interface being used, i.e. dpdk0, em1, p4p5? em1
 What is the virtual interface being used, i.e. vhost0, vnet0? vnet0
+What is the virtual interface PCI id? 0000:00:06.0
 What is the TRex tester physical interface being used? 0
 - Connecting to the tester...
 - Connecting to DUT, "10.19.17.1
@@ -1131,6 +1052,123 @@ What is the TRex tester physical interface being used? 0
 =================================================================================
 All tests are done, results are saved in: "/root/pvp_results_2017-10-13_055506_kernel.tgz"
 ```
+
+## Running the _ovs\_perf_ script for the Linux Kernel datapath with TC Flower offload
+
+This step is only required if you are running a blade that supports hardware
+offload using TC flower.
+
+### Configuring the Linux Kernel datapath with TC Flower offload
+
+See the main  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf#open-vswitch-with-linux-kernel-datapath-and-tc-flower-offload)
+on how to configure the Kernel datapath with TC Flower offload.
+
+
+### Run the PVP performance script
+
+The PVP script should now work as before with some slide changes to the
+interfaces being used. Below is the same _quick 64 bytes packet run with 1000
+flows_ as ran before on the other datapaths:
+
+```
+# cd ~/pvp_results
+# ~/ovs_perf/ovs_performance.py \
+ ~/ovs_perf/ovs_performance.py \
+  -d -l testrun_log.txt \
+  --tester-type trex \
+  --tester-address localhost \
+  --tester-interface 0 \
+  --ovs-address 10.19.17.133 \
+  --ovs-user root \
+  --ovs-password root \
+  --dut-vm-address 192.168.122.153 \
+  --dut-vm-user root \
+  --dut-vm-password root \
+  --physical-interface enp3s0np0 \
+  --virtual-interface eth1 \
+  --dut-vm-nic-pci=0000:00:06.0 \
+  --stream-list=1000 \
+  --packet-list=64 \
+  --no-bridge-config \
+  --skip-pv-test \
+  --warm-up
+- Connecting to the tester...
+- Connecting to DUT, "wsfd-netdev16.ntdv.lab.eng.bos.redhat.com"...
+- Stop any running test tools...
+- Get OpenFlow and DataPath port numbers...
+- Get OVS datapath type, "system"...
+- Create "test_results.csv" for writing results...
+- [TEST: test_p2v2p(flows=1000, packet_size=64)] START
+  * Create OVS OpenFlow rules...
+  * Clear all OpenFlow/Datapath rules on bridge "ovs_pvp_br0"...
+  * Doing flow table cool-down...
+  * Create 1000 L3 OpenFlow rules...
+  * Create 1000 L3 OpenFlow rules...
+  * Verify requested number of flows exists...
+  * Initializing packet generation...
+  * Doing flow table warm-up...
+  * Clear all statistics...
+  * Start packet receiver on VM...
+  * Start CPU monitoring on DUT...
+  * Start packet generation for 20 seconds...
+  * Stop CPU monitoring on DUT...
+  * Stopping packet stream...
+  * Stop packet receiver on VM...
+  * Gathering statistics...
+    - Packets send by Tester      :        1,180,505,088
+    - Packets received by physical:        1,180,505,088 [Lost 0, Drop 0]
+    - Packets received by virtual :          211,455,733 [Lost 969,049,355, Drop 304,298,982]
+    - Packets send by virtual     :          211,405,495 [Lost 50,238, Drop 0]
+    - Packets send by physical    :          212,696,034 [Lost -1,290,539, Drop 0]
+    - Packets received by Tester  :          211,405,249 [Lost 1,290,785]
+    - Receive rate on VM: 10,662,126 pps
+  ! Result, average: 10,659,505 pps
+  * Restoring state for next test...
+- [TEST: test_p2v2p(flows=1000, packet_size=64)] END
+- Done running performance tests!
+```
+
+If this is successful we can go ahead and do a full run. This will roughly take
+a day to finish. For more details and background information on this see the
+[_ovs\_perf_](https://github.com/chaudron/ovs_perf/blob/master/README.md#full-day-pvp-test)
+documentation. This is done running the included __runfullday.sh__ script.
+
+```
+$ ./runfullday.sh
+This script will run the tests as explained in the "Full day PVP test"
+section. It will start the scripts according to the configuration given below,
+and will archive the results.
+
+NOTE: Make sure you are passing the basic test as explained in "Running the
+      PVP script" before starting the full day run!
+
+What datapath are you using, DPDK or Linux Kernel [dpdk/kernel/tc]? tc
+What is the IP address where the DUT (Open vSwitch) is running? 10.19.17.133
+What is the root password of the DUT? root
+What is the IP address of the virtual machine running on the DUT? 192.168.122.153
+What is the IP address of the TRex tester? localhost
+What is the physical interface being used, i.e. dpdk0, em1, p4p5? enp3s0np0
+What is the virtual interface being used, i.e. vhost0, vnet0? eth1
+What is the virtual interface PCI id? 0000:00:06.0
+What is the TRex tester physical interface being used? 0
+- Connecting to the tester...
+- Connecting to DUT, "10.19.17.1
+...
+...
+=================================================================================
+== ALL TESTS ARE DONE                                                         ===
+=================================================================================
+
+
+Please verify all the results and make sure they are within the expected
+rates for the blade!!
+
+=================================================================================
+All test results are saved in: "/root/pvp_results_2018-02-23_040540_tc.tgz"
+```
+
+
+
 
 ## Running VSPerf Performance tests
 
