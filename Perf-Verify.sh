@@ -39,7 +39,7 @@ elif [ $VERSION_ID == "7.4" ]
 then
     dpdk_ver="1705"
     one_queue_image="RHEL7-4VNF-1Q.qcow2"
-    two_queue_image="RHEL7-4VNF-1Q.qcow2"
+    two_queue_image="RHEL7-4VNF-2Q.qcow2"
     one_queue_zip="RHEL7-4VNF-1Q.qcow2.lrz"
     two_queue_zip="RHEL7-4VNF-2Q.qcow2.lrz"
 fi
