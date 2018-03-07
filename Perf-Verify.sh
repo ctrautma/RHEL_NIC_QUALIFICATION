@@ -232,7 +232,7 @@ customize_VSPerf_code() {
     sed -i '0,/stats = self.generate_traffic(traffic_duration)/s/        stats = self.generate_traffic(traffic, duration)/        self._logger.info("T-Rex sending learning packets")\
         learning_thresh_traffic = copy.deepcopy(traffic)\
         learning_thresh_traffic["frame_rate"] = 1\
-        self.generate_traffic(learning_thresh_traffic, 180)\
+        self.generate_traffic(learning_thresh_traffic, 5)\
         self._logger.info("T-Rex finished learning packets")\
         time.sleep(3) # allow packets to complete before starting test traffic\n&/' /root/vswitchperf/tools/pkt_gen/trex/trex.py
 
@@ -484,7 +484,7 @@ download_conf_files() {
 
     git checkout conf/10_custom.conf --force # reset the config
 
-    cat <<EOT >> ~/vswitchperf/conf/10_custom.conf
+    cat <<EOT >> ~/vswitchperf/conf/11_custom.conf
 VSWITCHD_DPDK_ARGS = ['-c', '0x1', '-n', '4']
 VSWITCHD_DPDK_CONFIG = {
     'dpdk-init' : 'true',
@@ -614,9 +614,10 @@ GUEST_TESTPMD_FWD_MODE = ['io']
 
 GUEST_TESTPMD_PARAMS = ['-l 0,1,2 -n 4 --socket-mem 1024 -- '
                         '--burst=64 -i --txqflags=0xf00 '
-                        '--disable-hw-vlan --nb-cores=2, --txq=1 --rxq=1 --rxd=512 --txd=512']
+                        '--disable-hw-vlan --nb-cores=2, --txq=1 --rxq=1 --rxd=$RXD_SIZE --txd=$TXD_SIZE']
 
-TEST_PARAMS = {'TRAFFICGEN_PKT_SIZES':(64,1500), 'TRAFFICGEN_DURATION':600, 'TRAFFICGEN_LOSSRATE':0}
+#TEST_PARAMS = {'TRAFFICGEN_PKT_SIZES':(64,1500), 'TRAFFICGEN_DURATION':600, 'TRAFFICGEN_LOSSRATE':0}
+TEST_PARAMS = {'TRAFFICGEN_PKT_SIZES':(1500,), 'TRAFFICGEN_DURATION':2, 'TRAFFICGEN_LOSSRATE':0.2}
 
 # Update your Trex trafficgen info below
 TRAFFICGEN_TREX_HOST_IP_ADDR = '$TRAFFICGEN_TREX_HOST_IP_ADDR'
@@ -735,10 +736,22 @@ git_clone_vsperf() {
 
 }
 
-run_ovs_dpdk_tests() {
+run_tests() {
+TESTLIST=$1
 
-DONOTFAIL=$1
+if [ "$TESTLIST" == "pvp_cont" ]
+then
+    echo "*** Running 1500 Byte PVP VSPerf verify check ***"
 
+scl enable python33 - << \EOF
+source /root/vsperfenv/bin/activate
+python ./vsperf pvp_cont --test-params="TRAFFICGEN_DURATION=30; TRAFFICGEN_PKT_SIZES=1500,"
+EOF
+fi
+
+
+if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "1Q" ]
+then
     echo ""
     echo "***********************************************************"
     echo "*** Running 64/1500 Bytes 2PMD OVS/DPDK PVP VSPerf TEST ***"
@@ -755,47 +768,14 @@ EOF
     vsperf_pid=`pgrep -f vsperf`
 
     spinner $vsperf_pid
+fi
 
-    if [[ `grep "Overall test report written to" $NIC_LOG_FOLDER/vsperf_pvp_2pmd.log` ]]
-    then
-
-        echo ""
-        echo "########################################################"
-
-        mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_2pmd.log | awk '{print $11}' )
-        if [ "${array[0]%%.*}" -gt 3000000 ]
-        then
-            echo "# 64   Byte 2PMD OVS/DPDK PVP test result: ${array[0]} #"
-        else
-            echo "# 64 Bytes 2 PMD OVS/DPDK PVP failed to reach required 3.5 Mpps got ${array[0]} #"
-        fi
-
-        if [ "${array[1]%%.*}" -gt 1500000 ]
-        then
-            echo "# 1500 Byte 2PMD OVS/DPDK PVP test result: ${array[1]} #"
-        else
-            echo "# 1500 Bytes 2 PMD OVS/DPDK PVP failed to reach required 1.5 Mpps got ${array[1]} #"
-        fi
-
-        echo "########################################################"
-        echo ""
-
-        if [ "${array[0]%%.*}" -lt 3000000 ] || [ "${array[1]%%.*}" -lt 1500000 ]
-        then
-            if [ $DONOTFAIL -eq 0 ]
-            then
-                fail "64/1500 Byte 2PMD PVP" "Failed to achieve required pps on tests"
-            fi
-        fi
-    else
-        echo "!!! VSPERF Test Failed !!!!"
-        fail "Error on VSPerf test" "VSPerf test failed. Please check log at $NIC_LOG_FOLDER/vsperf_pvp_2pmd.log"
-    fi
-
+if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "2Q" ]
+then
     echo ""
-    echo "***********************************************************"
+    echo "*******************************************************************"
     echo "*** Running 64/1500 Bytes 2 queue 4PMD OVS/DPDK PVP VSPerf TEST ***"
-    echo "***********************************************************"
+    echo "*******************************************************************"
     echo ""
 
 scl enable python33 - << \EOF
@@ -808,47 +788,14 @@ EOF
     vsperf_pid=`pgrep -f vsperf`
 
     spinner $vsperf_pid
+fi
 
-    if [[ `grep "Overall test report written to" $NIC_LOG_FOLDER/vsperf_pvp_4pmd-2q.log` ]]
-    then
-
-        echo ""
-        echo "########################################################"
-
-        mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_4pmd-2q.log | awk '{print $11}' )
-        if [ "${array[0]%%.*}" -gt 6000000 ]
-        then
-            echo "# 64   Byte 2 queue 4PMD OVS/DPDK PVP test result: ${array[0]} #"
-        else
-            echo "# 64 Bytes 2 queue 4 PMD OVS/DPDK PVP failed to reach required 6.0 Mpps got ${array[0]} #"
-        fi
-
-        if [ "${array[1]%%.*}" -gt 1500000 ]
-        then
-            echo "# 1500 Byte 2 queue 4PMD OVS/DPDK PVP test result: ${array[1]} #"
-        else
-            echo "# 1500 Bytes 2 queue 4 PMD OVS/DPDK PVP failed to reach required 1.5 Mpps got ${array[1]} #"
-        fi
-
-        echo "########################################################"
-        echo ""
-
-        if [ "${array[0]%%.*}" -lt 6000000 ] || [ "${array[1]%%.*}" -lt 1500000 ]
-        then
-            if [ $DONOTFAIL -eq 0 ]
-            then
-                fail "64/1500 Byte 2 queue 4PMD PVP" "Failed to achieve required pps on tests"
-            fi
-        fi
-    else
-        echo "!!! VSPERF Test Failed !!!!"
-        fail "Error on VSPerf test" "VSPerf test failed. Please check log at $NIC_LOG_FOLDER/vsperf_pvp_4pmd-2q.log"
-    fi
-
+if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "Jumbo" ]
+then
     echo ""
-    echo "*****************************************************************"
-    echo "*** Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST     ***"
-    echo "*****************************************************************"
+    echo "*************************************************************"
+    echo "*** Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST ***"
+    echo "*************************************************************"
     echo ""
 
 scl enable python33 - << \EOF
@@ -861,46 +808,10 @@ EOF
     vsperf_pid=`pgrep -f vsperf`
 
     spinner $vsperf_pid
+fi
 
-    if [[ `grep "Overall test report written to" $NIC_LOG_FOLDER/vsperf_pvp_2pmd_jumbo.log` ]]
-    then
-
-        echo ""
-        echo "########################################################"
-
-        mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_2pmd_jumbo.log | awk '{print $11}' )
-        if [ "${array[0]%%.*}" -gt 1100000 ]
-        then
-            echo "# 2000 Byte 2PMD OVS/DPDK PVP test result: ${array[0]} #"
-        else
-            echo "# 2000 Bytes 2 PMD OVS/DPDK PVP failed to reach required 1.1 Mpps got ${array[0]} #"
-        fi
-
-        if [ "${array[1]%%.*}" -gt 250000 ]
-        then
-            echo "# 9000 Byte 2PMD OVS/DPDK PVP test result: ${array[1]} #"
-        else
-            echo "# 9000 Bytes 2 PMD OVS/DPDK PVP failed to reach required 250 Kpps got ${array[1]} #"
-        fi
-
-        echo "########################################################"
-        echo ""
-
-        if [ "${array[0]%%.*}" -lt 1100000 ] || [ "${array[1]%%.*}" -lt 250000 ]
-        then
-            if [ $DONOTFAIL -eq 0 ]
-            then
-                fail "2000/9000 Byte 2PMD PVP" "Failed to achieve required pps on tests"
-            fi
-        fi
-    else
-        echo "!!! VSPERF Test Failed !!!!"
-        fail "Error on VSPerf test" "VSPerf test failed. Please check log at $NIC_LOG_FOLDER/vsperf_pvp_2pmd_jumbo.log"
-    fi
-
-}
-
-run_ovs_kernel_tests() {
+if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "Kernel" ]
+then
     echo ""
     echo "********************************************************"
     echo "*** Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST ***"
@@ -917,43 +828,7 @@ EOF
     vsperf_pid=`pgrep -f vsperf`
 
     spinner $vsperf_pid
-
-    if [[ `grep "Overall test report written to" $NIC_LOG_FOLDER/vsperf_pvp_ovs_kernel.log` ]]
-    then
-
-        echo ""
-        echo "########################################################"
-
-        mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_ovs_kernel.log | awk '{print $11}' )
-        if [ "${array[0]%%.*}" -gt 100000 ]
-        then
-            echo "# 64   Byte OVS Kernel PVP test result: ${array[0]} #"
-        else
-            echo "# 64 Bytes OVS Kernel PVP failed to reach required 100 Kpps got ${array[0]} #"
-        fi
-
-        if [ "${array[1]%%.*}" -gt 100000 ]
-        then
-            echo "# 1500 Byte OVS Kernel PVP test result: ${array[1]} #"
-        else
-            echo "# 1500 Bytes OVS Kernel PVP failed to reach required 200 Kpps got ${array[1]} #"
-        fi
-
-        echo "########################################################"
-        echo ""
-
-        if [ "${array[0]%%.*}" -lt 100000 ] || [ "${array[1]%%.*}" -lt 100000 ]
-        then
-            if [ $DONOTFAIL -eq 0 ]
-            then
-                fail "64/1500 OVS Kernel PVP" "Failed to achieve required pps on tests"
-            fi
-        fi
-    else
-        echo "!!! VSPERF Test Failed !!!!"
-        fail "Error on VSPerf test" "VSPerf test failed. Please check log at $NIC_LOG_FOLDER/vsperf_pvp_ovs_kernel.log"
-    fi
-
+fi
 }
 
 spinner() {
@@ -1010,36 +885,58 @@ vsperf_make() {
 }
 
 print_results() {
-
-mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_2pmd.log | awk '{print $11}' )
+if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp*' -print -quit)"
+then
 cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
 ########################################################
 #             RESULTS OF ALL VSPERF TESTS              #
 #                                                      #
+EOT
+fi
+
+if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp_2pmd.log' -print -quit)"
+then
+mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_2pmd.log | awk '{print $11}' )
+cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
 # 64   Byte 2PMD OVS/DPDK PVP test result: ${array[0]} #
 # 1500 Byte 2PMD OVS/DPDK PVP test result: ${array[1]} #
 EOT
+fi
 
+if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp_4pmd-2q.log' -print -quit)"
+then
 mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_4pmd-2q.log | awk '{print $11}' )
 cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
 # 64   Byte 4PMD 2Q OVS/DPDK PVP test result: ${array[0]} #
 # 1500 Byte 4PMD 2Q OVS/DPDK PVP test result: ${array[1]} #
 EOT
+fi
 
+if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp_2pmd_jumbo.log' -print -quit)"
+then
 mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_2pmd_jumbo.log | awk '{print $11}' )
 cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
 # 2000 Byte 2PMD OVS/DPDK Phy2Phy test result: ${array[0]} #
 # 9000 Byte 2PMD OVS/DPDK Phy2Phy test result: ${array[1]} #
 EOT
+fi
 
+if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp_ovs_kernel.log' -print -quit)"
+then
 mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_ovs_kernel.log | awk '{print $11}' )
 cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
 # 64   Byte OVS Kernel PVP test result: ${array[0]} #
 # 1500 Byte OVS Kernel PVP test result: ${array[0]} #
-#####################################################
 EOT
+fi
 
+if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp*' -print -quit)"
+then
+cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
+########################################################
+EOT
 cat $NIC_LOG_FOLDER//vsperf_results.txt
+fi
 
 }
 
@@ -1049,14 +946,17 @@ cp /root/vswitchperf/conf/* $NIC_LOG_FOLDER
 cp /root/RHEL_NIC_QUALIFICATION/Perf-Verify.conf $NIC_LOG_FOLDER
 
 }
+function usage () {
+   cat <<EOF
+Usage: $progname [-t test to execute] [-h print help]
+-t tests to execute ['1Q, 2Q, Jumbo, Kernel, pvp_cont'] default is to run all tests
+-h print this help message
+EOF
+   exit 0
+}
+
 
 main() {
-if [ "${1}" == "--donotfail" ]
-then
-    DONOTFAIL=1
-else
-    DONOTFAIL=0
-fi
 # run all checks
 OS_checks
 log_folder_check
@@ -1069,14 +969,33 @@ network_connection_check
 ovs_running_check
 # finished running checks
 
+TESTLIST="ALL"
+
+progname=$0
+while getopts t:l:h FLAG; do
+   case $FLAG in
+
+   t)  TESTLIST1=$OPTARG
+       echo "Running test(s) $OPTARG"
+       ;;
+   h)  echo "found $opt" ; usage ;;
+   \?)  usage ;;
+   esac
+done
+
+if [[ ! "$TESTLIST1" == "" ]]
+then
+    TESTLIST=$TESTLIST1
+    
+fi
+
 git_clone_vsperf
 vsperf_make
 customize_VSPerf_code
 download_VNF_image
 download_conf_files
 generate_2queue_conf
-run_ovs_dpdk_tests $DONOTFAIL
-run_ovs_kernel_tests $DONOTFAIL
+run_tests $TESTLIST
 print_results
 copy_config_files_to_log_folder
 }

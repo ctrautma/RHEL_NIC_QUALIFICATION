@@ -91,7 +91,7 @@ TRAFFICGEN_TREX_PROMISCUOUS=True
 
 GUEST_TESTPMD_PARAMS = ['-l 0,1,2 -n 4 --socket-mem 512 -- '
                         '--burst=64 -i --txqflags=0xf00 '
-                        '--disable-hw-vlan --nb-cores=2, --txq=1 --rxq=1 --rxd=2048 --txd=2048']
+                        '--disable-hw-vlan --nb-cores=2, --txq=1 --rxq=1 --rxd=$SRIOV_RXD_SIZE --txd=$SRIOV_TXD_SIZE']
 
 EOT
 
@@ -115,40 +115,6 @@ EOF
     vsperf_pid=`pgrep -f vsperf`
 
     spinner $vsperf_pid
-
-    if [[ `grep "Overall test report written to" $NIC_LOG_FOLDER/vsperf_pvp_sriov.log` ]]
-    then
-
-        echo ""
-        echo "########################################################"
-
-        mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_sriov.log | awk '{print $11}' )
-        if [ "${array[0]%%.*}" -gt 10000000 ]
-        then
-            echo "# 64   Byte SR-IOV Passthrough PVP test result: ${array[0]} #"
-        else
-            echo "# 64 Bytes SR-IOV Passthrough PVP failed to reach required 18 Mpps got ${array[0]} #"
-        fi
-
-        if [ "${array[1]%%.*}" -gt 1600000 ]
-        then
-            echo "# 1500 Byte SR-IOV Passthrough PVP test result: ${array[1]} #"
-        else
-            echo "# 1500 Bytes SR-IOV Passthrough PVP failed to reach required 1.6 Mpps got ${array[1]} #"
-        fi
-
-        echo "########################################################"
-        echo ""
-
-        if [ "${array[0]%%.*}" -lt 10000000 ] || [ "${array[1]%%.*}" -lt 1600000 ]
-        then
-            fail "64/1500 SR-IOV Passthrough PVP" "Failed to achieve required pps on tests"
-        fi
-    else
-        echo "!!! VSPERF Test Failed !!!!"
-        fail "Error on VSPerf test" "VSPerf test failed. Please check log at $NIC_LOG_FOLDER/vsperf_pvp_sriov.log"
-    fi
-
 }
 
 
