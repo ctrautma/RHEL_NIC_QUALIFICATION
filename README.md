@@ -1310,6 +1310,15 @@ All tunings are similar as above on the device under test with the following con
     VCPU4="6"
     VCPU5="30"
 
+ TestPMD runs inside the guest with a descriptor value for receive and transmit. Some cards
+ may benefit from different sizes when executing TestPMD. You can modify these values by
+ changing the following settings for OVS-DPDK/Kernel tests and SR-IOV tests
+ 
+    TXD_SIZE=512
+    RXD_SIZE=512
+    SRIOV_TXD_SIZE=2048
+    SRIOV_RXD_SIZE=2048
+
  Specify your Trex information in the conf file based on your T-Rex server.
 
     TRAFFICGEN_TREX_HOST_IP_ADDR=''
@@ -1346,7 +1355,16 @@ All tunings are similar as above on the device under test with the following con
 
     TRAFFICGEN_TREX_PORT1='a0:36:9f:65:ee:7a'
     TRAFFICGEN_TREX_PORT2='a0:36:9f:65:ee:78'
-    TRAFFICGEN_TREX_LINE_SPEED_GBPS='10' # line speed of the ports generating traffic.
+
+By default the VSPerf api calls to T-rex will try to determine the best speed to operate.
+
+For generating traffic with some cards it may be useful to specify a lower speed. For example
+if you wanted to force the maximum speed of your T-Rex server to operate at 10G speed you can
+modify the following lines. Simple set the TREX_FORCE_CUSTOM_SPEED to be True.  The speed option
+is already set to 10 gigabit. For 25 gigabit you could modify it to 25000.
+
+    TREX_FORCE_CUSTOM_SPEED=False
+    TREX_CUSTOM_SPEED=10000
 
  SR-IOV Information
  To run SR-IOV tests please complete the following info
@@ -1378,17 +1396,34 @@ in the scripts folder of the T-Rex install location.
 Once all settings are complete one should be able to execute Perf-Verify.sh to start execution
 of VSPerf tests. This only needs to be executed on the DUT. Not on the T-Rex server. The script
 will do some checks to try and verify the setup is complete and ready for testing. Any issues
-will be shown on the screen. Once the initial test has been running for 5+ minutes it should be
-good to run for the 12 hours. The initial 5 minutes are the critical portion of the test to know
-if you setup everything correctly for VSPerf to execute.
+will be shown on the screen.
+
+There is an option to only execute specific tests by running Perf-Verify.sh with a -t argument
+followed by the test name. Here is a list of the tests with their respective argument;
+
+1Q - 1 queue running 4 PMD threads on 2 Hyper threads for 64 and 1500 byte packet sizes
+2Q - 2 queues running 8 PMD threads on 4 Hyper threads for 64 and 1500 byte packet sizes
+Jumbo - 1 queue running 4 PMD threads on 2 Hyper threads running 2000 and 9000 byte packet sizes
+Kernel - Kernel datapath with no DPDK enabled.
+
+If you wanted to run just the 1Q test to troubleshoot a possible issue you could execute the script
+like so:
+
+./Perf-Verify.sh -t 1Q
+
+There is also a fast execution test to check VSPerf functionality and to verify your T-Rex server
+configuration. You can run the script and specify the pvp_cont test like so:
+
+./Perf-Verify.sh -t pvp_cont
+
+You will see the following output when the tests start to execute and cycle this banner for each
+test.
 
     ***********************************************************
     *** Running 64/1500 Bytes 2PMD OVS/DPDK PVP VSPerf TEST ***
     ***********************************************************
 
-    ...running for 5 minutes
-
- The tests will verify that performance has passed required specifications per the following guidelines.
+ The tests should meet the following pass criteria when viewing the final results.
 
  DPDK tests
  - 64 bytes PVP will achieve 3 Mpps at 0 loss for 10 minutes
@@ -1401,11 +1436,7 @@ if you setup everything correctly for VSPerf to execute.
  - 64 bytes PVP will achieve 100 Kpps at 0.002 loss for 10 minutes
  - 1500 bytes PVP will achieve 100 Kpps at 0.002 loss for 10 minutes
 
- If a test fails to achieve the proper performance the script will exit so the configuration and or fixes
- can be applied. If one wishes to bypass the pass fail you can execute the Perf-Verify.sh script with a
- --donotfail argument to bypass the pass/fail option.
-
- Once all tests have passed or completed the next script will execute a VSPerf tests using SR-IOV
+ Once all tests completed the next script will execute a VSPerf tests using SR-IOV
  to bypass the switch and send packets from a VF directly to the guest.
 
  Enable SR-IOV on the NICs under test.
@@ -1433,13 +1464,10 @@ if you setup everything correctly for VSPerf to execute.
 
     ...running for 5 minutes
 
- For this test to pass the following performance must meet the following specifications
+ For this test to be considered a pass by Red Hat the results must meet the following specifications
 
  - 64 Bytes PVP passthrough will achieve 10 Mpps at 0 loss for 10 minutes
  - 1500 Bytes PVP passthrough will achieve 1.6 Mpps at 0 loss for 10 minutes
-
- There is no donotfail option for the SR-IOV test script as it is a single test so pass or fail it
- will finish after the one test has completed.
 
  Result logs are placed into the following folder '/root/RHEL_NIC_QUAL_LOGS/<date_time>'
 
