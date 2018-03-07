@@ -228,14 +228,6 @@ customize_VSPerf_code() {
 
     echo "*** Customizing VSPerf source code ***"
 
-    # add Trex learning packets
-    sed -i '0,/stats = self.generate_traffic(traffic_duration)/s/        stats = self.generate_traffic(traffic, duration)/        self._logger.info("T-Rex sending learning packets")\
-        learning_thresh_traffic = copy.deepcopy(traffic)\
-        learning_thresh_traffic["frame_rate"] = 1\
-        self.generate_traffic(learning_thresh_traffic, 5)\
-        self._logger.info("T-Rex finished learning packets")\
-        time.sleep(3) # allow packets to complete before starting test traffic\n&/' /root/vswitchperf/tools/pkt_gen/trex/trex.py
-
     # remove drive sharing
     sed -i "/                     '-drive',$/,+3 d" ~/vswitchperf/vnfs/qemu/qemu.py
     sed -i "/self._copy_fwd_tools_for_all_guests()/c\#self._copy_fwd_tools_for_all_guests()" ~/vswitchperf/testcases/testcase.py
@@ -630,6 +622,19 @@ TRAFFICGEN_TREX_LINE_SPEED_GBPS = '$TRAFFICGEN_TREX_LINE_SPEED_GBPS'
 TRAFFICGEN = 'Trex'
 TRAFFICGEN_TREX_LATENCY_PPS = 0
 TRAFFICGEN_TREX_RFC2544_TPUT_THRESHOLD = 0.5
+# Enablement of learning packets before sending test traffic
+TRAFFICGEN_TREX_LEARNING_MODE = True
+TRAFFICGEN_TREX_LEARNING_DURATION = 5
+# FOR SR-IOV or multistream layer 2 tests to work with T-Rex enable Promiscuous mode
+TRAFFICGEN_TREX_PROMISCUOUS = False
+# Enable below options to force T-rex api to attempt to use speed specified on server
+# side when pushing traffic. For 40G use 40000. For 25G use 25000.
+TRAFFICGEN_TREX_FORCE_PORT_SPEED = False
+TRAFFICGEN_TREX_PORT_SPEED = 10000 # 10G
+# TRex validation option for RFC2544
+TRAFFICGEN_TREX_VERIFICATION_MODE = True
+TRAFFICGEN_TREX_VERIFICATION_DURATION = 10
+TRAFFICGEN_TREX_MAXIMUM_VERIFICATION_TRIALS = 10
 
 TRAFFIC = {
     'traffic_type' : 'rfc2544_throughput',
@@ -661,6 +666,13 @@ TRAFFIC = {
         'id': 0,
         'priority': 0,
         'cfi': 0,
+    },
+        'capture': {
+        'enabled': False,
+        'tx_ports' : [0],
+        'rx_ports' : [1],
+        'count': 1,
+        'filter': '',
     },
 }
 
@@ -729,10 +741,8 @@ git_clone_vsperf() {
         git clone https://gerrit.opnfv.org/gerrit/vswitchperf &>>$NIC_LOG_FOLDER/vsperf_clone.log
     fi
     cd vswitchperf
-    git checkout -f 9d2900035923bf307477c5b4b8dc423ba1b2086f &>>$NIC_LOG_FOLDER/vsperf_clone.log # Euphrates release
+    git checkout -f 91e0985be7ca2b2654f89928315431228b7ecc56 &>>$NIC_LOG_FOLDER/vsperf_clone.log # Master with T-Rex fixes
     git fetch https://gerrit.opnfv.org/gerrit/vswitchperf refs/changes/75/44275/1 && git cherry-pick FETCH_HEAD # single numa fix
-    git fetch https://gerrit.opnfv.org/gerrit/vswitchperf refs/changes/47/44247/7 && git cherry-pick FETCH_HEAD # T-Rex multistream
-
 
 }
 
@@ -743,7 +753,7 @@ if [ "$TESTLIST" == "pvp_cont" ]
 then
     echo "*** Running 1500 Byte PVP VSPerf verify check ***"
 
-scl enable python33 - << \EOF
+scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 python ./vsperf pvp_cont --test-params="TRAFFICGEN_DURATION=30; TRAFFICGEN_PKT_SIZES=1500,"
 EOF
@@ -758,7 +768,7 @@ then
     echo "***********************************************************"
     echo ""
 
-scl enable python33 - << \EOF
+scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
 python ./vsperf pvp_tput &>$NIC_LOG_FOLDER/vsperf_pvp_2pmd.log &
@@ -778,7 +788,7 @@ then
     echo "*******************************************************************"
     echo ""
 
-scl enable python33 - << \EOF
+scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
 python ./vsperf pvp_tput --conf-file=/root/vswitchperf/twoqueue.conf &>$NIC_LOG_FOLDER/vsperf_pvp_4pmd-2q.log &
@@ -798,7 +808,7 @@ then
     echo "*************************************************************"
     echo ""
 
-scl enable python33 - << \EOF
+scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
 python ./vsperf pvp_tput --test-params="TRAFFICGEN_PKT_SIZES=2000,9000; VSWITCH_JUMBO_FRAMES_ENABLED=True" &>$NIC_LOG_FOLDER/vsperf_pvp_2pmd_jumbo.log &
@@ -818,7 +828,7 @@ then
     echo "********************************************************"
     echo ""
 
-scl enable python33 - << \EOF
+scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
 python ./vsperf pvp_tput --vswitch=OvsVanilla --vnf=QemuVirtioNet --test-params="TRAFFICGEN_LOSSRATE=0.002" &>$NIC_LOG_FOLDER/vsperf_pvp_ovs_kernel.log &

@@ -105,7 +105,7 @@ run_sriov_tests() {
     echo ""
 
 cd /root/vswitchperf
-scl enable python33 - << \EOF
+scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
 python ./vsperf pvp_tput --conf-file=/root/vswitchperf/sriov.conf --vswitch=none --vnf=QemuPciPassthrough &> $NIC_LOG_FOLDER/vsperf_pvp_sriov.log &
