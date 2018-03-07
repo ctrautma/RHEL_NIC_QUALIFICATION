@@ -1313,7 +1313,7 @@ All tunings are similar as above on the device under test with the following con
  TestPMD runs inside the guest with a descriptor value for receive and transmit. Some cards
  may benefit from different sizes when executing TestPMD. You can modify these values by
  changing the following settings for OVS-DPDK/Kernel tests and SR-IOV tests
- 
+
     TXD_SIZE=512
     RXD_SIZE=512
     SRIOV_TXD_SIZE=2048

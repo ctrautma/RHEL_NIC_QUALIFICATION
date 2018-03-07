@@ -230,7 +230,7 @@ customize_VSPerf_code() {
 
     # remove drive sharing
     sed -i "/                     '-drive',$/,+3 d" ~/vswitchperf/vnfs/qemu/qemu.py
-    sed -i "/self._copy_fwd_tools_for_all_guests()/c\#self._copy_fwd_tools_for_all_guests()" ~/vswitchperf/testcases/testcase.py
+    sed -i "/self._copy_fwd_tools_for_all_guests/c\#self._copy_fwd_tools_for_all_guests" ~/vswitchperf/testcases/testcase.py
 
     # add code to deal with custom image
     cat <<EOT >>vnfs/qemu/qemu.py
