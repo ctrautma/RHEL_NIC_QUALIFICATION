@@ -41,6 +41,10 @@ KERNEL_L2_PVP_PNGS = ['root/pvp_results_10_l2_kernel/test_p2v2p_all_l2_ref.png',
 
 class ResultsSheet(object):
     def __init__(self, args):
+        """
+        Constructor
+        :param args: arguments parse object from command line output
+        """
         self._args = args
         self._workbook = xlsxwriter.Workbook(self._args.output)
         self.client_file = args.client_tar_file
@@ -53,12 +57,30 @@ class ResultsSheet(object):
         self.functional_ws = self._workbook.add_worksheet('functional results')
         self.row = 0
 
+    def close_workbook(self):
+        """
+        Close the workbook
+        :return: None
+        """
+        self._workbook.close()
+
     def process_functional_results(self):
+        """
+        Process functional test results
+        :return: None
+        """
         tar1 = tarfile.open(self.client_file, "r")
         tar2 = tarfile.open(self.server_file, "r")
         self.functional_ws.set_column(0, 4, 30)
 
         def process_log(tar, member, column):
+            """
+            Process the log
+            :param tar: tar file
+            :param member: member inside tar file to process
+            :param column: column to write to
+            :return: Boolean if any test was a failure
+            """
             self.row = 1
             column = column
             fh1 = tar.extractfile(member)
@@ -90,38 +112,11 @@ class ResultsSheet(object):
         else:
             self.functional_ws.name = self.functional_ws.name + ' (PASS)'
 
-    def write_pvp_worksheet(self, tar_file, csv_file, worksheet, png_list):
-        fh = tar_file.extractfile(csv_file)
-        reader = csv.reader(fh, delimiter=',', quotechar='|')
-        test_fail = False
-        max_column = 0
-        for row in reader:
-            column = 0
-            try:
-                if len(row) > 0 and 'cpu' not in row[0]:
-                    for i in range(len(row)):
-                        # try to convert to int to round.
-                        try:
-                            entry = int(float(row[i]))
-                            if entry <= 0:
-                                test_fail = True
-                        except ValueError:
-                            entry = row[i]
-                        worksheet.write_string(self.row, column, str(entry))
-                        column += 1
-                    self.row += 1
-                    max_column = column if column > max_column else max_column
-            except IndexError:
-                continue
-        for png in png_list[1:2]:
-            tar_file.extractall()
-            worksheet.insert_image(self.row, 0, png)
-
-        worksheet.set_column(0, max_column, 30)
-        self.row = 0
-        return test_fail
-
     def process_pvp_results(self):
+        """
+        Process Eelcos pvp results
+        :return: None
+        """
         # get the pvp result files
         pvp_files = glob.glob('./pvp*.tgz')
         for result_file in pvp_files:
@@ -150,19 +145,11 @@ class ResultsSheet(object):
                 else:
                     self.pvp_kernel_l3_ws.name = self.pvp_kernel_l3_ws.name + ' (PASS)'
 
-    def write_throughput_pass_fail(self, row, column, text, pass_value):
-
-        fail_format = self._workbook.add_format()
-        fail_format.set_color('red')
-
-        if int(text) < pass_value:
-            self.vsperf_ws.write_string(row, column, text, fail_format)
-            return True
-        else:
-            self.vsperf_ws.write_string(row, column, text)
-            return False
-
     def process_throughput_results(self):
+        """
+        Process the vsperf results
+        :return: None
+        """
         self.vsperf_ws.set_column(0, 2, 30)
 
         bold_format = self._workbook.add_format()
@@ -228,9 +215,63 @@ class ResultsSheet(object):
         else:
             self.vsperf_ws.name = self.vsperf_ws.name + ' (FAIL)'
 
-    def close_workbook(self):
-        self._workbook.close()
+    def write_pvp_worksheet(self, tar_file, csv_file, worksheet, png_list):
+        """
+        Write out the pvp results to the specified worksheet, write pass fail on worksheet name
+        :param tar_file: tar file
+        :param csv_file: csv file to process inside of tar
+        :param worksheet: worksheet to write to
+        :param png_list: png list from CONSTANT values
+        :return: return boolean if any test failed
+        """
+        fh = tar_file.extractfile(csv_file)
+        reader = csv.reader(fh, delimiter=',', quotechar='|')
+        test_fail = False
+        max_column = 0
+        for row in reader:
+            column = 0
+            try:
+                if len(row) > 0 and 'cpu' not in row[0]:
+                    for i in range(len(row)):
+                        # try to convert to int to round.
+                        try:
+                            entry = int(float(row[i]))
+                            if entry <= 0:
+                                test_fail = True
+                        except ValueError:
+                            entry = row[i]
+                        worksheet.write_string(self.row, column, str(entry))
+                        column += 1
+                    self.row += 1
+                    max_column = column if column > max_column else max_column
+            except IndexError:
+                continue
+        for png in png_list[1:2]:
+            tar_file.extractall()
+            worksheet.insert_image(self.row, 0, png)
 
+        worksheet.set_column(0, max_column, 30)
+        self.row = 0
+        return test_fail
+
+    def write_throughput_pass_fail(self, row, column, text, pass_value):
+        """
+        Write out the vsperf results to the location specified
+        :param row: row in sheet
+        :param column: column in sheet
+        :param text: result text
+        :param pass_value: minimum value to pass for the result
+        :return: Boolean if test was a failure
+        """
+        fail_format = self._workbook.add_format()
+        fail_format.set_color('red')
+
+        if int(text) < pass_value:
+            self.vsperf_ws.write_string(row, column, text, fail_format)
+            return True
+        else:
+            self.vsperf_ws.write_string(row, column, text)
+            return False
 
 def main():
     mysheet = ResultsSheet(args)
