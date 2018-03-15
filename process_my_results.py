@@ -113,7 +113,7 @@ class ResultsSheet(object):
                     max_column = column if column > max_column else max_column
             except IndexError:
                 continue
-        for png in png_list[0:1]:
+        for png in png_list[1:2]:
             tar_file.extractall()
             worksheet.insert_image(self.row, 0, png)
 
@@ -150,58 +150,80 @@ class ResultsSheet(object):
                 else:
                     self.pvp_kernel_l3_ws.name = self.pvp_kernel_l3_ws.name + ' (PASS)'
 
+    def write_throughput_pass_fail(self, row, column, text, pass_value):
+
+        fail_format = self._workbook.add_format()
+        fail_format.set_color('red')
+
+        if int(text) < pass_value:
+            self.vsperf_ws.write_string(row, column, text, fail_format)
+            return True
+        else:
+            self.vsperf_ws.write_string(row, column, text)
+            return False
+
     def process_throughput_results(self):
         self.vsperf_ws.set_column(0, 2, 30)
+
+        bold_format = self._workbook.add_format()
+        bold_format.set_bold()
+
+        #setup column headers and passing result column
+        self.vsperf_ws.write_string(0, 0, 'Test name', bold_format)
+        self.vsperf_ws.write_string(0, 1, 'Test result', bold_format)
+        self.vsperf_ws.write_string(0, 2, 'Required to pass', bold_format)
+        self.vsperf_ws.write_string(1, 2, '3000000')
+        self.vsperf_ws.write_string(2, 2, '1500000')
+        self.vsperf_ws.write_string(3, 2, '6000000')
+        self.vsperf_ws.write_string(4, 2, '1500000')
+        self.vsperf_ws.write_string(5, 2, '1100000')
+        self.vsperf_ws.write_string(6, 2, '250000')
+        self.vsperf_ws.write_string(7, 2, '100000')
+        self.vsperf_ws.write_string(8, 2, '100000')
+
         tar = tarfile.open(self.client_file, "r")
-        test_fail = False
+        test_fail = list()
         for member in tar.getnames():
             if 'vsperf_result' in member:
                 fh1 = tar.extractfile(member)
                 data = fh1.readlines()
+
                 for line in data:
                     if "64   Byte 2PMD OVS/DPDK PVP test result" in line:
-                        self.vsperf_ws.write_string(0, 0, '64 Byte 2PMD 1Q DPDK')
-                        self.vsperf_ws.write_string(0, 1, str(int(float(line.split()[8]))))
-                        if int(float(line.split()[8])) < 3000000:
-                            test_fail = True
+                        self.vsperf_ws.write_string(1, 0, '64 Byte 2PMD 1Q DPDK', bold_format)
+                        test_fail.append(self.write_throughput_pass_fail(
+                            1, 1, str(int(float(line.split()[8]))), 3000000))
                     elif "1500 Byte 2PMD OVS/DPDK PVP test result" in line:
-                        self.vsperf_ws.write_string(1, 0, '1500 Byte 2PMD 1Q DPDK')
-                        self.vsperf_ws.write_string(1, 1, str(int(float(line.split()[8]))))
-                        if int(float(line.split()[8])) < 1500000:
-                            test_fail = True
+                        self.vsperf_ws.write_string(2, 0, '1500 Byte 2PMD 1Q DPDK', bold_format)
+                        test_fail.append(self.write_throughput_pass_fail(
+                            2, 1, str(int(float(line.split()[8]))), 1500000))
                     elif "64   Byte 4PMD 2Q OVS/DPDK PVP test result" in line:
-                        self.vsperf_ws.write_string(2, 0, '64 Byte 4PMD 2Q DPDK')
-                        self.vsperf_ws.write_string(2, 1, str(int(float(line.split()[9]))))
-                        if int(float(line.split()[9])) < 6000000:
-                            test_fail = True
+                        self.vsperf_ws.write_string(3, 0, '64 Byte 4PMD 2Q DPDK', bold_format)
+                        test_fail.append(self.write_throughput_pass_fail(
+                            3, 1, str(int(float(line.split()[9]))), 6000000))
                     elif "1500 Byte 4PMD 2Q OVS/DPDK PVP test result" in line:
-                        self.vsperf_ws.write_string(3, 0, '1500 Byte 4PMD 2Q DPDK')
-                        self.vsperf_ws.write_string(3, 1, str(int(float(line.split()[9]))))
-                        if int(float(line.split()[9])) < 1500000:
-                            test_fail = True
+                        self.vsperf_ws.write_string(4, 0, '1500 Byte 4PMD 2Q DPDK', bold_format)
+                        test_fail.append(self.write_throughput_pass_fail(
+                            4, 1, str(int(float(line.split()[9]))), 1500000))
                     elif ("2000 Byte 2PMD OVS/DPDK PVP test result" in line or
                                   "2000 Byte 2PMD OVS/DPDK Phy2Phy test result" in line):
-                        self.vsperf_ws.write_string(4, 0, '2000 Byte 2PMD 1Q DPDK')
-                        self.vsperf_ws.write_string(4, 1, str(int(float(line.split()[8]))))
-                        if int(float(line.split()[8])) < 1100000:
-                            test_fail = True
+                        self.vsperf_ws.write_string(5, 0, '2000 Byte 2PMD 1Q DPDK', bold_format)
+                        test_fail.append(self.write_throughput_pass_fail(
+                            5, 1, str(int(float(line.split()[8]))), 1100000))
                     elif ("9000 Byte 2PMD OVS/DPDK PVP test result" in line or
                                   "9000 Byte 2PMD OVS/DPDK Phy2Phy test result" in line):
-                        self.vsperf_ws.write_string(5, 0, '9000 Byte 2PMD 1Q DPDK')
-                        self.vsperf_ws.write_string(5, 1, str(int(float(line.split()[8]))))
-                        if int(float(line.split()[8])) < 250000:
-                            test_fail = True
+                        self.vsperf_ws.write_string(6, 0, '9000 Byte 2PMD 1Q DPDK', bold_format)
+                        test_fail.append(self.write_throughput_pass_fail(
+                            6, 1, str(int(float(line.split()[8]))), 250000))
                     elif "64   Byte OVS Kernel PVP test result" in line:
-                        self.vsperf_ws.write_string(6, 0, '64 Byte Kernel')
-                        self.vsperf_ws.write_string(6, 1, str(int(float(line.split()[8]))))
-                        if int(float(line.split()[8])) < 100000:
-                            test_fail = True
+                        self.vsperf_ws.write_string(7, 0, '64 Byte Kernel',bold_format)
+                        test_fail.append(self.write_throughput_pass_fail(
+                            7, 1, str(int(float(line.split()[8]))), 100000))
                     elif "1500 Byte OVS Kernel PVP test result" in line:
-                        self.vsperf_ws.write_string(7, 0, '1500 Byte Kernel')
-                        self.vsperf_ws.write_string(7, 1, str(int(float(line.split()[8]))))
-                        if int(float(line.split()[8])) < 100000:
-                            test_fail = True
-        if test_fail:
+                        self.vsperf_ws.write_string(8, 0, '1500 Byte Kernel', bold_format)
+                        test_fail.append(self.write_throughput_pass_fail(
+                            8, 1, str(int(float(line.split()[8]))), 100000))
+        if any(test_fail):
             self.vsperf_ws.name = self.vsperf_ws.name + ' (FAIL)'
         else:
             self.vsperf_ws.name = self.vsperf_ws.name + ' (FAIL)'
