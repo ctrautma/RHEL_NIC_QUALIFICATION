@@ -39,6 +39,7 @@ KERNEL_L2_PVP_PNGS = ['root/pvp_results_10_l2_kernel/test_p2v2p_all_l2_ref.png',
                       'root/pvp_results_10_l2_kernel/test_p2v2p_1000_l2.png',
                       'root/pvp_results_10_l2_kernel/test_p2v2p_10_l2.png',]
 
+
 class ResultsSheet(object):
     def __init__(self, args):
         """
@@ -69,6 +70,7 @@ class ResultsSheet(object):
         Process functional test results
         :return: None
         """
+        # Open the tar files from the arguments
         tar1 = tarfile.open(self.client_file, "r")
         tar2 = tarfile.open(self.server_file, "r")
         self.functional_ws.set_column(0, 4, 30)
@@ -133,6 +135,7 @@ class ResultsSheet(object):
                     self.pvp_dpdk_l3_ws.name = self.pvp_dpdk_l3_ws.name + ' (FAIL)'
                 else:
                     self.pvp_dpdk_l3_ws.name = self.pvp_dpdk_l3_ws.name + ' (PASS)'
+            # find the kernel result file and process it
             elif 'kernel' in result_file:
                 if self.write_pvp_worksheet(tar, 'root/pvp_results_1_l2_kernel/test_results_l2.csv',
                                             self.pvp_kernel_l2_ws, KERNEL_L2_PVP_PNGS):
@@ -155,7 +158,7 @@ class ResultsSheet(object):
         bold_format = self._workbook.add_format()
         bold_format.set_bold()
 
-        #setup column headers and passing result column
+        # setup column headers and passing result column
         self.vsperf_ws.write_string(0, 0, 'Test name', bold_format)
         self.vsperf_ws.write_string(0, 1, 'Test result', bold_format)
         self.vsperf_ws.write_string(0, 2, 'Required to pass', bold_format)
@@ -171,6 +174,7 @@ class ResultsSheet(object):
         tar = tarfile.open(self.client_file, "r")
         test_fail = list()
         for member in tar.getnames():
+            # find the vsperf result file
             if 'vsperf_result' in member:
                 fh1 = tar.extractfile(member)
                 data = fh1.readlines()
@@ -272,6 +276,7 @@ class ResultsSheet(object):
         else:
             self.vsperf_ws.write_string(row, column, text)
             return False
+
 
 def main():
     mysheet = ResultsSheet(args)
