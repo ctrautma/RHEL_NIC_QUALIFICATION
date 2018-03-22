@@ -1,3 +1,7 @@
 [submodule "ovs_perf"]
 	path = ovs_perf
 	url = https://github.com/chaudron/ovs_perf.git
+[submodule "perf-flower"]
+	path = perf-flower
+	url = https://github.com/marceloleitner/perf-flower.git
+	branch = master
