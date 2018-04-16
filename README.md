@@ -4,6 +4,10 @@ The goal of this document is to guide you step by step through the process of
 qualifying a NIC driver for NFV usage. This includes both the Linux Kernel
 driver and the DPDK PMD driver.
 
+IT IS CRITICAL for qualification to keep all logs and to execute the collection
+script at the end of these tests. The collection script must be run on the
+server and client side. Please see the end of this file for further details.
+
 The QE Scripts are three separate scripts that all must pass.
 
 - The VSPerf based performance test
@@ -1454,6 +1458,9 @@ test.
  Perf-Verify.conf for the vf names is appropriate 'NIC1_VF' 'NIC2_VF' and points to the correct
  vf device.
 
+ Make sure all VFs have a valid non 0 mac address set otherwise the packets from the traffic
+ generator will not flow to the correct VF and the test will fail.
+
  Now execute the Perf-Verify-sriov.sh test which will run for 3-4 hours.
 
  If the test has been running for 5 minutes then it should run the full 3-4 hours.
@@ -1524,7 +1531,8 @@ the bonding tests require a switch as a broadcast domain to work correctly.
                               To Internet
 ```
 
-To setup these tests git clone the qualification suite onto the Server.
+To setup these tests git clone the qualification suite onto the Server, the client should already have the
+folder available.
 
 ```
     git clone https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
@@ -1542,6 +1550,17 @@ The files will expand into the rh_nic_cert folder. The settings in the Perf-Veri
 are used for a single test in this suite of tests so verify the conf file is correct on the client
 side.
 
+Before starting the tests please uninstall openvswitch and reinstall openvswitch. This is because VSPerf does not
+use systemctl to start openvswitch and can cause some db configuration problems when going back to using systemctl.
+If using a custom openvswitch please re-install the custom version instead of the one from the fast datapath channel.
+
+```
+    yum remove openvswitch
+    yum install openvswitch
+```
+
+It is also recommnded to reboot the systems.
+
 Inside the rh_nic_cert folder is a rh_nic_cert.sh script. This script has settings at the top
 that must be completed as follows
 
@@ -1553,37 +1572,27 @@ that must be completed as follows
 
   4. 'NIC_SERVER' must be set to the NIC device name on the server which will be used to send traffic
 
-  5. If doing the topology with a switch then it must be defined correctly in the bin/swlist file
-     and referenced by the correct name for the 'SW_NAME' parameter in the rh_nic_cert.sh. The following
-     must be correct in the bin/swlist file. This only needs to be done on the client side.
+  5. If doing the topology with a switch for bonding tests then it must be defined correctly in the
+     lib/lib_swcfg_list.sh file and referenced by the correct name for the 'SW_NAME' parameter in the
+     rh_nic_cert.sh. The following must be correct in the lib/swlist_list.sh file. This only needs to
+     be done on the client side.
 
-     a. Make sure the SW_NAME specified in the rh_nic_cert.sh 'SW_NAME' appears in the SWITCH LIST
+     If using a Juniper Junos or Cisco NXOS switch the switch may already be programmed into the
+     scripts. See item a below.
 
-     b. Populate the values needed for a pre-defined switch name or create a new one
+     a. Make sure the SW_NAME specified in the rh_nic_cert.sh 'SW_NAME' appears in the SWITCH LIST file
+        at rh_nic_cert/lib/lib_swcfg_list.sh. If it does not it is possible to add your own switch file
+        for your switch brand. Create a new script file to your brand of switch as lib_swcfg_api_xyz.sh
+        in the lib folder. For example for nxos we use the lib_swcfg_api_nxos.sh so you can use this as
+        a template to define the needed commands. Once the new file is created populate the
+        lib_swcfg_list.sh making sure to name the sw_os per xyz of the newly created file.
 
+     b. Populate the values needed for a pre-defined switch name or create a new one in the SW_LIST where
+        the value should be the model number, the switch type, the ssh login and IP, and the password.
 
-         set SWITCH(5010,ostype)         "cisco-nxos"
+     c. Populate the SW_NAME per the first sw_name of the switch as listed in the lib_swcfg_list.sh file.
 
-         set SWITCH(5010,login)          "redhat@10.x.x.x"
-
-         set SWITCH(5010,passwd)         "password"
-
-         set SWITCH(5010,prompt)         "sw-5010"
-
-         set SWITCH(5010,spid)           -1
-
-     c. 'ostype' needs to be the type of switch
-
-     d. 'login' needs to be the username and ip for ssh login
-
-     e. 'passwd' password for the switch
-
-     f. 'prompt' the prompt on the switch CLI
-
-     g. 'spid' leave it as -1
-
-  6. Back to the rh_nic_cert.sh continue with 'SW_PORT_CLIENT' the switch ports the client side is connected
-     to
+  6. Populate 'SW_PORT_CLIENT' with the switch ports the client side is connected
 
   7. 'SW_PORT_SERVER' the switch port where the server is connected
 
@@ -1606,13 +1615,23 @@ that must be completed as follows
 
   16. 'RPM_OVS' change to the current RPM name from
 
+  17. 'RPM_DPDK' change to location of DPDK standalone RPM
+
+  18. 'RPM_DPDK_TOOLS' change to location of DPDK standlone tools RPM
+
+  19. 'RPM_DRIVERCTL' change to location of driverctl RPM
+
 ```
     rpm -qa | grep openvswitch
 ```
 
 Make sure the settings in rh_nic_cert.sh are completed on both the server and client systems.
 
-Then you can execute rh_nic_cert.sh from both the server and client systems.
+In some cases it may be easier to just copy the file from one system to the other once all values have
+been added.
+
+Then you can execute rh_nic_cert.sh from both the server and client systems. They should be executed as
+close together as possible. The scripts will wait for the other side but may time out after some time.
 
 ```
     ./rh_nic_cert.sh
@@ -1637,3 +1656,29 @@ collect the "LAST" iteration of the performance QE tests and functional tests. I
 last run was the iteration you wish to send for review. If you have a different iteration you wish to
 submit modify the txt files in RHEL_NIC_QUAL_LOGS to point to the dated folder you wish to submit and
 run the collection script again.
+
+The files are vsperf_logs_folder.txt and kernel_functional_logs.txt which point to specific folders.
+
+Once all tests have been executed and the output from the collection.sh script and pvp results are collected
+you can generate a report spreadsheet to glance and see how your tests went.
+
+To run the process_my_results.py script. You will need both the client and server side files from
+collection.sh script. You will also need the files from the pvp testing results. Use the -o argument to
+give an output filename for your report.
+
+```
+    python process_my_results.py -h
+    usage: process_my_results.py [-h] -o OUTPUT -s SERVER_TAR_FILE -c
+                             CLIENT_TAR_FILE
+
+    optional arguments:
+    -h, --help            show this help message and exit
+    -o OUTPUT, --output OUTPUT
+                          Output file name
+    -s SERVER_TAR_FILE, --server_tar_file SERVER_TAR_FILE
+                          Server tar file name
+    -c CLIENT_TAR_FILE, --client_tar_file CLIENT_TAR_FILE
+                          Client tar file name
+```
+
+You MUST provide this output as well as the collection.sh script resulting files and PVP tars to Red Hat.

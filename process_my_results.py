@@ -54,6 +54,10 @@ class ResultsSheet(object):
         self.pvp_dpdk_l3_ws = self._workbook.add_worksheet('pvp_dpdk_l3_results')
         self.pvp_kernel_l2_ws = self._workbook.add_worksheet('pvp_kernel_l2_results')
         self.pvp_kernel_l3_ws = self._workbook.add_worksheet('pvp_kernel_l3_results')
+        #if os.path.exists('fl_change.dat'):
+        #     self.flower_rule_ws = self._workbook.add_worksheet('Flower rule install rate results')
+        #else:
+        #    self.flower_rule_ws = None
         self.vsperf_ws = self._workbook.add_worksheet('throughput results')
         self.functional_ws = self._workbook.add_worksheet('functional results')
         self.row = 0
@@ -170,6 +174,8 @@ class ResultsSheet(object):
         self.vsperf_ws.write_string(6, 2, '250000')
         self.vsperf_ws.write_string(7, 2, '100000')
         self.vsperf_ws.write_string(8, 2, '100000')
+        self.vsperf_ws.write_string(9, 2, '10000000')
+        self.vsperf_ws.write_string(10, 2, '1500000')
 
         tar = tarfile.open(self.client_file, "r")
         test_fail = list()
@@ -214,6 +220,16 @@ class ResultsSheet(object):
                         self.vsperf_ws.write_string(8, 0, '1500 Byte Kernel', bold_format)
                         test_fail.append(self.write_throughput_pass_fail(
                             8, 1, str(int(float(line.split()[8]))), 100000))
+            elif 'vsperf_sr_iov_results' in member:
+                for line in data:
+                    if "64   Byte SR_IOV PVP test result" in line:
+                        self.vsperf_ws.write_string(9, 0, '64 Byte SRIOV', bold_format)
+                        test_fail.append(self.write_throughput_pass_fail(
+                            9, 1, str(int(float(line.split()[7]))), 10000000))
+                    elif "1500 Byte SR_IOV PVP test result" in line:
+                        self.vsperf_ws.write_string(10, 0, '1500 Byte SRIOV', bold_format)
+                        test_fail.append(self.write_throughput_pass_fail(
+                            10, 1, str(int(float(line.split()[7]))), 1500000))
         if any(test_fail):
             self.vsperf_ws.name = self.vsperf_ws.name + ' (FAIL)'
         else:
