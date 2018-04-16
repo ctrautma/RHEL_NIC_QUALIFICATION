@@ -1585,7 +1585,9 @@ that must be completed as follows
         for your switch brand. Create a new script file to your brand of switch as lib_swcfg_api_xyz.sh
         in the lib folder. For example for nxos we use the lib_swcfg_api_nxos.sh so you can use this as
         a template to define the needed commands. Once the new file is created populate the
-        lib_swcfg_list.sh making sure to name the sw_os per xyz of the newly created file.
+        lib_swcfg_list.sh making sure to name the sw_os per xyz of the newly created file. If you created
+        a new configuration for a switch please do a pull request to the github so we can add it for
+        future executions.
 
      b. Populate the values needed for a pre-defined switch name or create a new one in the SW_LIST where
         the value should be the model number, the switch type, the ssh login and IP, and the password.
