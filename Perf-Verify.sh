@@ -30,7 +30,7 @@
 
 if [ $VERSION_ID == "7.5" ]
 then
-    dpdk_ver="1711"
+    dpdk_ver="1711-9"
     one_queue_image="RHEL7-5VNF-1Q.qcow2"
     two_queue_image="RHEL7-5VNF-2Q.qcow2"
     one_queue_zip="RHEL7-5VNF-1Q.qcow2.lrz"
@@ -935,7 +935,7 @@ then
 mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_ovs_kernel.log | awk '{print $11}' )
 cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
 # 64   Byte OVS Kernel PVP test result: ${array[0]} #
-# 1500 Byte OVS Kernel PVP test result: ${array[0]} #
+# 1500 Byte OVS Kernel PVP test result: ${array[1]} #
 EOT
 fi
 
