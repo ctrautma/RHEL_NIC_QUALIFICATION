@@ -117,6 +117,32 @@ EOF
     spinner $vsperf_pid
 }
 
+print_results_sr_iov() {
+if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp_sriov*' -print -quit)"
+then
+cat <<EOT >>$NIC_LOG_FOLDER/vsperf_sr_iov_results.txt
+#################################################
+#      RESULTS OF SRIOV VSPERF TESTS            #
+#                                               #
+EOT
+fi
+
+if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp_sriov.log' -print -quit)"
+then
+mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_sriov.log | awk '{print $11}' )
+cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
+# 64   Byte SR_IOV PVP test result: ${array[0]} #
+# 1500 Byte SR_IOV PVP test result: ${array[1]} #
+EOT
+fi
+
+cat <<EOT >>$NIC_LOG_FOLDER/vsperf_sr_iov_results.txt
+##################################################
+EOT
+cat $NIC_LOG_FOLDER//vsperf_sr_iov_results.txt
+
+}
+
 
 sriov_check() {
 
@@ -163,3 +189,4 @@ download_conf_files
 
 generate_sriov_conf
 run_sriov_tests
+print_results_sr_iov
