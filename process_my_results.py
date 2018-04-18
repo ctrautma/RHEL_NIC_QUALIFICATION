@@ -293,12 +293,30 @@ class ResultsSheet(object):
             self.vsperf_ws.write_string(row, column, text)
             return False
 
+    def process_tc_flower_result(self):
+        """
+        write the tc flower to work sheet
+        :return: Boolean if test was a failure
+        """
+        if os.path.exists('fl_change.dat'):
+            self.flower_rule_ws = self._workbook.add_worksheet('Flower rule install rate results')
+        else:
+            self.flower_rule_ws = None
+            return False
+        if os.path.exists('fl_change.png'):
+            self.flower_rule_ws.insert_image(self.row, 0,'fl_change.png')
+            return True
+        else:
+            return False
+
+
 
 def main():
     mysheet = ResultsSheet(args)
     mysheet.process_pvp_results()
     mysheet.process_throughput_results()
     mysheet.process_functional_results()
+    mysheet.process_tc_flower_result()
     mysheet.close_workbook()
 
 
