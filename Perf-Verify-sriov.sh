@@ -83,6 +83,13 @@ TRAFFIC = {
         'priority': 0,
         'cfi': 0,
     },
+    'capture': {
+        'enabled': False,
+        'tx_ports' : [0],
+        'rx_ports' : [1],
+        'count': 1,
+        'filter': '',
+    },
 }
 WHITELIST_NICS = ['$NIC1_VF_PCI_ADDR', '$NIC2_VF_PCI_ADDR']
 
