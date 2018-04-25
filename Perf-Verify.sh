@@ -550,7 +550,7 @@ PATHS['dpdk'] = {
             'testpmd': os.path.join(RTE_TARGET, 'app', 'testpmd'),
         },
         'bin': {
-            'bind-tool': '/usr/share/dpdk/tools/dpdk-devbind.py',
+            'bind-tool': '/usr/share/dpdk/usertools/dpdk-devbind.py',
             'modules' : ['uio', 'vfio-pci'],
             'testpmd' : 'testpmd'
         }
