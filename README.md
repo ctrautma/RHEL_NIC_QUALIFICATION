@@ -32,7 +32,7 @@ functional requirements.
 
 The performance based tests (_VSPerf_ and _ovs\_perf_) require two servers.
 One server will have TREX installed, the other will be a clean install system
-running RHEL 7.4 or greater. The servers should be wired back to back from the
+running RHEL 7.5 or greater. The servers should be wired back to back from the
 test NICs to the output NICs of the T-Rex server. These tests use two NIC ports
 on the DUT and two ports on the T-Rex which are connected as shown below.
 The two NIC ports on the DUT must be the brand and type of NICs which are to be
@@ -574,17 +574,17 @@ ovs-vsctl add-port ovs_pvp_br0 vhost0 -- \
 
 ### Create the loopback Virtual Machine
 
-Get the [Red Hat Enterprise Linux 7.4 KVM Guest Image](https://access.redhat.com/downloads/content/69/ver=/rhel---7/7.4/x86_64/product-software).
+Get the [Red Hat Enterprise Linux 7.5 KVM Guest Image](https://access.redhat.com/downloads/content/69/ver=/rhel---7/7.5/x86_64/product-software).
 If you do not have access to the image please contact your Red Had
 representative. Copy the image for use by qemu:
 
 ```
 # ls -l ~/*.qcow2
--rw-r--r--. 1 root root 556247552 Jul 13 06:10 rhel-server-7.4-x86_64-kvm.qcow2
+-rw-r--r--. 1 root root 556247552 Jul 13 06:10 rhel-server-7.5-x86_64-kvm.qcow2
 ```
 ```
 mkdir -p /opt/images
-cp ~/rhel-server-7.4-x86_64-kvm.qcow2 /opt/images
+cp ~/rhel-server-7.5-x86_64-kvm.qcow2 /opt/images
 ```
 
 
@@ -595,6 +595,11 @@ systemctl enable libvirtd.service
 systemctl start libvirtd.service
 ```
 
+You may hit bug 1544948  in some steps below which requires setting 777
+permissions on /tmp/vhost directories. If you VM ends up in a paused state
+viewed from  a `virsh list --all` command
+
+Please see https://bugzilla.redhat.com/show_bug.cgi?id=1544948 for more details
 
 Setup as much as possible with a single call to _virt-install_:
 
@@ -603,7 +608,7 @@ Setup as much as possible with a single call to _virt-install_:
   --network vhostuser,source_type=unix,source_path=/tmp/vhost-sock0,source_mode=server,model=virtio,driver_queues=2 \
   --network network=default \
   --name=rhel_loopback \
-  --disk path=/opt/images/rhel-server-7.4-x86_64-kvm.qcow2,format=qcow2 \
+  --disk path=/opt/images/rhel-server-7.5-x86_64-kvm.qcow2,format=qcow2 \
   --ram 8192 \
   --memorybacking hugepages=on,size=1024,unit=M,nodeset=0 \
   --vcpus=4,cpuset=3,4,5,6 \
@@ -722,19 +727,26 @@ from source:
 
 ```
 [root@localhost ~]# cd ~
-[root@localhost ~]# wget http://fast.dpdk.org/rel/dpdk-17.08.tar.xz
-[root@localhost ~]# tar xf dpdk-17.08.tar.xz
-[root@localhost ~]# cd dpdk-17.08
-[root@localhost dpdk-17.08]# make install T=x86_64-native-linuxapp-gcc DESTDIR=_install
-[root@localhost dpdk-17.08]# ln -s /root/dpdk-17.08/x86_64-native-linuxapp-gcc/app/testpmd /usr/bin/testpmd
+[root@localhost ~]# wget http://fast.dpdk.org/rel/dpdk-17.11.tar.xz
+[root@localhost ~]# tar xf dpdk-17.11.tar.xz
+[root@localhost ~]# cd dpdk-17.11
+[root@localhost dpdk-17.11]# make install T=x86_64-native-linuxapp-gcc DESTDIR=_install
+[root@localhost dpdk-17.11]# ln -s /root/dpdk-17.11/x86_64-native-linuxapp-gcc/app/testpmd /usr/bin/testpmd
+```
+
+If build errors are encountered you can enable the fast datapath repo and pull 17.11 from there
+
+```
+subscription-manager repos --enable rhel-7-server-extras-rpms
+yum install -y dpdk
 ```
 
 You can quickly check if your VM is setup correctly by starting _testpmd_
 as follows:
 
 ```
-[root@localhost dpdk-17.08]# cd ~
-[root@localhost dpdk-17.08]# testpmd -c 0x7 -n 4 --socket-mem 1024,0 -w 0000:00:02.0 -- \
+[root@localhost dpdk-17.11]# cd ~
+[root@localhost dpdk-17.11]# testpmd -c 0x7 -n 4 --socket-mem 1024,0 -w 0000:00:02.0 -- \
   --burst 64 --disable-hw-vlan -i --rxq=2 --txq=2 \
   --rxd=4096 --txd=1024 --coremask=0x6 --auto-start \
   --port-topology=chained
