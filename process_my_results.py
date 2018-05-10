@@ -298,13 +298,53 @@ class ResultsSheet(object):
         write the tc flower to work sheet
         :return: Boolean if test was a failure
         """
-        if os.path.exists('fl_change.dat'):
-            self.flower_rule_ws = self._workbook.add_worksheet('Flower rule install rate results')
+        row=0
+        column=0
+        def get_average_rate(data_file):
+            rate_list = []
+            if os.path.exists(data_file):
+                with open("fl_change.dat") as fd:
+                    all_data_list = fd.read().split("\n\n")
+                    for data in all_data_list:
+                        if None != data and data not in ['\n','\r','\r\n']:
+                            data_list = data.strip('\n').split('\n')
+                            begin_time = data_list[0].split(" ")[0]
+                            end_time,total_rule = data_list[-1].split(" ")
+                            #print(begin_time)
+                            #print(end_time)
+                            total_time = float(end_time) - float(begin_time)
+                            try:
+                                rate = int(total_rule) / total_time
+                                rate_list.append(rate)
+                            except:
+                                rate = int(total_rule)
+                                rate_list.append(rate)
+                            pass
+                        else:
+                            pass
+                pass
+            else:
+                print("Can not find the data file")
+            #print(rate_list)
+            return rate_list
+
+        data_file = "fl_change.dat"
+        if os.path.exists(data_file):
+            self.flower_rule_ws = self._workbook.add_worksheet('tc-flower rule rate install')
+            self.flower_rule_ws.write_string(row,column+1,"average_rate")
+            row+=1
+            rate_list = get_average_rate(data_file)
+            if rate_list:
+                for index,rate in enumerate(rate_list):
+                    label = "Test %d" % (index+1)
+                    self.flower_rule_ws.write_string(row,column,label)
+                    self.flower_rule_ws.write_string(row,column+1,str(rate))
+                    row+=1
         else:
             self.flower_rule_ws = None
             return False
         if os.path.exists('fl_change.png'):
-            self.flower_rule_ws.insert_image(self.row, 0,'fl_change.png')
+            self.flower_rule_ws.insert_image(row+3, 0,'fl_change.png')
             return True
         else:
             return False
