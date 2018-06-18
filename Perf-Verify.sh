@@ -752,10 +752,8 @@ if [ "$TESTLIST" == "pvp_cont" ]
 then
     echo "*** Running 1500 Byte PVP VSPerf verify check ***"
 
-scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 python ./vsperf pvp_cont --test-params="TRAFFICGEN_DURATION=30; TRAFFICGEN_PKT_SIZES=1500,"
-EOF
 fi
 
 
@@ -767,11 +765,9 @@ then
     echo "***********************************************************"
     echo ""
 
-scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
 python ./vsperf pvp_tput &>$NIC_LOG_FOLDER/vsperf_pvp_2pmd.log &
-EOF
 
     sleep 2
     vsperf_pid=`pgrep -f vsperf`
@@ -787,11 +783,9 @@ then
     echo "*******************************************************************"
     echo ""
 
-scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
 python ./vsperf pvp_tput --conf-file=/root/vswitchperf/twoqueue.conf &>$NIC_LOG_FOLDER/vsperf_pvp_4pmd-2q.log &
-EOF
 
     sleep 2
     vsperf_pid=`pgrep -f vsperf`
@@ -807,11 +801,9 @@ then
     echo "*************************************************************"
     echo ""
 
-scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
 python ./vsperf pvp_tput --test-params="TRAFFICGEN_PKT_SIZES=2000,9000; VSWITCH_JUMBO_FRAMES_ENABLED=True" &>$NIC_LOG_FOLDER/vsperf_pvp_2pmd_jumbo.log &
-EOF
 
     sleep 2
     vsperf_pid=`pgrep -f vsperf`
@@ -827,11 +819,9 @@ then
     echo "********************************************************"
     echo ""
 
-scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
 python ./vsperf pvp_tput --vswitch=OvsVanilla --vnf=QemuVirtioNet --test-params="TRAFFICGEN_LOSSRATE=0.002" &>$NIC_LOG_FOLDER/vsperf_pvp_ovs_kernel.log &
-EOF
 
     sleep 2
     vsperf_pid=`pgrep -f vsperf`
