@@ -880,6 +880,8 @@ vsperf_make() {
         if ! [ -d "./systems/rhel/$VERSION_ID" ]
         then
             cp -R systems/rhel/7.2 systems/rhel/$VERSION_ID
+            cp /root/RHEL_NIC_QUALIFICATION/build_base_machine.sh systems/rhel/$VERSION_ID
+            cp /root/RHEL_NIC_QUALIFICATION/prepare_python_env.sh systems/rhel/$VERSION_ID
         fi
         cd systems
         ./build_base_machine.sh &> $NIC_LOG_FOLDER/vsperf_install.log &
