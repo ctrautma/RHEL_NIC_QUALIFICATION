@@ -498,7 +498,38 @@ rates for the blade!!
 All test results are saved in: "/root/pvp_results_2018-02-23_040540_tc.tgz"
 ```
 
+## TC Flower Rule Rate Tests
 
+If you card is going to support TC Flower rule offloading then please run the next
+set of tests.
+
+1. Stop openvswitch and the guest if it is still running
+```
+systemctl stop openvswitch
+virsh shutdown rhel_loopback
+```
+
+The test is located in RHEL_NIC_QUALIFICATION/perf-flower/rule-install-rate
+
+If this folder is empty you may have to force an init to pull the test package
+from the RHEL_NIC_QUALIFICATION folder.
+
+```
+git submodule update --init
+```
+
+You may have to install some modules for run this test script.
+
+```
+yum install -y perf gnuplot kernel-debuginfo
+```
+
+You must modify the run.sh script and change the IFACE variable at the top to the
+network card port you are testing.
+
+Then execute the run.sh script.
+
+Please save the result file fl_change.dat file off to be processed later.
 
 
 ## Running VSPerf Performance tests
@@ -984,7 +1015,8 @@ The collection script will install sos if it is not already installed and run an
 collect the "LAST" iteration of the performance QE tests and functional tests. It is assumed that the
 last run was the iteration you wish to send for review. If you have a different iteration you wish to
 submit modify the txt files in RHEL_NIC_QUAL_LOGS to point to the dated folder you wish to submit and
-run the collection script again.
+run the collection script again. Also make sure the TC FLOWER test result file fl_change.dat is in the
+folder you are executing the script from.
 
 The files are vsperf_logs_folder.txt and kernel_functional_logs.txt which point to specific folders.
 
