@@ -35,13 +35,13 @@ then
     two_queue_image="RHEL7-5VNF-2Q.qcow2"
     one_queue_zip="RHEL7-5VNF-1Q.qcow2.lrz"
     two_queue_zip="RHEL7-5VNF-2Q.qcow2.lrz"
-elif [ $VERSION_ID == "7.4" ]
+elif [ $VERSION_ID == "7.6" ]
 then
-    dpdk_ver="1705"
-    one_queue_image="RHEL7-4VNF-1Q.qcow2"
-    two_queue_image="RHEL7-4VNF-2Q.qcow2"
-    one_queue_zip="RHEL7-4VNF-1Q.qcow2.lrz"
-    two_queue_zip="RHEL7-4VNF-2Q.qcow2.lrz"
+    dpdk_ver="1711-9"
+    one_queue_image="RHEL76-1Q.qcow2"
+    two_queue_image="RHEL76-2Q.qcow2"
+    one_queue_zip="RHEL76-1Q.qcow2.lrz"
+    two_queue_zip="RHEL76-2Q.qcow2.lrz"
 fi
 
 OS_checks() {
@@ -546,11 +546,11 @@ PATHS['dpdk'] = {
             # To use vfio set:
             # 'modules' : ['uio', 'vfio-pci'],
             'modules' : ['uio', os.path.join(RTE_TARGET, 'kmod/igb_uio.ko')],
-            'bind-tool': 'tools/dpdk*bind.py',
+            'bind-tool': '/usr/share/dpdk/tools/dpdk-devbind.py',
             'testpmd': os.path.join(RTE_TARGET, 'app', 'testpmd'),
         },
         'bin': {
-            'bind-tool': '/usr/share/dpdk/usertools/dpdk-devbind.py',
+            'bind-tool': '/usr/share/dpdk/tools/dpdk-devbind.py',
             'modules' : ['uio', 'vfio-pci'],
             'testpmd' : 'testpmd'
         }
@@ -882,6 +882,8 @@ vsperf_make() {
             cp -R systems/rhel/7.2 systems/rhel/$VERSION_ID
         fi
         cd systems
+        sed -i 's/source\s"$VSPERFENV_DIR".*/&\npip install --upgrade pip/' rhel/$VERSION_ID/prepare_python_env.sh
+        sed -i 's/source\s"$VSPERFENV_DIR".*/&\npip install --upgrade setuptools/' rhel/$VERSION_ID/prepare_python_env.sh
         ./build_base_machine.sh &> $NIC_LOG_FOLDER/vsperf_install.log &
         spinner
         cd ..
