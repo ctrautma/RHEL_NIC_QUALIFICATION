@@ -691,7 +691,7 @@ All tunings are similar as above on the device under test with the following con
 
  ***Note*** the trailing / in the path
 
-    TRAFFICGEN_TREX_BASE_DIR='/root/trex/v2.29'
+    TRAFFICGEN_TREX_BASE_DIR='/root/trex/v2.29/'
 
  Mac addresses of the ports configured in TRex Server as found in
 
