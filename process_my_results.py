@@ -39,6 +39,23 @@ KERNEL_L2_PVP_PNGS = ['root/pvp_results_10_l2_kernel/test_p2v2p_all_l2_ref.png',
                       'root/pvp_results_10_l2_kernel/test_p2v2p_1000_l2.png',
                       'root/pvp_results_10_l2_kernel/test_p2v2p_10_l2.png',]
 
+TC_L3_PVP_PNGS = ['root/pvp_results_10_l3_tc/test_p2v2p_all_l3_ref.png',
+                  'root/pvp_results_10_l3_tc/test_p2v2p_all_l3.png',
+                  'root/pvp_results_10_l3_tc/test_p2v2p_1000000_l3.png',
+                  'root/pvp_results_10_l3_tc/test_p2v2p_100000_l3.png',
+                  'root/pvp_results_10_l3_tc/test_p2v2p_10000_l3.png',
+                  'root/pvp_results_10_l3_tc/test_p2v2p_1000_l3.png',
+                  'root/pvp_results_10_l3_tc/test_p2v2p_10_l3.png',]
+
+TC_L2_PVP_PNGS = ['root/pvp_results_10_l2_tc/test_p2v2p_all_l2_ref.png',
+                  'root/pvp_results_10_l2_tc/test_p2v2p_all_l2.png',
+                  'root/pvp_results_10_l2_tc/test_p2v2p_1000000_l2.png',
+                  'root/pvp_results_10_l2_tc/test_p2v2p_100000_l2.png',
+                  'root/pvp_results_10_l2_tc/test_p2v2p_10000_l2.png',
+                  'root/pvp_results_10_l2_tc/test_p2v2p_1000_l2.png',
+                  'root/pvp_results_10_l2_tc/test_p2v2p_10_l2.png',]
+
+
 
 class ResultsSheet(object):
     def __init__(self, args):
@@ -54,6 +71,8 @@ class ResultsSheet(object):
         self.pvp_dpdk_l3_ws = self._workbook.add_worksheet('pvp_dpdk_l3_results')
         self.pvp_kernel_l2_ws = self._workbook.add_worksheet('pvp_kernel_l2_results')
         self.pvp_kernel_l3_ws = self._workbook.add_worksheet('pvp_kernel_l3_results')
+        self.pvp_tc_l2_ws = self._workbook.add_worksheet('pvp_tc_flower_l2_results')
+        self.pvp_tc_l3_ws = self._workbook.add_worksheet('pvp_tc_flower_l3_results')
         #if os.path.exists('fl_change.dat'):
         #     self.flower_rule_ws = self._workbook.add_worksheet('Flower rule install rate results')
         #else:
@@ -151,6 +170,18 @@ class ResultsSheet(object):
                     self.pvp_kernel_l3_ws.name = self.pvp_kernel_l3_ws.name + ' (FAIL)'
                 else:
                     self.pvp_kernel_l3_ws.name = self.pvp_kernel_l3_ws.name + ' (PASS)'
+            # find the tc_flower result file and process it
+            elif 'tc' in result_file:
+                if self.write_pvp_worksheet(tar, 'root/pvp_results_1_l2_tc/test_results_l2.csv',
+                                            self.pvp_tc_l2_ws, TC_L2_PVP_PNGS):
+                    self.pvp_tc_l2_ws.name = self.pvp_tc_l2_ws.name + ' (FAIL)'
+                else:
+                    self.pvp_tc_l2_ws.name = self.pvp_tc_l2_ws.name + ' (PASS)'
+                if self.write_pvp_worksheet(tar, 'root/pvp_results_1_l3_tc/test_results_l3.csv',
+                                            self.pvp_tc_l3_ws, TC_L3_PVP_PNGS):
+                    self.pvp_tc_l3_ws.name = self.pvp_tc_l3_ws.name + ' (FAIL)'
+                else:
+                    self.pvp_tc_l3_ws.name = self.pvp_tc_l3_ws.name + ' (PASS)'
 
     def process_throughput_results(self):
         """
