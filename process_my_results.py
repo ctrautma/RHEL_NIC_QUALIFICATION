@@ -233,7 +233,7 @@ class ResultsSheet(object):
         if any(test_fail):
             self.vsperf_ws.name = self.vsperf_ws.name + ' (FAIL)'
         else:
-            self.vsperf_ws.name = self.vsperf_ws.name + ' (FAIL)'
+            self.vsperf_ws.name = self.vsperf_ws.name + ' (PASS)'
 
     def write_pvp_worksheet(self, tar_file, csv_file, worksheet, png_list):
         """
