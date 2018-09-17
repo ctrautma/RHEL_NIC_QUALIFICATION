@@ -221,6 +221,8 @@ class ResultsSheet(object):
                         test_fail.append(self.write_throughput_pass_fail(
                             8, 1, str(int(float(line.split()[8]))), 100000))
             elif 'vsperf_sr_iov_results' in member:
+                fh1 = tar.extractfile(member)
+                data = fh1.readlines()
                 for line in data:
                     if "64   Byte SR_IOV PVP test result" in line:
                         self.vsperf_ws.write_string(9, 0, '64 Byte SRIOV', bold_format)
