@@ -529,7 +529,7 @@ network card port you are testing.
 
 Then execute the run.sh script.
 
-Please save the result file fl_change.dat file off to be processed later.
+Please save the result files fl_change.dat and fl_change.png off to be processed later.
 
 
 ## Running VSPerf Performance tests
@@ -1002,8 +1002,7 @@ The tests will execute for 4-6 hours and report the results at the end.
 ## Analyzing and gathering the results
 
 To collect the results for the performance and functional tests execute the collections.sh script on the
-client only which will attempt to retrieve the most recent results from the system and provides a file.
-Provide this file to the certification team for review.
+client and server which will attempt to retrieve the most recent results from the system and provides a file.
 
 ```
     ./collection.sh
@@ -1015,17 +1014,19 @@ The collection script will install sos if it is not already installed and run an
 collect the "LAST" iteration of the performance QE tests and functional tests. It is assumed that the
 last run was the iteration you wish to send for review. If you have a different iteration you wish to
 submit modify the txt files in RHEL_NIC_QUAL_LOGS to point to the dated folder you wish to submit and
-run the collection script again. Also make sure the TC FLOWER test result file fl_change.dat is in the
-folder you are executing the script from.
+run the collection script again.
 
-The files are vsperf_logs_folder.txt and kernel_functional_logs.txt which point to specific folders.
+The files are vsperf\_logs\_folder.txt and kernel\_functional\_logs.txt which point to specific folders.
 
 Once all tests have been executed and the output from the collection.sh script and pvp results are collected
-you can generate a report spreadsheet to glance and see how your tests went.
+you can generate a reporting spreadsheet to glance and see how your tests went.
 
-To run the process_my_results.py script. You will need both the client and server side files from
-collection.sh script. You will also need the files from the pvp testing results. Use the -o argument to
-give an output filename for your report.
+To run the process\_my\_results.py script. You will need both the client and
+server side files from collection.sh script. You will also need the files from
+the pvp testing results, and the fl_change.dat, fl_change.png files from the TC
+Flower tests. Use the -o argument to give an output filename for your report,
+i.e. results.xlsx.
+
 
 ```
     python process_my_results.py -h
@@ -1042,4 +1043,17 @@ give an output filename for your report.
                           Client tar file name
 ```
 
-You MUST provide this output as well as the collection.sh script resulting files and PVP tars to Red Hat.
+__NOTE__: To run the _process\_my\_results.py_ script you might need to install
+the following additional tools:
+
+```
+    yum install -y python-pip
+    pip install xlsxwriter
+```
+
+
+You __MUST__ provide the following files to the certification team for review:
+- Client-side tar from the collection.sh script
+- Server-side tar from the collection.sh script
+- The relevant PVP results based on the tested datapaths, i.e. pvp_results_*.tgz
+- The fl_chance.dat file if the submission includes TC Flower support
