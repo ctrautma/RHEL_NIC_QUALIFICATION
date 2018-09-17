@@ -1056,4 +1056,4 @@ You __MUST__ provide the following files to the certification team for review:
 - Client-side tar from the collection.sh script
 - Server-side tar from the collection.sh script
 - The relevant PVP results based on the tested datapaths, i.e. pvp_results_*.tgz
-- The fl_chance.dat file if the submission includes TC Flower support
+- The fl_chance.dat and fl_change.png files if the submission includes TC Flower support
