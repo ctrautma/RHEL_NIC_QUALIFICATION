@@ -529,7 +529,7 @@ network card port you are testing.
 
 Then execute the run.sh script.
 
-Please save the result file fl_change.dat file off to be processed later.
+Please save the result files fl_change.dat and fl_change.png off to be processed later.
 
 
 ## Running VSPerf Performance tests
@@ -1023,8 +1023,9 @@ you can generate a reporting spreadsheet to glance and see how your tests went.
 
 To run the process\_my\_results.py script. You will need both the client and
 server side files from collection.sh script. You will also need the files from
-the pvp testing results, and the fl_change.dat file from the TC Flower tests.
-Use the -o argument to give an output filename for your report, i.e. results.xlsx.
+the pvp testing results, and the fl_change.dat, fl_change.png files from the TC
+Flower tests. Use the -o argument to give an output filename for your report,
+i.e. results.xlsx.
 
 
 ```
