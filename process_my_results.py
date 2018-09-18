@@ -367,8 +367,22 @@ class ResultsSheet(object):
         if os.path.exists(data_file):
             self.flower_rule_ws = self._workbook.add_worksheet(
                 'tc-flower insert rate')
-            self.flower_rule_ws.write_string(row, column + 1, "average_rate")
-            self.flower_rule_ws.write_string(row, column + 2, "insertions")
+            bold_format = self._workbook.add_format()
+            bold_format.set_bold()
+            self.flower_rule_ws.set_column(0, 3, 16)
+
+            # setup column headers and passing result column
+            self.flower_rule_ws.write_string(row, column + 1, "Average rate per sec",
+                                             bold_format)
+            self.flower_rule_ws.write_string(row, column + 2, "Insertions",
+                                             bold_format)
+            self.flower_rule_ws.write_string(row, column + 3,
+                                             "Required to pass", bold_format)
+            self.flower_rule_ws.write_string(row + 1, column + 3,
+                                             "1.5k/s average rate")
+            self.flower_rule_ws.write_string(row + 3, column + 3,
+                                             "10K concurrent hardware flows")
+
             row += 1
             rate_list, entry_list = get_average_rate(data_file)
             if rate_list:
@@ -378,7 +392,8 @@ class ResultsSheet(object):
                     else:
                         label = "Test %d" % (index+1)
 
-                    self.flower_rule_ws.write_string(row, column, label)
+                    self.flower_rule_ws.write_string(row, column, label,
+                                                     bold_format)
 
                     if index == 0 and rate < 1500:
                         fail_format = self._workbook.add_format()
