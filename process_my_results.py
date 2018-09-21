@@ -55,6 +55,16 @@ TC_L2_PVP_PNGS = ['root/pvp_results_10_l2_tc/test_p2v2p_all_l2_ref.png',
                   'root/pvp_results_10_l2_tc/test_p2v2p_1000_l2.png',
                   'root/pvp_results_10_l2_tc/test_p2v2p_10_l2.png',]
 
+# key is nic speed, value of list is min packet size followed by min rate, followed by the column
+# asoociated with the packet size against the csv files
+L3_TC_FLOWER_PVP_PASS_CRITERIA = {
+    0 : [ 0, 0, 1],
+    10 : [256, 4528985, 3],
+    25 : [512, 5874060, 4],
+    40 : [768, 6345177, 5],
+    50 : [768, 7931472, 5],
+    100: [1024, 11973180, 6]
+}
 
 
 class ResultsSheet(object):
@@ -178,7 +188,7 @@ class ResultsSheet(object):
                 else:
                     self.pvp_tc_l2_ws.name = self.pvp_tc_l2_ws.name + ' (PASS)'
                 if self.write_pvp_worksheet(tar, 'root/pvp_results_1_l3_tc/test_results_l3.csv',
-                                            self.pvp_tc_l3_ws, TC_L3_PVP_PNGS):
+                                            self.pvp_tc_l3_ws, TC_L3_PVP_PNGS, tc_validate=True):
                     self.pvp_tc_l3_ws.name = self.pvp_tc_l3_ws.name + ' (FAIL)'
                 else:
                     self.pvp_tc_l3_ws.name = self.pvp_tc_l3_ws.name + ' (PASS)'
@@ -268,20 +278,29 @@ class ResultsSheet(object):
         else:
             self.vsperf_ws.name = self.vsperf_ws.name + ' (PASS)'
 
-    def write_pvp_worksheet(self, tar_file, csv_file, worksheet, png_list):
+    def write_pvp_worksheet(self, tar_file, csv_file, worksheet, png_list, tc_validate=False):
         """
         Write out the pvp results to the specified worksheet, write pass fail on worksheet name
         :param tar_file: tar file
         :param csv_file: csv file to process inside of tar
         :param worksheet: worksheet to write to
         :param png_list: png list from CONSTANT values
+        :param tc_validate: Specifies where this is a tc l3_test sheet that needs to pass
+               minumum requirements against L3_TC_FLOWER_PVP_PASS_CRITERIA
         :return: return boolean if any test failed
         """
         fh = tar_file.extractfile(csv_file)
         reader = csv.reader(fh, delimiter=',', quotechar='|')
         test_fail = False
         max_column = 0
+        nic_speed = 0
         for row in reader:
+            # pull the nic speed from the first row if needed for tc validate
+            if len(row) and tc_validate and row[0] == '"Physical port':
+                nic_speed = row[2].split()[1]
+                if nic_speed not in ['10', '25', '40', '50', '100']:
+                    nic_speed = 0
+                nic_speed = int(nic_speed)
             column = 0
             try:
                 if len(row) > 0 and 'cpu' not in row[0]:
@@ -295,6 +314,27 @@ class ResultsSheet(object):
                             entry = row[i]
                         worksheet.write_string(self.row, column, str(entry))
                         column += 1
+                    # if this is the 10k row line for tc validate run the value check against the pass criteria
+                    if tc_validate and row[0] == "10000":
+                        cell_format = self._workbook.add_format({'bold': True, 'font_color': 'red'})
+                        pass_data = L3_TC_FLOWER_PVP_PASS_CRITERIA[nic_speed]
+                        pkt_size = pass_data[0]
+                        pass_crit = pass_data[1]
+                        column_to_check = pass_data[2]
+                        # the packet size result should be at least the pass_crit
+                        if int(float(row[column_to_check])) < pass_crit:
+                            test_fail = True
+                            worksheet.write_string(self.row, column_to_check, str(int(float(row[column_to_check]))),
+                                                   cell_format) # please don't ask on the typcasting....
+                        # check the values before to make sure they are 95% of the peak pps
+                        for i in range(column_to_check - 1):
+                            if i == 0:
+                                continue # don't check the header column
+                            if (int(float(row[column_to_check])) * .95) > int(float(row[i])):
+                                test_fail = True
+                                worksheet.write_string(self.row, i, str(int(float(row[i]))), cell_format)
+                        # TODO insert code to check rows(packet sizes) above the peak pps
+
                     self.row += 1
                     max_column = column if column > max_column else max_column
             except IndexError:
