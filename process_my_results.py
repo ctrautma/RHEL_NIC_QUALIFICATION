@@ -67,18 +67,19 @@ class ResultsSheet(object):
         self._workbook = xlsxwriter.Workbook(self._args.output)
         self.client_file = args.client_tar_file
         self.server_file = args.server_tar_file
-        self.pvp_dpdk_l2_ws = self._workbook.add_worksheet('pvp_dpdk_l2_results')
-        self.pvp_dpdk_l3_ws = self._workbook.add_worksheet('pvp_dpdk_l3_results')
-        self.pvp_kernel_l2_ws = self._workbook.add_worksheet('pvp_kernel_l2_results')
-        self.pvp_kernel_l3_ws = self._workbook.add_worksheet('pvp_kernel_l3_results')
-        self.pvp_tc_l2_ws = self._workbook.add_worksheet('pvp_tc_flower_l2_results')
-        self.pvp_tc_l3_ws = self._workbook.add_worksheet('pvp_tc_flower_l3_results')
-        #if os.path.exists('fl_change.dat'):
-        #     self.flower_rule_ws = self._workbook.add_worksheet('Flower rule install rate results')
-        #else:
-        #    self.flower_rule_ws = None
-        self.vsperf_ws = self._workbook.add_worksheet('throughput results')
-        self.functional_ws = self._workbook.add_worksheet('functional results')
+        if not args.tc_flower_only:
+            self.pvp_dpdk_l2_ws = self._workbook.add_worksheet(
+                'pvp_dpdk_l2_results')
+            self.pvp_dpdk_l3_ws = self._workbook.add_worksheet(
+                'pvp_dpdk_l3_results')
+            self.pvp_kernel_l2_ws = self._workbook.add_worksheet(
+                'pvp_kernel_l2_results')
+            self.pvp_kernel_l3_ws = self._workbook.add_worksheet(
+                'pvp_kernel_l3_results')
+            self.vsperf_ws = self._workbook.add_worksheet(
+                'throughput results')
+            self.functional_ws = self._workbook.add_worksheet(
+                'functional results')
         self.row = 0
 
     def close_workbook(self):
@@ -147,7 +148,7 @@ class ResultsSheet(object):
         for result_file in pvp_files:
             tar = tarfile.open(result_file, "r:gz")
             # find the dpdk result file and process it
-            if 'dpdk' in result_file:
+            if 'dpdk' in result_file and not self._args.tc_flower_only:
                 if self.write_pvp_worksheet(tar, 'root/pvp_results_1_l2_dpdk/test_results_l2.csv',
                                             self.pvp_dpdk_l2_ws, DPDK_L2_PVP_PNGS):
                     self.pvp_dpdk_l2_ws.name = self.pvp_dpdk_l2_ws.name + ' (FAIL)'
@@ -159,7 +160,7 @@ class ResultsSheet(object):
                 else:
                     self.pvp_dpdk_l3_ws.name = self.pvp_dpdk_l3_ws.name + ' (PASS)'
             # find the kernel result file and process it
-            elif 'kernel' in result_file:
+            elif 'kernel' in result_file and not self._args.tc_flower_only:
                 if self.write_pvp_worksheet(tar, 'root/pvp_results_1_l2_kernel/test_results_l2.csv',
                                             self.pvp_kernel_l2_ws, KERNEL_L2_PVP_PNGS):
                     self.pvp_kernel_l2_ws.name = self.pvp_kernel_l2_ws.name + ' (FAIL)'
@@ -172,6 +173,15 @@ class ResultsSheet(object):
                     self.pvp_kernel_l3_ws.name = self.pvp_kernel_l3_ws.name + ' (PASS)'
             # find the tc_flower result file and process it
             elif 'tc' in result_file:
+                #
+                # Add TC flower results only if data is available as they are
+                # optional.
+                #
+                self.pvp_tc_l2_ws = self._workbook.add_worksheet(
+                    'pvp_tc_flower_l2_results')
+                self.pvp_tc_l3_ws = self._workbook.add_worksheet(
+                    'pvp_tc_flower_l3_results')
+
                 if self.write_pvp_worksheet(tar, 'root/pvp_results_1_l2_tc/test_results_l2.csv',
                                             self.pvp_tc_l2_ws, TC_L2_PVP_PNGS):
                     self.pvp_tc_l2_ws.name = self.pvp_tc_l2_ws.name + ' (FAIL)'
@@ -438,10 +448,14 @@ class ResultsSheet(object):
 
 def main():
     mysheet = ResultsSheet(args)
+
+    if not args.tc_flower_only:
+        mysheet.process_throughput_results()
+        mysheet.process_functional_results()
+
     mysheet.process_pvp_results()
-    mysheet.process_throughput_results()
-    mysheet.process_functional_results()
     mysheet.process_tc_flower_result()
+
     mysheet.close_workbook()
 
 
@@ -467,6 +481,8 @@ if __name__ == "__main__":
                         help='Server tar file name')
     parser.add_argument('-c', '--client_tar_file', type=str, required=True,
                         help='Client tar file name')
+    parser.add_argument('--tc-flower-only', action="store_true",
+                        help='Generate/check TC flower results only')
     args = parser.parse_args()
     if os.path.isfile(args.output):
         ans = yes_no("Output file {} already exists. Overwrite?".format(args.output))
