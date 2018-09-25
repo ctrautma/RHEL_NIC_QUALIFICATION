@@ -67,19 +67,18 @@ class ResultsSheet(object):
         self._workbook = xlsxwriter.Workbook(self._args.output)
         self.client_file = args.client_tar_file
         self.server_file = args.server_tar_file
-        if not args.tc_flower_only:
-            self.pvp_dpdk_l2_ws = self._workbook.add_worksheet(
-                'pvp_dpdk_l2_results')
-            self.pvp_dpdk_l3_ws = self._workbook.add_worksheet(
-                'pvp_dpdk_l3_results')
-            self.pvp_kernel_l2_ws = self._workbook.add_worksheet(
-                'pvp_kernel_l2_results')
-            self.pvp_kernel_l3_ws = self._workbook.add_worksheet(
-                'pvp_kernel_l3_results')
-            self.vsperf_ws = self._workbook.add_worksheet(
-                'throughput results')
-            self.functional_ws = self._workbook.add_worksheet(
-                'functional results')
+        self.pvp_dpdk_l2_ws = self._workbook.add_worksheet(
+            'pvp_dpdk_l2_results')
+        self.pvp_dpdk_l3_ws = self._workbook.add_worksheet(
+            'pvp_dpdk_l3_results')
+        self.pvp_kernel_l2_ws = self._workbook.add_worksheet(
+            'pvp_kernel_l2_results')
+        self.pvp_kernel_l3_ws = self._workbook.add_worksheet(
+            'pvp_kernel_l3_results')
+        self.vsperf_ws = self._workbook.add_worksheet(
+            'throughput results')
+        self.functional_ws = self._workbook.add_worksheet(
+            'functional results')
         self.row = 0
 
     def close_workbook(self):
@@ -148,7 +147,7 @@ class ResultsSheet(object):
         for result_file in pvp_files:
             tar = tarfile.open(result_file, "r:gz")
             # find the dpdk result file and process it
-            if 'dpdk' in result_file and not self._args.tc_flower_only:
+            if 'dpdk' in result_file:
                 if self.write_pvp_worksheet(tar, 'root/pvp_results_1_l2_dpdk/test_results_l2.csv',
                                             self.pvp_dpdk_l2_ws, DPDK_L2_PVP_PNGS):
                     self.pvp_dpdk_l2_ws.name = self.pvp_dpdk_l2_ws.name + ' (FAIL)'
@@ -160,7 +159,7 @@ class ResultsSheet(object):
                 else:
                     self.pvp_dpdk_l3_ws.name = self.pvp_dpdk_l3_ws.name + ' (PASS)'
             # find the kernel result file and process it
-            elif 'kernel' in result_file and not self._args.tc_flower_only:
+            elif 'kernel' in result_file:
                 if self.write_pvp_worksheet(tar, 'root/pvp_results_1_l2_kernel/test_results_l2.csv',
                                             self.pvp_kernel_l2_ws, KERNEL_L2_PVP_PNGS):
                     self.pvp_kernel_l2_ws.name = self.pvp_kernel_l2_ws.name + ' (FAIL)'
@@ -434,39 +433,6 @@ class ResultsSheet(object):
             raise ValueError("The TC L3 PVP results is missing data, i.e. "
                              "Link speed, or 10K packet results!!")
 
-
-        # TODO: Remove these test results, used for debugging!!
-        #
-        # n: 40G results
-        # nic_speed = 40
-        # packet_sizes = [64, 128, 256, 512, 768, 1024, 1514]
-        # tenK_results = [10590004, 13718934, 13335540, 8032855, 5398610,
-        #                 4297181, 2775936]
-
-        # N: 40G results [missing 768 bytes]
-        # nic_speed = 40
-        # packet_sizes = [64, 128, 256, 512, 768, 1024, 1514]
-        # tenK_results = [11352709, 10103259, 9619202, 7262326, 4471339,
-        #                 4471339, 2910639]
-
-        # m: 100G results
-        # nic_speed = 100
-        # packet_sizes = [64, 128, 256, 512, 768, 1024, 1514]
-        # tenK_results = [5508922, 5156253, 5022435, 5098731, 4878753,
-        #                 4790773, 3816352]
-
-        # M: 100G results [missing 768 bytes]
-        nic_speed = 100
-        packet_sizes = [64, 128, 256, 512, 768, 1024, 1514]
-        tenK_results = [17743476, 14978192, 10986229, 8140828, 5069707,
-                        5069707, 3568335]
-
-        # M: 35G results [missing 768 bytes]
-        # nic_speed = 25
-        # packet_sizes = [64, 128, 256, 512, 768, 1024, 1514]
-        # tenK_results = [7646894, 4190842, 2708874, 1535326, 1009576,
-        #                1009576, 977845]
-
         #
         # Write default workbook layout
         #
@@ -736,14 +702,10 @@ class ResultsSheet(object):
 
 def main():
     mysheet = ResultsSheet(args)
-
-    if not args.tc_flower_only:
-        mysheet.process_throughput_results()
-        mysheet.process_functional_results()
-
+    mysheet.process_throughput_results()
+    mysheet.process_functional_results()
     mysheet.process_pvp_results()
     mysheet.process_tc_flower_result()
-
     mysheet.close_workbook()
 
 
@@ -769,8 +731,6 @@ if __name__ == "__main__":
                         help='Server tar file name')
     parser.add_argument('-c', '--client_tar_file', type=str, required=True,
                         help='Client tar file name')
-    parser.add_argument('--tc-flower-only', action="store_true",
-                        help='Generate/check TC flower results only')
     args = parser.parse_args()
     if os.path.isfile(args.output):
         ans = yes_no("Output file {} already exists. Overwrite?".format(args.output))
