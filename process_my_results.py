@@ -111,14 +111,23 @@ class ResultsSheet(object):
             fh1 = tar.extractfile(member)
             data = fh1.readlines()
             fail_test = False
+            fail_format = self._workbook.add_format()
+            fail_format.set_color('red')
             for line in data:
                 if "RESULT" in line:
-                    findresult = re.search('\[   (PASS|FAIL)   \] :: RESULT: (\S+)', line)
-                    if findresult.group(1) == 'FAIL':
-                        fail_test = True
+                    findresult = re.search(
+                        '\[   (PASS|FAIL)   \] :: RESULT: (\S+)', line)
                     if findresult:
-                        self.functional_ws.write_string(self.row, column, findresult.group(2))
-                        self.functional_ws.write_string(self.row, column + 1, findresult.group(1))
+                        self.functional_ws.write_string(self.row, column,
+                                                        findresult.group(2))
+                        if findresult.group(1) == 'FAIL':
+                            fail_test = True
+                            self.functional_ws.write_string(
+                                self.row, column + 1, findresult.group(1),
+                                fail_format)
+                        else:
+                            self.functional_ws.write_string(
+                                self.row, column + 1, findresult.group(1))
                         self.row += 1
             return fail_test
 
