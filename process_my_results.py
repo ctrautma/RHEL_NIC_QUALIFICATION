@@ -181,6 +181,8 @@ class ResultsSheet(object):
                     'pvp_tc_flower_l2_results')
                 self.pvp_tc_l3_ws = self._workbook.add_worksheet(
                     'pvp_tc_flower_l3_results')
+                self.pvp_tc_troughput_ws = self._workbook.add_worksheet(
+                    'PVP TC Flower Throughput')
 
                 if self.write_pvp_worksheet(tar, 'root/pvp_results_1_l2_tc/test_results_l2.csv',
                                             self.pvp_tc_l2_ws, TC_L2_PVP_PNGS):
@@ -192,6 +194,14 @@ class ResultsSheet(object):
                     self.pvp_tc_l3_ws.name = self.pvp_tc_l3_ws.name + ' (FAIL)'
                 else:
                     self.pvp_tc_l3_ws.name = self.pvp_tc_l3_ws.name + ' (PASS)'
+                if self.write_tc_throughput_worksheet(
+                        tar,
+                        'root/pvp_results_10_l3_tc/test_results_l3.csv'):
+                    self.pvp_tc_troughput_ws.name = \
+                        self.pvp_tc_troughput_ws.name + ' (FAIL)'
+                else:
+                    self.pvp_tc_troughput_ws.name = \
+                        self.pvp_tc_troughput_ws.name + ' (PASS)'
 
     def process_throughput_results(self):
         """
@@ -335,6 +345,284 @@ class ResultsSheet(object):
         else:
             self.vsperf_ws.write_string(row, column, text)
             return False
+
+    #
+    # Calculate wire utilization based on packet size and packets per
+    # seconds
+    #
+    # Packet size = 12 bytes IFG +
+    #                8 bytes preamble +
+    #                x bytes packet +
+    #                4 bytes CRC
+    #
+    def _eth_utilization(self, line_speed_bps, packet_size,
+                         packets_per_second):
+
+        packet_size_bits = (12 + 8 + packet_size + 4) * 8
+        packet_speed_second = packet_size_bits * packets_per_second
+
+        util = float(packet_speed_second) / line_speed_bps * 100
+
+        if util > 100:
+            util = 100
+
+        return util
+
+    def write_tc_throughput_worksheet(self, tar_file, csv_file):
+        fh = tar_file.extractfile(csv_file)
+        reader = csv.reader(fh, delimiter=',', quotechar='|')
+        nic_speed = None
+        packet_sizes = None
+        tenK_results = None
+        failure = False
+        for row in reader:
+
+            if len(row) == 0:
+                #
+                # Empty line means new test results (we should have only one)
+                #
+                packet_sizes = None
+                tenK_results = None
+            elif nic_speed is None:
+                #
+                # We need the NIC speed
+                #
+                if row[0] == '\"Physical port':
+                    nic_speed = row[2].split()[1]
+                    if nic_speed not in ['10', '25', '40', '50', '100']:
+                        raise ValueError(
+                            "Unsupported link rate, please report!!")
+                    nic_speed = int(nic_speed)
+
+            elif packet_sizes is None:
+                #
+                # See if this is the line with the packet size info
+                #
+                if len(row) >= 2 and row[0] == 'Number of flows':
+                    try:
+                        packet_sizes = [int(i) for i in row[1:]]
+                    except ValueError:
+                        packet_sizes = None
+            else:
+                #
+                # Here we are processing results
+                #
+                if (len(row) == len(packet_sizes) + 1):
+                    try:
+                        results_values = [int(float(i)) for i in row]
+                    except ValueError:
+                        if row[0].startswith("cpu_"):
+                            #
+                            # If line starts with cpu_x it's the embedded
+                            # cpu statistics which we should ignore those
+                            #
+                            continue
+                        else:
+                            #
+                            # Rest are real issues, start over...
+                            #
+                            packet_sizes = None
+                            continue
+                    #
+                    # Normal result line processing
+                    #
+                    if results_values[0] == 10000:
+                        tenK_results = results_values[1:]
+                        break
+
+        if nic_speed is None or packet_sizes is None or tenK_results is None:
+            raise ValueError("The TC L3 PVP results is missing data, i.e. "
+                             "Link speed, or 10K packet results!!")
+
+
+        # TODO: Remove these test results, used for debugging!!
+        #
+        # n: 40G results
+        # nic_speed = 40
+        # packet_sizes = [64, 128, 256, 512, 768, 1024, 1514]
+        # tenK_results = [10590004, 13718934, 13335540, 8032855, 5398610,
+        #                 4297181, 2775936]
+
+        # N: 40G results [missing 768 bytes]
+        # nic_speed = 40
+        # packet_sizes = [64, 128, 256, 512, 768, 1024, 1514]
+        # tenK_results = [11352709, 10103259, 9619202, 7262326, 4471339,
+        #                 4471339, 2910639]
+
+        # m: 100G results
+        # nic_speed = 100
+        # packet_sizes = [64, 128, 256, 512, 768, 1024, 1514]
+        # tenK_results = [5508922, 5156253, 5022435, 5098731, 4878753,
+        #                 4790773, 3816352]
+
+        # M: 100G results [missing 768 bytes]
+        nic_speed = 100
+        packet_sizes = [64, 128, 256, 512, 768, 1024, 1514]
+        tenK_results = [17743476, 14978192, 10986229, 8140828, 5069707,
+                        5069707, 3568335]
+
+        # M: 35G results [missing 768 bytes]
+        # nic_speed = 25
+        # packet_sizes = [64, 128, 256, 512, 768, 1024, 1514]
+        # tenK_results = [7646894, 4190842, 2708874, 1535326, 1009576,
+        #                1009576, 977845]
+
+        #
+        # Write default workbook layout
+        #
+        self.pvp_tc_troughput_ws.set_column(0, 2, 16)
+        self.pvp_tc_troughput_ws.set_column(2, 3, 32)
+        self.pvp_tc_troughput_ws.set_column(3, 3, 40)
+        self.pvp_tc_troughput_ws.set_column(4, 4, 53)
+        self.pvp_tc_troughput_ws.set_column(5, 5, 38)
+
+        bold_format = self._workbook.add_format()
+        red_format = self._workbook.add_format()
+        bold_format.set_bold()
+        red_format.set_color('red')
+
+        self.pvp_tc_troughput_ws.write_string(
+            0, 0,
+            "PVP test for 10K TC Flower rules with NIC speed of {} Gbps".
+            format(nic_speed),
+            bold_format)
+
+        self.pvp_tc_troughput_ws.write_string(2, 2, "Pass criteria",
+                                              bold_format)
+        self.pvp_tc_troughput_ws.write_string(3, 0, "Packet Size", bold_format)
+        self.pvp_tc_troughput_ws.write_string(3, 1, "pps", bold_format)
+
+        for i, pkt_size in enumerate(packet_sizes):
+            self.pvp_tc_troughput_ws.write_string(i + 4, 0, str(pkt_size))
+            self.pvp_tc_troughput_ws.write_string(i + 4, 1,
+                                                  str(tenK_results[i]))
+        #
+        # Pass criteria #1: Minimal pps based on link speed
+        #
+        min_pps = {10: 4528985, 25: 5874060, 40: 6345177, 50: 7931472,
+                   100: 11973180}
+
+        self.pvp_tc_troughput_ws.write_string(3, 2,
+                                              "#1 minimal {} pps for {} Gbps".
+                                              format(min_pps[nic_speed],
+                                                     nic_speed),
+                                              bold_format)
+
+        pps_pass_index = -1
+        for i, pps in enumerate(tenK_results):
+            if pps >= min_pps[nic_speed]:
+                if pps_pass_index == -1:
+                    pps_pass_index = i
+                elif pps > tenK_results[pps_pass_index]:
+                    pps_pass_index = i
+
+        if pps_pass_index == -1:
+            failure = True
+            for i, pps in enumerate(tenK_results):
+                self.pvp_tc_troughput_ws.write_string(
+                    i + 4, 2, str(pps), red_format)
+        else:
+            self.pvp_tc_troughput_ws.write_string(
+                pps_pass_index + 4, 2, str(tenK_results[pps_pass_index]))
+
+        #
+        # Pass criteria #2: All pkt_sizes below the pps_pass_index must have a
+        #                   95% or higher throughput.
+        #
+
+        self.pvp_tc_troughput_ws.write_string(
+            3, 3,
+            "#2 results below #1 should be >=95% of pps of #1",
+            bold_format)
+
+        if pps_pass_index == -1:
+            for i, pps in enumerate(tenK_results):
+                self.pvp_tc_troughput_ws.write_string(
+                    i + 4, 3, "#1 not met, skipped", red_format)
+        else:
+            for i, pps in enumerate(tenK_results):
+                if i < pps_pass_index:
+                    percentage = pps / float(tenK_results[pps_pass_index]) \
+                        * 100
+                    if percentage < 95:
+                        failure = True
+                        self.pvp_tc_troughput_ws.write_string(
+                            i + 4, 3, "{:.2f}".format(percentage), red_format)
+                    else:
+                        self.pvp_tc_troughput_ws.write_string(
+                            i + 4, 3, "{:.2f}".format(percentage))
+                else:
+                    self.pvp_tc_troughput_ws.write_string(i + 4, 3, "-")
+
+        #
+        # Pass criteria #3: All pkt_sizes above the pps_pass_index must have
+        #                   the same or higher line utilization
+        #
+        self.pvp_tc_troughput_ws.write_string(
+            3, 4,
+            "#3 results above #1 must have higher or the same line "
+            "utilization", bold_format)
+
+        if pps_pass_index == -1:
+            for i, pps in enumerate(tenK_results):
+                self.pvp_tc_troughput_ws.write_string(
+                    i + 4, 4, "#1 not met, skipped", red_format)
+        else:
+            pass_percentage = self._eth_utilization(
+                nic_speed * 1000000000,
+                packet_sizes[pps_pass_index],
+                tenK_results[pps_pass_index])
+
+            for i, pps in enumerate(tenK_results):
+                if i > pps_pass_index:
+                    percentage = self._eth_utilization(nic_speed * 1000000000,
+                                                       packet_sizes[i], pps)
+                    if percentage < pass_percentage:
+                        failure = True
+                        self.pvp_tc_troughput_ws.write_string(
+                            i + 4, 4, "{:.2f}".format(percentage), red_format)
+                    else:
+                        self.pvp_tc_troughput_ws.write_string(
+                            i + 4, 4, "{:.2f}".format(percentage))
+                elif i == pps_pass_index:
+                    self.pvp_tc_troughput_ws.write_string(
+                        i + 4, 4,
+                        "{:.2f}".format(pass_percentage))
+                else:
+                    self.pvp_tc_troughput_ws.write_string(i + 4, 4, "-")
+
+        #
+        # Pass criteria #4: Wire speed <40G NICs
+        #
+        min_wire_speed_size = 0
+        if nic_speed < 40:
+            if nic_speed == 10:
+                min_wire_speed_size = 256
+            else:
+                min_wire_speed_size = 512
+            self.pvp_tc_troughput_ws.write_string(
+                3, 5, "#4 Wire speed for {} bytes packets and larger".
+                format(min_wire_speed_size), bold_format)
+        else:
+            self.pvp_tc_troughput_ws.write_string(
+                3, 5, "#4 Wire speed tests for NICs with < 40Gbps throughput",
+                bold_format)
+
+        for i, pps in enumerate(tenK_results):
+            percentage = self._eth_utilization(nic_speed * 1000000000,
+                                               packet_sizes[i], pps)
+
+            if packet_sizes[i] < min_wire_speed_size:
+                self.pvp_tc_troughput_ws.write_string(i + 4, 5, "-")
+            elif percentage < 95 and min_wire_speed_size != 0:
+                failure = True
+                self.pvp_tc_troughput_ws.write_string(
+                    i + 4, 5, "{:.2f}".format(percentage), red_format)
+            else:
+                self.pvp_tc_troughput_ws.write_string(
+                    i + 4, 5, "{:.2f}".format(percentage))
+
+        return failure
 
     def process_tc_flower_result(self):
         """
