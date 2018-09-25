@@ -300,6 +300,7 @@ class ResultsSheet(object):
         reader = csv.reader(fh, delimiter=',', quotechar='|')
         test_fail = False
         max_column = 0
+        self.row = 0
         for row in reader:
             column = 0
             try:
