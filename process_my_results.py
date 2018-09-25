@@ -448,9 +448,9 @@ class ResultsSheet(object):
         #
         self.pvp_tc_troughput_ws.set_column(0, 2, 16)
         self.pvp_tc_troughput_ws.set_column(2, 3, 32)
-        self.pvp_tc_troughput_ws.set_column(3, 3, 40)
-        self.pvp_tc_troughput_ws.set_column(4, 4, 53)
-        self.pvp_tc_troughput_ws.set_column(5, 5, 38)
+        self.pvp_tc_troughput_ws.set_column(3, 3, 44)
+        self.pvp_tc_troughput_ws.set_column(4, 4, 57)
+        self.pvp_tc_troughput_ws.set_column(5, 5, 45)
 
         bold_format = self._workbook.add_format()
         red_format = self._workbook.add_format()
@@ -508,7 +508,7 @@ class ResultsSheet(object):
 
         self.pvp_tc_troughput_ws.write_string(
             3, 3,
-            "#2 results below #1 should be >=95% of pps of #1",
+            "#2 packet sizes below #1 should be >= 95% of pps of #1",
             bold_format)
 
         if pps_pass_index == -1:
@@ -523,10 +523,10 @@ class ResultsSheet(object):
                     if percentage < 95:
                         failure = True
                         self.pvp_tc_troughput_ws.write_string(
-                            i + 4, 3, "{:.2f}".format(percentage), red_format)
+                            i + 4, 3, "{:.2f}%".format(percentage), red_format)
                     else:
                         self.pvp_tc_troughput_ws.write_string(
-                            i + 4, 3, "{:.2f}".format(percentage))
+                            i + 4, 3, "{:.2f}%".format(percentage))
                 else:
                     self.pvp_tc_troughput_ws.write_string(i + 4, 3, "-")
 
@@ -536,7 +536,7 @@ class ResultsSheet(object):
         #
         self.pvp_tc_troughput_ws.write_string(
             3, 4,
-            "#3 results above #1 must have higher or the same line "
+            "#3 packets sizes above #1 must have a higher or the same line "
             "utilization", bold_format)
 
         if pps_pass_index == -1:
@@ -556,14 +556,14 @@ class ResultsSheet(object):
                     if percentage < pass_percentage:
                         failure = True
                         self.pvp_tc_troughput_ws.write_string(
-                            i + 4, 4, "{:.2f}".format(percentage), red_format)
+                            i + 4, 4, "{:.2f}%".format(percentage), red_format)
                     else:
                         self.pvp_tc_troughput_ws.write_string(
-                            i + 4, 4, "{:.2f}".format(percentage))
+                            i + 4, 4, "{:.2f}%".format(percentage))
                 elif i == pps_pass_index:
                     self.pvp_tc_troughput_ws.write_string(
                         i + 4, 4,
-                        "{:.2f}".format(pass_percentage))
+                        "{:.2f}%".format(pass_percentage))
                 else:
                     self.pvp_tc_troughput_ws.write_string(i + 4, 4, "-")
 
@@ -593,10 +593,10 @@ class ResultsSheet(object):
             elif percentage < 95 and min_wire_speed_size != 0:
                 failure = True
                 self.pvp_tc_troughput_ws.write_string(
-                    i + 4, 5, "{:.2f}".format(percentage), red_format)
+                    i + 4, 5, "{:.2f}%".format(percentage), red_format)
             else:
                 self.pvp_tc_troughput_ws.write_string(
-                    i + 4, 5, "{:.2f}".format(percentage))
+                    i + 4, 5, "{:.2f}%".format(percentage))
 
         return failure
 
