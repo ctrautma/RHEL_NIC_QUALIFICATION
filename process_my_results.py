@@ -355,29 +355,22 @@ class ResultsSheet(object):
             self.vsperf_ws.write_string(row, column, text)
             return False
 
-    #
-    # Calculate wire utilization based on packet size and packets per
-    # seconds
-    #
-    # Packet size = 12 bytes IFG +
-    #                8 bytes preamble +
-    #                x bytes packet +
-    #                4 bytes CRC
-    #
-    def _eth_utilization(self, line_speed_bps, packet_size,
-                         packets_per_second):
-
-        packet_size_bits = (12 + 8 + packet_size + 4) * 8
-        packet_speed_second = packet_size_bits * packets_per_second
-
-        util = float(packet_speed_second) / line_speed_bps * 100
-
-        if util > 100:
-            util = 100
-
-        return util
-
     def write_tc_throughput_worksheet(self, tar_file, csv_file):
+        speed_pass_table = {
+            # TODO: Need to fix 10G
+            10: {64: 13392856, 128: 7601350, 256: 4076086, 512: 4076086,
+                 768: 1427664, 1024: 1077586, 1514: 733376},
+            25: {64: 6124699, 128: 3800979, 256: 2329223, 512: 2228055,
+                 768: 2066985, 1024: 1912400, 1514: 1472570},
+            40: {64: 1472570, 128: 9092933, 256: 8657281, 512: 6536093,
+                 768: 5280149, 1024: 4024205, 1514: 2619575},
+            # TODO: Need to add 50G, currently it's a 40G copy
+            50: {64: 1472570, 128: 9092933, 256: 8657281, 512: 6536093,
+                 768: 5280149, 1024: 4024205, 1514: 2619575},
+            100: {64: 15969128, 128: 13480372, 256: 9887606, 512: 7326745,
+                  768: 5944740, 1024: 4562736, 1514: 3211501}
+        }
+
         fh = tar_file.extractfile(csv_file)
         reader = csv.reader(fh, delimiter=',', quotechar='|')
         nic_speed = None
@@ -446,11 +439,7 @@ class ResultsSheet(object):
         #
         # Write default workbook layout
         #
-        self.pvp_tc_troughput_ws.set_column(0, 2, 16)
-        self.pvp_tc_troughput_ws.set_column(2, 3, 32)
-        self.pvp_tc_troughput_ws.set_column(3, 3, 44)
-        self.pvp_tc_troughput_ws.set_column(4, 4, 57)
-        self.pvp_tc_troughput_ws.set_column(5, 5, 45)
+        self.pvp_tc_troughput_ws.set_column(0, 3, 16)
 
         bold_format = self._workbook.add_format()
         red_format = self._workbook.add_format()
@@ -463,140 +452,37 @@ class ResultsSheet(object):
             format(nic_speed),
             bold_format)
 
-        self.pvp_tc_troughput_ws.write_string(2, 2, "Pass criteria",
-                                              bold_format)
-        self.pvp_tc_troughput_ws.write_string(3, 0, "Packet Size", bold_format)
-        self.pvp_tc_troughput_ws.write_string(3, 1, "pps", bold_format)
-
-        for i, pkt_size in enumerate(packet_sizes):
-            self.pvp_tc_troughput_ws.write_string(i + 4, 0, str(pkt_size))
-            self.pvp_tc_troughput_ws.write_string(i + 4, 1,
-                                                  str(tenK_results[i]))
-        #
-        # Pass criteria #1: Minimal pps based on link speed
-        #
-        min_pps = {10: 4528985, 25: 5874060, 40: 6345177, 50: 7931472,
-                   100: 11973180}
-
-        self.pvp_tc_troughput_ws.write_string(3, 2,
-                                              "#1 minimal {} pps for {} Gbps".
-                                              format(min_pps[nic_speed],
-                                                     nic_speed),
+        self.pvp_tc_troughput_ws.write_string(2, 0, "Packet Size", bold_format)
+        self.pvp_tc_troughput_ws.write_string(2, 1, "pps", bold_format)
+        self.pvp_tc_troughput_ws.write_string(2, 2, "pass criteria pps",
                                               bold_format)
 
-        pps_pass_index = -1
-        for i, pps in enumerate(tenK_results):
-            if pps >= min_pps[nic_speed]:
-                if pps_pass_index == -1:
-                    pps_pass_index = i
-                elif pps > tenK_results[pps_pass_index]:
-                    pps_pass_index = i
-
-        if pps_pass_index == -1:
-            failure = True
-            for i, pps in enumerate(tenK_results):
-                self.pvp_tc_troughput_ws.write_string(
-                    i + 4, 2, str(pps), red_format)
-        else:
-            self.pvp_tc_troughput_ws.write_string(
-                pps_pass_index + 4, 2, str(tenK_results[pps_pass_index]))
-
         #
-        # Pass criteria #2: All pkt_sizes below the pps_pass_index must have a
-        #                   95% or higher throughput.
+        # Write results, and check pass/fail criteria
         #
+        results = dict(zip(packet_sizes, tenK_results))
+        pass_table = speed_pass_table[nic_speed]
+        all_packet_sizes = sorted(list(set(packet_sizes + pass_table.keys())))
 
-        self.pvp_tc_troughput_ws.write_string(
-            3, 3,
-            "#2 packet sizes below #1 should be >= 95% of pps of #1",
-            bold_format)
-
-        if pps_pass_index == -1:
-            for i, pps in enumerate(tenK_results):
-                self.pvp_tc_troughput_ws.write_string(
-                    i + 4, 3, "#1 not met, skipped", red_format)
-        else:
-            for i, pps in enumerate(tenK_results):
-                if i < pps_pass_index:
-                    percentage = pps / float(tenK_results[pps_pass_index]) \
-                        * 100
-                    if percentage < 95:
-                        failure = True
-                        self.pvp_tc_troughput_ws.write_string(
-                            i + 4, 3, "{:.2f}%".format(percentage), red_format)
-                    else:
-                        self.pvp_tc_troughput_ws.write_string(
-                            i + 4, 3, "{:.2f}%".format(percentage))
-                else:
-                    self.pvp_tc_troughput_ws.write_string(i + 4, 3, "-")
-
-        #
-        # Pass criteria #3: All pkt_sizes above the pps_pass_index must have
-        #                   the same or higher line utilization
-        #
-        self.pvp_tc_troughput_ws.write_string(
-            3, 4,
-            "#3 packets sizes above #1 must have a higher or the same line "
-            "utilization", bold_format)
-
-        if pps_pass_index == -1:
-            for i, pps in enumerate(tenK_results):
-                self.pvp_tc_troughput_ws.write_string(
-                    i + 4, 4, "#1 not met, skipped", red_format)
-        else:
-            pass_percentage = self._eth_utilization(
-                nic_speed * 1000000000,
-                packet_sizes[pps_pass_index],
-                tenK_results[pps_pass_index])
-
-            for i, pps in enumerate(tenK_results):
-                if i > pps_pass_index:
-                    percentage = self._eth_utilization(nic_speed * 1000000000,
-                                                       packet_sizes[i], pps)
-                    if percentage < pass_percentage:
-                        failure = True
-                        self.pvp_tc_troughput_ws.write_string(
-                            i + 4, 4, "{:.2f}%".format(percentage), red_format)
-                    else:
-                        self.pvp_tc_troughput_ws.write_string(
-                            i + 4, 4, "{:.2f}%".format(percentage))
-                elif i == pps_pass_index:
+        for i, pkt_size in enumerate(all_packet_sizes):
+            self.pvp_tc_troughput_ws.write_string(i + 3, 0, str(pkt_size))
+            try:
+                self.pvp_tc_troughput_ws.write_string(i + 3, 1,
+                                                      str(results[pkt_size]))
+            except KeyError:
+                self.pvp_tc_troughput_ws.write_string(i + 3, 1, "N/A")
+            try:
+                if pkt_size not in results or \
+                   results[pkt_size] < pass_table[pkt_size]:
+                    failure = True
                     self.pvp_tc_troughput_ws.write_string(
-                        i + 4, 4,
-                        "{:.2f}%".format(pass_percentage))
+                        i + 3, 2, str(pass_table[pkt_size]), red_format)
                 else:
-                    self.pvp_tc_troughput_ws.write_string(i + 4, 4, "-")
+                    self.pvp_tc_troughput_ws.write_string(
+                        i + 3, 2, str(pass_table[pkt_size]))
 
-        #
-        # Pass criteria #4: Wire speed <40G NICs
-        #
-        min_wire_speed_size = 0
-        if nic_speed < 40:
-            if nic_speed == 10:
-                min_wire_speed_size = 256
-            else:
-                min_wire_speed_size = 512
-            self.pvp_tc_troughput_ws.write_string(
-                3, 5, "#4 Wire speed for {} bytes packets and larger".
-                format(min_wire_speed_size), bold_format)
-        else:
-            self.pvp_tc_troughput_ws.write_string(
-                3, 5, "#4 Wire speed tests for NICs with < 40Gbps throughput",
-                bold_format)
-
-        for i, pps in enumerate(tenK_results):
-            percentage = self._eth_utilization(nic_speed * 1000000000,
-                                               packet_sizes[i], pps)
-
-            if packet_sizes[i] < min_wire_speed_size:
-                self.pvp_tc_troughput_ws.write_string(i + 4, 5, "-")
-            elif percentage < 95 and min_wire_speed_size != 0:
-                failure = True
-                self.pvp_tc_troughput_ws.write_string(
-                    i + 4, 5, "{:.2f}%".format(percentage), red_format)
-            else:
-                self.pvp_tc_troughput_ws.write_string(
-                    i + 4, 5, "{:.2f}%".format(percentage))
+            except KeyError:
+                self.pvp_tc_troughput_ws.write_string(i + 3, 2, "-")
 
         return failure
 
