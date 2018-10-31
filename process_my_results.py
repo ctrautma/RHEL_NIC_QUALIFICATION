@@ -1,11 +1,15 @@
 import argparse
 import csv
 import glob
+import io
 import os
 import re
 import sys
 import tarfile
 import xlsxwriter
+
+if sys.version_info[0] == 3:
+    raw_input = input
 
 DPDK_L3_PVP_PNGS = ['root/pvp_results_10_l3_dpdk/test_p2v2p_all_l3_ref.png',
                     'root/pvp_results_10_l3_dpdk/test_p2v2p_all_l3.png',
@@ -114,6 +118,7 @@ class ResultsSheet(object):
             fail_format = self._workbook.add_format()
             fail_format.set_color('red')
             for line in data:
+                line = line.decode('utf8').strip()
                 if "RESULT" in line:
                     findresult = re.search(
                         '\[   (PASS|FAIL)   \] :: RESULT: (\S+)', line)
@@ -245,6 +250,7 @@ class ResultsSheet(object):
                 data = fh1.readlines()
 
                 for line in data:
+                    line = line.decode('utf8').strip()
                     if "64   Byte 2PMD OVS/DPDK PVP test result" in line:
                         self.vsperf_ws.write_string(1, 0, '64 Byte 2PMD 1Q DPDK', bold_format)
                         test_fail.append(self.write_throughput_pass_fail(
@@ -283,6 +289,7 @@ class ResultsSheet(object):
                 fh1 = tar.extractfile(member)
                 data = fh1.readlines()
                 for line in data:
+                    line = line.decode('utf8').strip()
                     if "64   Byte SR_IOV PVP test result" in line:
                         self.vsperf_ws.write_string(9, 0, '64 Byte SRIOV', bold_format)
                         test_fail.append(self.write_throughput_pass_fail(
@@ -305,7 +312,7 @@ class ResultsSheet(object):
         :param png_list: png list from CONSTANT values
         :return: return boolean if any test failed
         """
-        fh = tar_file.extractfile(csv_file)
+        fh = io.StringIO(tar_file.extractfile(csv_file).read().decode('ascii'))
         reader = csv.reader(fh, delimiter=',', quotechar='|')
         test_fail = False
         max_column = 0
@@ -370,7 +377,7 @@ class ResultsSheet(object):
                   768: 14269887, 1024: 10772391, 1514: 7332604}
         }
 
-        fh = tar_file.extractfile(csv_file)
+        fh = io.StringIO(tar_file.extractfile(csv_file).read().decode('ascii'))
         reader = csv.reader(fh, delimiter=',', quotechar='|')
         nic_speed = None
         packet_sizes = None
@@ -459,9 +466,9 @@ class ResultsSheet(object):
         #
         # Write results, and check pass/fail criteria
         #
-        results = dict(zip(packet_sizes, tenK_results))
+        results = dict(list(zip(packet_sizes, tenK_results)))
         pass_table = speed_pass_table[nic_speed]
-        all_packet_sizes = sorted(list(set(packet_sizes + pass_table.keys())))
+        all_packet_sizes = sorted(list(set(packet_sizes + list(pass_table.keys()))))
 
         for i, pkt_size in enumerate(all_packet_sizes):
             self.pvp_tc_troughput_ws.write_string(i + 3, 0, str(pkt_size))
