@@ -110,10 +110,14 @@ ln -s ~/RHEL_NIC_QUALIFICATION/ovs_perf/ ~/ovs_perf
 ### Install additional packages needed by the PVP script
 We need to install a bunch of Python libraries we need for the PVP script.
 
+```
+yum install python3
+```
+
 We will use pip to do this:
 
 ```
-pip install --upgrade enum34 natsort netaddr matplotlib scapy spur
+pip3 install --upgrade enum34 natsort netaddr matplotlib scapy spur
 ```
 
 
@@ -123,7 +127,7 @@ We also need the Xena Networks traffic generator libraries:
 cd ~
 git clone https://github.com/fleitner/XenaPythonLib
 cd XenaPythonLib/
-python setup.py install
+python3 setup.py install
 ```
 
 
@@ -754,6 +758,11 @@ to it using the Python API as part of its execution. The program should be locat
 in the scripts folder of the T-Rex install location.
 
 ./t-rex-64 -i
+
+For RHEL 8 Beta you must enable other repos through subscription manager for VSPerf installation
+to correctly work.
+
+    subscription-manager repos --enable rhel-8-for-x86_64-supplementary-beta-rpms
 
 Once all settings are complete one should be able to execute Perf-Verify.sh to start execution
 of VSPerf tests. This only needs to be executed on the DUT. Not on the T-Rex server. The script

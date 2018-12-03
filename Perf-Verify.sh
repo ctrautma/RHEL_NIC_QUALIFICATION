@@ -28,13 +28,13 @@
 # Detect OS name and version from systemd based os-release file
 . /etc/os-release
 
-if [ $VERSION_ID == "7.5" ]
+if [ $VERSION_ID == "8.0" ]
 then
-    dpdk_ver="1711-9"
-    one_queue_image="RHEL7-5VNF-1Q.qcow2"
-    two_queue_image="RHEL7-5VNF-2Q.qcow2"
-    one_queue_zip="RHEL7-5VNF-1Q.qcow2.lrz"
-    two_queue_zip="RHEL7-5VNF-2Q.qcow2.lrz"
+    dpdk_ver="1711-14"
+    one_queue_image="RHEL8VNF-1Q.qcow2"
+    two_queue_image="RHEL8VNF-1Q.qcow2"
+    one_queue_zip="RHEL8VNF-1Q.qcow2.lrz"
+    two_queue_zip="RHEL8VNF-2Q.qcow2.lrz"
 elif [ $VERSION_ID == "7.6" ]
 then
     dpdk_ver="1711-9"
@@ -72,6 +72,13 @@ OS_checks() {
     if ! [ `command -v lrzip ` ]
     then
         rpm -ivh lrzip-0.616-5.el7.x86_64.rpm || fail "lrzip install" "Failed to install lrzip"
+    fi
+
+    # Install libpcap-devel
+    echo "*** Installing libpacp-devel if needed ***"
+    if ! [ `rpm -qa | grep libpcap-devel ` ]
+    then
+        rpm -ivh http://people.redhat.com/ctrautma/libpcap-devel-1.9.0-1.el8.x86_64.rpm || fail "libpcap-devel install" "Failed to install libpcap-devel"
     fi
 
 }
@@ -181,7 +188,7 @@ rpm_check() {
     echo "*** Checking for installed RPMS ***"
     sleep 1
 
-    if ! [[ `rpm -qa | grep ^openvswitch-[0-9]` ]]
+    if ! [[ `rpm -qa | grep ^openvswitch[0-9]` ]]
     then
         fail "Openvswitch rpm" "Please install Openvswitch rpm"
     fi
@@ -193,7 +200,7 @@ rpm_check() {
     then
         fail "DPDK package rpm" "Please install dpdk package rpm"
     fi
-    if ! [ `rpm -qa | grep qemu-kvm-rhev` ]
+    if ! [[ `rpm -qa | grep qemu-kvm` ]]
     then
         fail "QEMU-KVM-RHEV rpms" "Please install qemu-kvm-rhev rpm"
     fi
@@ -742,6 +749,7 @@ git_clone_vsperf() {
     cd vswitchperf
     git checkout -f 91e0985be7ca2b2654f89928315431228b7ecc56 &>>$NIC_LOG_FOLDER/vsperf_clone.log # Master with T-Rex fixes
     git fetch https://gerrit.opnfv.org/gerrit/vswitchperf refs/changes/75/44275/1 && git cherry-pick FETCH_HEAD # single numa fix
+    git fetch https://gerrit.opnfv.org/gerrit/vswitchperf refs/changes/27/63027/1 && git cherry-pick FETCH_HEAD # mathplotlib fix
 
 }
 
@@ -752,10 +760,8 @@ if [ "$TESTLIST" == "pvp_cont" ]
 then
     echo "*** Running 1500 Byte PVP VSPerf verify check ***"
 
-scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
-python ./vsperf pvp_cont --test-params="TRAFFICGEN_DURATION=30; TRAFFICGEN_PKT_SIZES=1500,"
-EOF
+python3 ./vsperf pvp_cont --test-params="TRAFFICGEN_DURATION=30; TRAFFICGEN_PKT_SIZES=1500,"
 fi
 
 
@@ -767,11 +773,9 @@ then
     echo "***********************************************************"
     echo ""
 
-scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
-python ./vsperf pvp_tput &>$NIC_LOG_FOLDER/vsperf_pvp_2pmd.log &
-EOF
+python3 ./vsperf pvp_tput &>$NIC_LOG_FOLDER/vsperf_pvp_2pmd.log &
 
     sleep 2
     vsperf_pid=`pgrep -f vsperf`
@@ -787,11 +791,9 @@ then
     echo "*******************************************************************"
     echo ""
 
-scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
-python ./vsperf pvp_tput --conf-file=/root/vswitchperf/twoqueue.conf &>$NIC_LOG_FOLDER/vsperf_pvp_4pmd-2q.log &
-EOF
+python3 ./vsperf pvp_tput --conf-file=/root/vswitchperf/twoqueue.conf &>$NIC_LOG_FOLDER/vsperf_pvp_4pmd-2q.log &
 
     sleep 2
     vsperf_pid=`pgrep -f vsperf`
@@ -807,11 +809,9 @@ then
     echo "*************************************************************"
     echo ""
 
-scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
-python ./vsperf pvp_tput --test-params="TRAFFICGEN_PKT_SIZES=2000,9000; VSWITCH_JUMBO_FRAMES_ENABLED=True" &>$NIC_LOG_FOLDER/vsperf_pvp_2pmd_jumbo.log &
-EOF
+python3 ./vsperf pvp_tput --test-params="TRAFFICGEN_PKT_SIZES=2000,9000; VSWITCH_JUMBO_FRAMES_ENABLED=True" &>$NIC_LOG_FOLDER/vsperf_pvp_2pmd_jumbo.log &
 
     sleep 2
     vsperf_pid=`pgrep -f vsperf`
@@ -827,11 +827,9 @@ then
     echo "********************************************************"
     echo ""
 
-scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
 source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
-python ./vsperf pvp_tput --vswitch=OvsVanilla --vnf=QemuVirtioNet --test-params="TRAFFICGEN_LOSSRATE=0.002" &>$NIC_LOG_FOLDER/vsperf_pvp_ovs_kernel.log &
-EOF
+python3 ./vsperf pvp_tput --vswitch=OvsVanilla --vnf=QemuVirtioNet --test-params="TRAFFICGEN_LOSSRATE=0.002" &>$NIC_LOG_FOLDER/vsperf_pvp_ovs_kernel.log &
 
     sleep 2
     vsperf_pid=`pgrep -f vsperf`
@@ -882,6 +880,18 @@ vsperf_make() {
             cp -R systems/rhel/7.2 systems/rhel/$VERSION_ID
         fi
         cd systems
+        if [ $VERSION_ID == "8.0" ]
+        then
+            sed -i s/'python-six'/'python3-six'/ rhel/8.0/build_base_machine.sh
+            sed -i s/'rh-python34'/'#rh-python34'/ rhel/8.0/build_base_machine.sh
+            sed -i s/'rh-python34-python-tkinter'/'#rh-python34-python-tkinter'/ rhel/8.0/build_base_machine.sh
+            sed -i s/'^scl enable rh-python34 "'/'#scl enable rh-python34 "'/ rhel/8.0/prepare_python_env.sh
+            sed -i s/'^"'/'#"'/ rhel/8.0/prepare_python_env.sh
+            sed -i s/'--python \/opt\/rh\/rh-python34\/root\/usr\/bin\/python3'// rhel/8.0/prepare_python_env.sh
+            sed -i s/'pip'/'pip3'/ rhel/8.0/prepare_python_env.sh
+            sed -i s/'14.5.0'/'17.1.2'/ ../requirements.txt
+            sed -i s/'pycrypto'/'pycryptodome'/ ../requirements.txt
+        fi
         sed -i 's/source\s"$VSPERFENV_DIR".*/&\npip install --upgrade pip/' rhel/$VERSION_ID/prepare_python_env.sh
         sed -i 's/source\s"$VSPERFENV_DIR".*/&\npip install --upgrade setuptools/' rhel/$VERSION_ID/prepare_python_env.sh
         ./build_base_machine.sh &> $NIC_LOG_FOLDER/vsperf_install.log &
