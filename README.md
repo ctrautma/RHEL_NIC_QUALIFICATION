@@ -81,7 +81,7 @@ sum of both ports in frames per second.
 
 ## Setup the TRex traffic generator
 
-See the main [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf#setup-the-trex-traffic-generator) on how to configure the TRex traffic generator.
+See the main [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#setup-the-trex-traffic-generator) on how to configure the TRex traffic generator.
 
 
 
@@ -147,7 +147,7 @@ cp -r trex_client/external_libs/ ~/ovs_perf/trex_stl_lib/
 ## Setup the Device Under Test (DUT), Open vSwitch
 <a name="DUTsetup"/>
 
-See the main [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf#setup-the-device-under-test-dut-open-vswitch) on how to configure the DUT for OVS. Follow the above-linked chapter and stop at the [Running the PVP script](https://github.com/chaudron/ovs_perf#running-the-pvp-script) chapter, and continue below.
+See the main [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#setup-the-device-under-test-dut-open-vswitch) on how to configure the DUT for OVS. Follow the above-linked chapter and stop at the [Running the PVP script](https://github.com/chaudron/ovs_perf/tree/RHEL8#running-the-pvp-script) chapter, and continue below.
 
 ### Running the PVP script
 
@@ -235,7 +235,7 @@ For details on the supported PVP script options, see the
 
 If this is successful we can go ahead and do a full run. This will roughly take
 a day to finish. For more details and background information on this see the
-[_ovs\_perf_](https://github.com/chaudron/ovs_perf/blob/master/README.md#full-day-pvp-test)
+[_ovs\_perf_](https://github.com/chaudron/ovs_perf/tree/RHEL8/README.md#full-day-pvp-test)
 documentation. This is done running the included __runfullday.sh__ script.
 
 ```
@@ -286,7 +286,7 @@ the steps to convert it to a Linux datapath setup.
 
 ### Configuring the Linux Kernel datapath
 
-See the main  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf#open-vswitch-with-linux-kernel-datapath)
+See the main  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#open-vswitch-with-linux-kernel-datapath)
 on how to configure the Kernel datapath.
 
 
@@ -352,7 +352,7 @@ flows_ as ran before on the DPDK datapath:
 
 If this is successful we can go ahead and do a full run. This will roughly take
 a day to finish. For more details and background information on this see the
-[_ovs\_perf_](https://github.com/chaudron/ovs_perf/blob/master/README.md#full-day-pvp-test)
+[_ovs\_perf_](https://github.com/chaudron/ovs_perf/tree/RHEL8#full-day-pvp-test)
 documentation. This is done running the included __runfullday.sh__ script.
 
 ```
@@ -395,7 +395,7 @@ offload using TC flower.
 
 ### Configuring the Linux Kernel datapath with TC Flower offload
 
-See the main  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf#open-vswitch-with-linux-kernel-datapath-and-tc-flower-offload)
+See the main  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#open-vswitch-with-linux-kernel-datapath-and-tc-flower-offload)
 on how to configure the Kernel datapath with TC Flower offload.
 
 
@@ -465,7 +465,7 @@ flows_ as ran before on the other datapaths:
 
 If this is successful we can go ahead and do a full run. This will roughly take
 a day to finish. For more details and background information on this see the
-[_ovs\_perf_](https://github.com/chaudron/ovs_perf/blob/master/README.md#full-day-pvp-test)
+[_ovs\_perf_](https://github.com/chaudron/ovs_perf/tree/RHEL8#full-day-pvp-test)
 documentation. This is done running the included __runfullday.sh__ script.
 
 ```
