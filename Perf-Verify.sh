@@ -742,6 +742,8 @@ git_clone_vsperf() {
     cd vswitchperf
     git checkout -f 91e0985be7ca2b2654f89928315431228b7ecc56 &>>$NIC_LOG_FOLDER/vsperf_clone.log # Master with T-Rex fixes
     git fetch https://gerrit.opnfv.org/gerrit/vswitchperf refs/changes/75/44275/1 && git cherry-pick FETCH_HEAD # single numa fix
+    git fetch https://gerrit.opnfv.org/gerrit/vswitchperf refs/changes/27/63027/1 && git cherry-pick FETCH_HEAD # mathplotlib fix
+    git fetch https://gerrit.opnfv.org/gerrit/vswitchperf refs/changes/77/63377/1 && git cherry-pick FETCH_HEAD # qemu 2.12 fix
 
 }
 
