@@ -368,7 +368,11 @@ What is the IP address of the TRex tester? localhost
 What is the physical interface being used, i.e. dpdk0, em1, p4p5? em1
 What is the virtual interface being used, i.e. vhost0, vnet0? vnet0
 What is the virtual interface PCI id? 0000:00:06.0
+Enter the Number of VM nic receive descriptors, 4096(default)? 4096
+Enter the Number of Number of VM nic transmit descriptors, 1024(default)? 1024
 What is the TRex tester physical interface being used? 0
+What is the link speed of the physical interface, i.e. 10(default),25,40,50,100? 10
+Enter L2/L3 streams list. default(10,1000,10000,100000,1000000)? 10,1000,10000,100000,1000000
 - Connecting to the tester...
 - Connecting to DUT, "10.19.17.1
 ...
@@ -481,7 +485,11 @@ What is the IP address of the TRex tester? localhost
 What is the physical interface being used, i.e. dpdk0, em1, p4p5? enp3s0np0
 What is the virtual interface being used, i.e. vhost0, vnet0? eth1
 What is the virtual interface PCI id? 0000:00:06.0
+Enter the Number of VM nic receive descriptors, 4096(default)? 4096
+Enter the Number of Number of VM nic transmit descriptors, 1024(default)? 1024
 What is the TRex tester physical interface being used? 0
+What is the link speed of the physical interface, i.e. 10(default),25,40,50,100? 10
+Enter L2/L3 streams list. default(10,1000,10000,100000,1000000)? 10,1000,10000,100000,1000000
 - Connecting to the tester...
 - Connecting to DUT, "10.19.17.1
 ...
