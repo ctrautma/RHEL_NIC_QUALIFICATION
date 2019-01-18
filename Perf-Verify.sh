@@ -30,14 +30,14 @@
 
 if [ $VERSION_ID == "8.0" ]
 then
-    dpdk_ver="1711-14"
+    dpdk_ver="17-11-14"
     one_queue_image="RHEL8VNF-1Q.qcow2"
-    two_queue_image="RHEL8VNF-1Q.qcow2"
+    two_queue_image="RHEL8VNF-2Q.qcow2"
     one_queue_zip="RHEL8VNF-1Q.qcow2.lrz"
     two_queue_zip="RHEL8VNF-2Q.qcow2.lrz"
 elif [ $VERSION_ID == "7.6" ]
 then
-    dpdk_ver="1711-9"
+    dpdk_ver="1711-5"
     one_queue_image="RHEL76-1Q.qcow2"
     two_queue_image="RHEL76-2Q.qcow2"
     one_queue_zip="RHEL76-1Q.qcow2.lrz"
@@ -905,6 +905,8 @@ vsperf_make() {
         then
             fail "VSPerf Install" "VSPerf installation failed, please check log at $NIC_LOG_FOLDER/vsperf_install.log"
         fi
+        # add mellanox specific patches
+
     fi
 }
 
