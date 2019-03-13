@@ -395,11 +395,10 @@ class ResultsSheet(object):
                 # We need the NIC speed
                 #
                 if row[0] == '\"Physical port':
-                    nic_speed = row[2].split()[1]
-                    if nic_speed not in ['10', '25', '40', '50', '100']:
+                    nic_speed = int(float(row[2].split()[1]))
+                    if nic_speed not in [10, 25, 40, 50, 100]:
                         raise ValueError(
                             "Unsupported link rate, please report!!")
-                    nic_speed = int(nic_speed)
 
             elif packet_sizes is None:
                 #
