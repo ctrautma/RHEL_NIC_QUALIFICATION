@@ -295,17 +295,19 @@ install_rpms()
 	then
 		/bin/bash ./repo.sh
         yum -y install python-netifaces
+        rpm -qa | grep python36  || yum -y install python36 python36-devel scl-utils
 	else
         yum -y install python3-netifaces
 	fi
+
     yum -y install python3-pyelftools
 	rpm -qa | grep yum-utils || yum -y install yum-utils
-	rpm -qa | grep python36  || yum -y install python36 python36-devel scl-utils
 	rpm -qa | grep wget || yum install -y wget nano ftp yum-utils git tuna openssl sysstat
 	rpm -qa | grep tuned-profiles-cpu-partitioning || yum -y install tuned-profiles-cpu-partitioning
 	
     #install libvirt
-	yum install -y libvirt virt-install virt-manager virt-viewer
+	yum install -y libvirt libvirt-devel virt-install virt-manager virt-viewer
+
 	systemctl restart libvirtd
 	
     #install python
@@ -350,154 +352,27 @@ init_python_env()
 	else
 		python36 -m venv ${CASE_PATH}/venv
 	fi
+
     source venv/bin/activate
-    #for ovs-tcpdump
-	export PYTHONPATH=${CASE_PATH}/venv/lib64/python3.6/site-packages/
+    yum install -y libnl3-devel
+
     pip install --upgrade pip
-    if ! pip list --format=columns | grep fire;then
-            pip install fire
-    fi
-    if ! pip list --format=columns | grep psutil;then
-            pip install psutil
-    fi
-    if ! pip list --format=columns | grep paramiko;then
-            pip install paramiko
-    fi
+    pip install fire
+    pip install psutil
+    pip install paramiko
     pip install xmlrunner
 	pip install netifaces
     pip install pyelftools
-
+	pip install libvirt-python
+	pip install argparse
+	pip install plumbum
+	pip install ethtool
+	pip install shell
 }
 
-get_pmd_masks()
-{
-    local cpus=$1
-    local pmd_mask
-    temp_array=($cpus)
-    temp_len=${#temp_array[@]}
-    last_cpu_1=`echo ${temp_array[$temp_len-1]}`
-    last_cpu_2=${temp_array[$temp_len-2]}
-    sibling_cpu_1=`cat /sys/devices/system/cpu/cpu$last_cpu_1/topology/thread_siblings_list | awk -F ',' '{print $1}'`
-    sibling_cpu_2=`cat /sys/devices/system/cpu/cpu$last_cpu_2/topology/thread_siblings_list | awk -F ',' '{print $1}'`
-    pmd_mask=`python tools.py get-pmd-masks "$last_cpu_1 $last_cpu_2 $sibling_cpu_1 $sibling_cpu_2"`
-    echo $pmd_mask
-}
-
-get_isolate_cpus()
-{
-    local nic_name=$1
-    local ISOLCPUS_SERVER
-    ISOLCPUS_SERVER=`python tools.py get-isolate-cpus-with-nic $nic_name`
-    #printf "%s" $ISOLCPUS_SERVER
-    echo $ISOLCPUS_SERVER
-}
-
-compile_mono()
-{
-    if [ -f /usr/local/mono/bin/mono -o -f /usr/bin/mono ]
-    then
-        return 0
-    fi
-    export TERM=xterm
-    PKG_MONO_SRC=${PKG_MONO_SRC:-"http://netqe-bj.usersys.redhat.com/share/tools/mono-5.8.0.127.src.tar.bz2"}
-    PKG_LIBGDIPLUS_SRC=${PKG_LIBGDIPLUS_SRC:-"http://netqe-bj.usersys.redhat.com/share/tools/libgdiplus_20181012.src.zip"}
-    #yum -y install http://download-node-02.eng.bos.redhat.com/brewroot/packages/giflib/5.1.4/2.el8/x86_64/giflib-5.1.4-2.el8.x86_64.rpm
-
-    yum -y install cmake tar gcc gcc-c++ bzip2 tar wget
-    rpm -q cmake &>/dev/null || yum -y install cmake
-    rpm -q cairo-devel &/dev/null || yum -y install cairo-devel
-    rpm -q libjpeg-turbo-devel &>/dev/null || yum -y install libjpeg-turbo-devel
-    rpm -q libtiff-devel &>/dev/null || yum -y install libtiff-devel
-    rpm -q giflib-devel &>/dev/null || yum -y install giflib giflib-devel
-
-    mkdir -p libgdiplus
-    pushd libgdiplus &>/dev/null
-    wget ${PKG_LIBGDIPLUS_SRC} > /dev/null 2>&1
-    unzip *.zip
-    pushd libgdiplus-*/ &>/dev/null
-    ./autogen.sh
-    make -j 16
-    make install
-    local lib_file=/etc/ld.so.conf.d/libgdiplus.conf
-    touch ${lib_file}
-    echo "/usr/local/lib/" > ${lib_file}
-    ldconfig
-    popd &>/dev/null
-    popd &>/dev/null
-
-    mkdir -p mono
-    pushd mono &>/dev/null
-    wget ${PKG_MONO_SRC} > /dev/null 2>&1
-    tar -xf mono-*.tar.bz2
-    pushd mono-*/ &>/dev/null
-    export TERM=xterm
-    ./configure --prefix=/usr/local/mono/
-    make -j 16
-    make install
-    export PATH=$PATH:/usr/local/mono/bin
-    popd &>/dev/null
-    popd &>/dev/null
-}
-
-
-install_mono_rpm() 
-{
-    echo "start to install mono rpm..."
-    . /etc/os-release
-	if (( $SYSTEM_VERSION_ID >= 80 ))
-	then
-        cd ${CASE_PATH}
-        compile_mono
-	else
-	    yum -y install yum-utils
-        yum -y install mono-complete-5.8.0.127-0.xamarin.3.epel7.x86_64
-	fi
-}
-
-
-download_Xena2544() 
-{
-    echo "start to download xena2544.exe to xena folder..."
-    wget -P /root/ http://netqe-infra01.knqe.lab.eng.bos.redhat.com/Xena2544.exe > /dev/null 2>&1
-
-    wget -P /root/ ${XENA_CONFIG_FILE}
-    local xena_config=`basename ${XENA_CONFIG_FILE}`
-    #XENA_MODULE_INDEX=${XENA_MODULE_INDEX}
-    #XENA_MODULE_PORT=${XENA_MODULE_PORT}    
-    source ${CASE_PATH}/venv/bin/activate
-    pushd /root/
-    python ${CASE_PATH}/tools.py make-xena-config $xena_config ${XENA_MODULE_INDEX}
-    popd
-}
-
-install_ovs()
-{
-    local ovs_version=${OVS_URL##*/}
-    ovs_version=${ovs_version%.rpm}
-    if rpm -q $ovs_version;then
-        true;
-    else
-        yum -y install ${CONTAINER_SELINUX_URL}
-        yum install -y ${OVS_SELINUX_URL}
-        rpm -ivh ${OVS_URL}
-    fi
-}
-
-install_driverctl()
-{
-    yum install -y ${DRIVERCTL_URL}
-}
-
-install_dpdk()
-{
-    rpm -ivh ${DPDK_URL}
-    rpm -ivh ${DPDK_TOOL_URL}
-}
 
 enable_dpdk() 
 {
-    install_dpdk
-    install_driverctl
     local nic1_mac=$1
     local nic2_mac=$2
     local nic1_name=`get_nic_name_from_mac $nic1_mac`
@@ -529,18 +404,6 @@ enable_dpdk()
         sleep 3
         driverctl -v list-devices|grep vfio-pci
     fi
-}
-
-enable_openvswitch_as_root_user()
-{
-    for i in "nfp" "broadcom" "xxv"
-    do
-        if [[ "$NIC_DRIVER" == "$i" ]];then
-            #here need update /etc/sysconfig/openvswitch
-            sed -ie 's/OVS_USER_ID/#OVS_USER_ID/g' /etc/sysconfig/openvswitch 
-            break
-        fi
-    done
 }
 
 bonding_nic() 
@@ -616,34 +479,6 @@ bonding_nic()
 	ovs-appctl bond/show
     sleep 30
     ovs-appctl bond/show
-}
-
-
-cpu_list_on_numa()
-{
-        local numa_node=${1:-0}
-        local cpulist=""
-        local i=""
-        local CPU=""
-
-        CPU=$(lscpu | grep "NUMA node${numa_node} CPU(s):" | awk '{print $NF}')
-        CPU=$(echo -n $CPU | sed 's/,/ /g' | sed s/-/../g)
-
-        for i in $CPU
-        do
-                echo $i | grep '\.\.' > /dev/null && \
-                cpus=$(
-                        bash -c "
-                                list=''
-                                for i in {$i}
-                                do
-                                        [ -z \"\$list\" ] && list="\$i" || list+=\" \$i\"
-                                done
-                                echo \$list
-                ") || cpus="$i "
-                [ -z "$cpulist" ] && cpulist=$cpus || cpulist+=" $cpus"
-        done
-        echo -n $cpulist
 }
 
 
@@ -882,55 +717,6 @@ clear_env()
     return 0
 }
 
-ovs_tcpdump_install()
-{
-    rpm -ivh ${PYTHON_OVS_URL} --nodeps
-    rpm -ivh ${OVS_TEST_URL} --nodeps
-    return 0
-}
-
-check_lacp_status()
-{
-    sleep 65
-    ovs-vsctl show
-    ovs-appctl bond/show
-    lacp_status=`ovs-appctl bond/show|grep lacp_status| awk -F ': ' '{print $2}'`
-    if [ $lacp_status == 'negotiated' ]; then
-        rlLog "---------------------lacp status is negotiated-----------------------------"
-    else
-        rlLog "---------------------lacp status is not correct----------------------------"
-    fi
-}
-
-bonding_test_xena()
-{
-	local hostname=`hostname`
-
-    if (( $SYSTEM_VERSION_ID >= 80 ))
-    then
-        export PATH=$PATH:/usr/local/mono/bin
-        export TERM=xterm
-    fi
-    
-    local xena_config=`basename ${XENA_CONFIG_FILE}`
-    rlRun "mono /root/Xena2544.exe -c /root/$xena_config  -e user1"
-	sleep 5
-	report_file_name=`ls -alt /root/Xena/Xena2544-2G/Reports/xena2544-report*.xml | head -n 1 | awk '{print $NF}'`
-	port1_pps=`cat $report_file_name |grep PortRxPps| awk -F ' ' '{printf $10}' | awk -F '"' '{printf $4}'`
-	port2_pps=`cat $report_file_name |grep PortRxPps| awk -F ' ' '{printf $10}' | awk -F '"' '{printf $2}'`
-	sum_pps=$(($port1_pps+$port2_pps))
-	sum_pps=$(($sum_pps/1000000))
-	echo $sum_pps
-    rlAssertNotEquals "Xena performance test vlaue should be > 0 mpps" "$sum_pps" "0"
-	if [ `echo "${sum_pps} > 1" | bc` -ne 0 ];then
-        	echo "The rx result is" ${sum_pps}
-    else
-        	echo "The rx result performance is low, case failed"
-    fi
-    rlLog "submit performance log" "$report_file_name"
-    #rlFileSubmit "/root/Xena/Xena2544-2G/Reports/xena2544-report*.xml"
-    return 0
-}
 
 bonding_test_trex()
 {
