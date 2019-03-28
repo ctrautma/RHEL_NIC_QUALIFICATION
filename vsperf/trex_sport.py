@@ -29,17 +29,16 @@ import sys
 import getopt
 
 sys.path.append('/opt/trex/current/automation/trex_control_plane/stl/examples')
-sys.path.append('./v2.48/automation/automation/trex_control_plane/interactive/trex/examples')
-sys.path.append('./v2.48/automation/trex_control_plane/interactive/trex/examples/stl')
+sys.path.append('./v2.49/automation/automation/trex_control_plane/interactive/trex/examples')
+sys.path.append('./v2.49/automation/trex_control_plane/interactive/trex/examples/stl')
+sys.path.append('./v2.49/automation/trex_control_plane/stf/trex_stf_lib/')
 
+import trex_client
+import trex_status
 import stl_path
 from trex_stl_lib.api import *
 import json
 import argparse
-
-#import trex
-#import trex_stl_lib
-
 
 class TrexTest(object):
     def __init__(self, trex_host,pkt_size=64,duration=10,max_try=10,vlan_flag=False,dst_mac=None):
@@ -259,8 +258,6 @@ class TrexTest(object):
         print("x"*100)
 
     def start_trex_server(self):
-        #trex.CTRexClient
-        #import trex_client.stf.trex_stf_lib
         trex = trex_client.CTRexClient(self.trex_host)
         trex.force_kill(confirm=False)
         time.sleep(3)
@@ -308,9 +305,7 @@ class TrexTest(object):
         self.report_test_result()
 
 if __name__ == "__main__":
-    sys.path.append('./v2.48/automation/trex_control_plane/stf/trex_stf_lib/')
-    import trex_client
-    import trex_status
+
 
     parser = argparse.ArgumentParser(description='Test ovs dpdk bonding trex')
     parser.add_argument('-c', '--connect',  type=str,help='trex server ip ', required=True)

@@ -26,21 +26,11 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Detect OS name and version from systemd based os-release file
+CASE_PATH="$(dirname $(readlink -f $0))"
+
 . /etc/os-release
 
 SYSTEM_VERSION_ID=`echo $VERSION_ID | tr -d '.'`
-
-if (( $SYSTEM_VERSION_ID < 80 ))
-then
-    yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-fi
-
-#yum -y install beakerlib
-#source /usr/share/beakerlib/beakerlib.sh
-yum -y install lrzip
-yum -y install tcpdump
-yum -y install ethtool
-
 
 if [ $VERSION_ID == "7.5" ]
 then
@@ -67,6 +57,15 @@ fail()
     echo "!!! $2 !!!"
     echo ""
     exit 1
+}
+
+loginfo()
+{
+    # Param 1 log info 
+    echo ""
+    echo "####################################"
+    echo $1
+    echo "####################################"
 }
 
 
@@ -270,6 +269,7 @@ ovs_running_check()
 
 download_VNF_image() 
 {
+    pushd $CASE_PATH
     if [ ! -f $one_queue_image ] || [ ! -f $two_queue_image ]
     then
         echo ""
@@ -284,6 +284,7 @@ download_VNF_image()
         rm -f $one_queue_zip
         rm -f $two_queue_zip
     fi
+    popd
 
 }
 
@@ -324,6 +325,8 @@ install_rpms()
 
     #for vim
     yum -y install vim
+    yum -y install lrzip
+
 }
 
 #get nic name from mac address
@@ -344,18 +347,22 @@ get_nic_name_from_mac()
     return 1
 }
 
-init_python_env()
+enalbe_python_venv()
 {
-	if (( $SYSTEM_VERSION_ID >= 80 ))
+    if (( $SYSTEM_VERSION_ID >= 80 ))
 	then
 		python3 -m venv ${CASE_PATH}/venv
 	else
+        yum install -y python36
 		python36 -m venv ${CASE_PATH}/venv
 	fi
-
     source venv/bin/activate
-    yum install -y libnl3-devel
+}
 
+init_python_env()
+{
+    enalbe_python_venv
+    yum install -y libnl3-devel
     pip install --upgrade pip
     pip install fire
     pip install psutil
@@ -369,7 +376,6 @@ init_python_env()
 	pip install ethtool
 	pip install shell
 }
-
 
 enable_dpdk() 
 {
@@ -385,9 +391,9 @@ enable_dpdk()
     modprobe vfio
     local driver_name=`ethtool -i $nic1_name | grep driver | awk '{print $NF}'`
     if [ "$driver_name" == "mlx5_core" ];then
-        rlLog "************************************************"
-        rlLog "This Driver is Mallenox , So just return 0"
-        rlLog "************************************************"
+        loginfo "************************************************"
+        loginfo "This Driver is Mallenox , So just return 0"
+        loginfo "************************************************"
         return 0
     fi
 
@@ -402,39 +408,24 @@ enable_dpdk()
         sleep 3
         driverctl -v set-override $nic2_businfo vfio-pci
         sleep 3
-        driverctl -v list-devices|grep vfio-pci
+        driverctl -v list-devices | grep vfio-pci
     fi
 }
 
-bonding_nic() 
+
+ovs_bridge_with_dpdk()
 {
     local nic1_mac=$1
     local nic2_mac=$2
     local bond_mode=$3
     local mtu_val=$4
-    
-    # if [[ "$NIC_DRIVER" == "nfp" ]];then
-    #     #here need update /etc/sysconfig/openvswitch
-    #     sed -ie 's/OVS_USER_ID/#OVS_USER_ID/g' /etc/sysconfig/openvswitch 
-
-    # fi
-    enable_openvswitch_as_root_user
-
-    local pmd_cpu_mask
-    if i_am_server;then
-        pmd_cpu_mask=$SERVER_PMD_CPU_MASK
-    elif i_am_client;then
-        pmd_cpu_mask=$CLIENT_PMD_CPU_MASK
-    fi
-
-    
+    local pmd_cpu_mask=$5
 
 	modprobe openvswitch
 	systemctl stop openvswitch
 	sleep 3
 	systemctl start openvswitch
 	sleep 3
-
 	ovs-vsctl --if-exists del-br ovsbr0
 	sleep 5
 
@@ -447,231 +438,160 @@ bonding_nic()
 	sleep 3
 	ovs-vsctl add-br ovsbr0 -- set bridge ovsbr0 datapath_type=netdev
 
-    ovs-vsctl add-bond ovsbr0 dpdkbond dpdk0 dpdk1 "bond_mode=${bond_mode}" \
-    -- set Interface dpdk0 type=dpdk options:dpdk-devargs=class=eth,mac=${nic1_mac} mtu_request=${mtu_val} \
-    -- set Interface dpdk1 type=dpdk options:dpdk-devargs=class=eth,mac=${nic2_mac} mtu_request=${mtu_val}
-
-    #set dpdkbond port with vlan mode trunk and permit all vlans
-    ovs-vsctl set Port dpdkbond vlan_mode=trunk
-    ovs-vsctl list Port dpdkbond
-
-    #set updelay and downdelay for test
-    ovs-vsctl set Port dpdkbond bond_updelay=5
-    ovs-vsctl set Port dpdkbond bond_downdelay=5
-
-    local updelay=`ovs-vsctl list Port dpdkbond | grep bond_updelay | awk '{print $NF}'`
-    local downdelay=`ovs-vsctl list Port dpdkbond | grep bond_downdelay | awk '{print $NF}'`
-    rlAssertEquals "Check bond up delay time " "$updelay" "5"
-    rlAssertEquals "Check bond down delay time " "$downdelay" "5"
-    ovs-vsctl list Port dpdkbond
+    ovs-vsctl add-port ovsbr0 dpdk0 -- set Interface dpdk0 type=dpdk options:dpdk-devargs="class=eth,mac=${nic1_mac}"
+    ovs-vsctl add-port ovsbr0 dpdk1 -- set Interface dpdk1 type=dpdk options:dpdk-devargs="class=eth,mac=${nic2_mac}"
 	
-    #ovs-vsctl add-port ovsbr0 vhost0 -- set interface vhost0 type=dpdkvhostuser
     ovs-vsctl add-port ovsbr0 vhost0 -- set interface vhost0 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost0
-	#chmod 777 /var/run/openvswitch/vhost0
+    ovs-vsctl add-port ovsbr0 vhost1 -- set interface vhost1 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost1
 
 	ovs-ofctl del-flows ovsbr0
 	ovs-ofctl add-flow ovsbr0 actions=NORMAL
 
 	sleep 2
 	ovs-vsctl show
-	sleep 5
-	echo "after bonding nic, check the bond status"
-	ovs-appctl bond/show
-    sleep 30
-    ovs-appctl bond/show
 }
-
 
 vcpupin_in_xml()
 {
     local numa_node=$1
-    local number_of_required_cpu_cores=$2
+    local num_cpu_cores=$2
     local template_xml=$3
     local new_xml=$4
 
-    local cpu_list=($(cpu_list_on_numa $numa_node))
-
     pushd $CASE_PATH 1>/dev/null
+    config_file_checks
+    local cpu_list="${VCPU_LIST}"
+    
     cp $template_xml $new_xml
+    
+    local num_cpu=${#cpu_list[@]}
+    python tools.py xml_add_vcpupin_item $new_xml $num_cpu
 
-    python tools.py update_vcpu $new_xml 0  ${cpu_list[0]}
-
-    for ((i=1; i<=$number_of_required_cpu_cores; i++))
+    for i in `seq ${#cpu_list[@]}`
     do
-            if (( ${i}%2 ))
-            then
-                python tools.py update_vcpu $new_xml $i  ${cpu_list[$(($i/2+1))]}
-            else
-                local_temp_cpu=$(cat /sys/devices/system/cpu/cpu${cpu_list[$(($i/2))]}/topology/thread_siblings_list | awk -F ',' '{print $NF}')
-                python tools.py update_vcpu $new_xml $i $local_temp_cpu
-            fi
+        local index=$((i-1))
+        python tools.py update_vcpu $new_xml $index ${cpu_list[$index]}
     done
-    python tools.py update_numa $new_xml $numa_node
-    if [ $5 == 'client' ]
-    then
-        python tools.py update_vhostuser_interface $new_xml "52:54:00:11:8f:ea" "0x00"
-    elif [ $5 == 'server' ]
-    then
-        python tools.py update_vhostuser_interface $new_xml "52:54:00:11:8f:e8" "0x00"
-    fi
-	popd 1>/dev/null
-}
 
+    python tools.py update_numa $new_xml $numa_node
+	popd 1>/dev/null
+
+}
 
 start_guest()
 {
+    local image_name=$1
+    local guest_xml=$2
+    pushd $CASE_PATH
     systemctl list-units --state=stop --type=service | grep libvirtd || systemctl restart libvirtd
-    
-    if [[ $CUSTOMER_PFT == "true" ]]; then
-        [[ -f /root/$(basename $IMG_GUEST) ]] || wget -P /root/  $IMG_GUEST > /dev/null 2>&1
-        pushd /root 1>/dev/null
-        [[ -f /root/rhel7.5-vsperf.qcow2 ]] || lrzip -d "$(basename $IMG_GUEST)"
-        [[ -f /root/rhel7.5-vsperf.qcow2 ]] || mv $(basename -s .lrz $IMG_GUEST) rhel7.5-vsperf.qcow2
-        popd 1>/dev/null
-        virsh define ${CASE_PATH}/g1.xml
-        chmod 777 /root/
-        virsh start guest30032
-    else
-        local image_name=`basename ${IMG_GUEST}`
-        [[ -f /root/rhel.qcow2 ]] && rm -f /root/rhel.qcow2
-        wget -P /root/ ${IMG_GUEST} > /dev/null 2>&1
-        pushd /root/
-            mv $image_name rhel.qcow2
-        popd
-        chmod 777 /root/
-        local udev_file=60-persistent-net.rules
-        touch $udev_file
-        cat > $udev_file <<EOF
-ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:02:00.0", NAME:="eth0"
-ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:03:00.0", NAME:="eth1"
-EOF
+    download_VNF_image
 
-        virt-copy-in -a /root/rhel.qcow2 $udev_file /etc/udev/rules.d/
-        #Here add dpdk rpm to guest
-        rm -rf /root/${GUEST_DPDK_VERSION}
-        mkdir -p /root/${GUEST_DPDK_VERSION}
-        wget -P /root/${GUEST_DPDK_VERSION}/ ${GUEST_DPDK_URL}      > /dev/null 2>&1
-        wget -P /root/${GUEST_DPDK_VERSION}/ ${GUEST_DPDK_TOOL_URL} > /dev/null 2>&1
-        virt-copy-in -a /root/rhel.qcow2 /root/${GUEST_DPDK_VERSION}/ /root/
-        sleep 5
+    #update guest xml config for image
+    python tools.py update_image_source $guest_xml $image_name
         
-        virsh define ${CASE_PATH}/g1.xml
-        chmod 777 /root/
-        virsh start guest30032
-    fi
+    virsh define ${CASE_PATH}/g1.xml
+    virsh start gg    
+    popd
 }
 
 destroy_guest()
 {
-    virsh destroy guest30032
-    virsh undefine guest30032
+    virsh destroy gg
+    virsh undefine gg
 }
 
 configure_guest()
 {
-	local cmd=(
-            {nmcli dev set eth1 managed no}
-            {systemctl stop firewalld}
-            {iptables -t filter -P INPUT ACCEPT}
-			{iptables -t filter -P FORWARD ACCEPT}
-			{iptables -t filter -P OUTPUT ACCEPT}
-			{iptables -t mangle -P PREROUTING ACCEPT}
-			{iptables -t mangle -P INPUT ACCEPT}
-			{iptables -t mangle -P FORWARD ACCEPT}
-			{iptables -t mangle -P OUTPUT ACCEPT}
-			{iptables -t mangle -P POSTROUTING ACCEPT}
-			{iptables -t nat -P PREROUTING ACCEPT}
-			{iptables -t nat -P INPUT ACCEPT}
-			{iptables -t nat -P OUTPUT ACCEPT}
-			{iptables -t nat -P POSTROUTING ACCEPT}
-			{iptables -t filter -F}
-			{iptables -t filter -X}
-			{iptables -t mangle -F}
-			{iptables -t mangle -X}
-			{iptables -t nat -F}
-			{iptables -t nat -X}
-			{ip6tables -t filter -P INPUT ACCEPT}
-			{ip6tables -t filter -P FORWARD ACCEPT}
-			{ip6tables -t filter -P OUTPUT ACCEPT}
-			{ip6tables -t mangle -P PREROUTING ACCEPT}
-			{ip6tables -t mangle -P INPUT ACCEPT}
-			{ip6tables -t mangle -P FORWARD ACCEPT}
-			{ip6tables -t mangle -P OUTPUT ACCEPT}
-			{ip6tables -t mangle -P POSTROUTING ACCEPT}
-			{ip6tables -t nat -P PREROUTING ACCEPT}
-			{ip6tables -t nat -P INPUT ACCEPT}
-			{ip6tables -t nat -P OUTPUT ACCEPT}
-			{ip6tables -t nat -P POSTROUTING ACCEPT}
-			{ip6tables -t filter -F}
-			{ip6tables -t filter -X}
-			{ip6tables -t mangle -F}
-			{ip6tables -t mangle -X}
-			{ip6tables -t nat -F}
-			{ip6tables -t nat -X}
-			{ip addr add $1/24 dev eth1}
-            {ip -d addr show}
-                )
+    local cmd=$(
+		cat <<EOF
+        stty rows 24 cols 120 
+		nmcli dev set eth1 managed no
+		systemctl stop firewalld
+		iptables -t filter -P INPUT ACCEPT
+		iptables -t filter -P FORWARD ACCEPT
+		iptables -t filter -P OUTPUT ACCEPT
+		iptables -t mangle -P PREROUTING ACCEPT
+		iptables -t mangle -P INPUT ACCEPT
+		iptables -t mangle -P FORWARD ACCEPT
+		iptables -t mangle -P OUTPUT ACCEPT
+		iptables -t mangle -P POSTROUTING ACCEPT
+		iptables -t nat -P PREROUTING ACCEPT
+		iptables -t nat -P INPUT ACCEPT
+		iptables -t nat -P OUTPUT ACCEPT
+		iptables -t nat -P POSTROUTING ACCEPT
+		iptables -t filter -F
+		iptables -t filter -X
+		iptables -t mangle -F
+		iptables -t mangle -X
+		iptables -t nat -F
+		iptables -t nat -X
+		ip6tables -t filter -P INPUT ACCEPT
+		ip6tables -t filter -P FORWARD ACCEPT
+		ip6tables -t filter -P OUTPUT ACCEPT
+		ip6tables -t mangle -P PREROUTING ACCEPT
+		ip6tables -t mangle -P INPUT ACCEPT
+		ip6tables -t mangle -P FORWARD ACCEPT
+		ip6tables -t mangle -P OUTPUT ACCEPT
+		ip6tables -t mangle -P POSTROUTING ACCEPT
+		ip6tables -t nat -P PREROUTING ACCEPT
+		ip6tables -t nat -P INPUT ACCEPT
+		ip6tables -t nat -P OUTPUT ACCEPT
+		ip6tables -t nat -P POSTROUTING ACCEPT
+		ip6tables -t filter -F
+		ip6tables -t filter -X
+		ip6tables -t mangle -F
+		ip6tables -t mangle -X
+		ip6tables -t nat -F
+		ip6tables -t nat -X
+		ip addr add $1/24 dev eth1
+		ip -d addr show
+EOF
+	)
 
-	vmsh cmd_set guest30032 "${cmd[*]}"
+	python tools.py login_vm_and_run_cmds gg "${cmd[*]}"
 }
 
-
-update_guest_isolate_cpus()
-{
-    local cmd=(
-    {sed -i 's/GRUB_CMDLINE_LINUX=.*/& isolcpus=1,2/g' /etc/default/grub}
-    {echo "isolated_cores=1,2" \>\> /etc/tuned/cpu-partitioning-variables.conf}
-    {tuned-adm profile cpu-partitioning}
-    {echo "options vfio enable_unsafe_noiommu_mode=1" \> /etc/modprobe.d/vfio.conf}
-    {grub2-mkconfig -o /boot/grub2/grub.cfg}
-    )
-    vmsh cmd_set guest30032 "${cmd[*]}"
-}
 
 #{modprobe  vfio enable_unsafe_noiommu_mode=1}
 guest_start_testpmd()
 {
-    if (( $SYSTEM_VERSION_ID >= 80 ))
-    then
-        update_guest_isolate_cpus
-        virsh restart guest30032
-    fi
-    local cmd=(
-        {/root/one_gig_hugepages.sh 1}
-        {rpm -ivh  /root/$GUEST_DPDK_VERSION/dpdk*.rpm}
-        {modprobe -r vfio_iommu_type1}
-        {modprobe -r vfio}
-        {modprobe  vfio }
-        {modprobe vfio-pci}
-        {ip link set eth1 down}
-        {dpdk-devbind -b vfio-pci 0000:00:09.0}
-        {dpdk-devbind -b vfio-pci 0000:03:00.0}
-        {dpdk-devbind --status}
-            )
-    vmsh cmd_set guest30032 "${cmd[*]}"
-    local q_num=1
-    local guest_dpdk_ver=`echo $GUEST_DPDK_VERSION | awk -F '-' '{print $1}' | tr -d '.'`
-    local hw_vlan_flag=""
-    local legacy_mem=""
-    if (( $guest_dpdk_ver >= 1811))
-    then
-        legacy_mem=" --legacy-mem "      
-        hw_vlan_flag=""
-    else
-        hw_vlan_flag="--disable-hw-vlan"
-    fi
-    VMSH_PROMPT1="testpmd>" VMSH_NORESULT=1 VMSH_NOLOGOUT=1 vmsh run_cmd guest30032 "testpmd -l 0,1,2  --socket-mem 1024 ${legacy_mem} -n 4 -- --forward-mode=macswap --port-topology=chained ${hw_vlan_flag} --disable-rss -i --rxq=${q_num} --txq=${q_num} --rxd=256 --txd=256 --nb-cores=2 --auto-start"
-}
+    local cmd=$(
+        cat << EOF
+        /root/one_gig_hugepages.sh 1
+        rpm -ivh  /root/$GUEST_DPDK_VERSION/dpdk*.rpm
+        modprobe -r vfio_iommu_type1
+        modprobe -r vfio
+        modprobe  vfio 
+        modprobe vfio-pci
+        #ip link set eth1 down
+        #dpdk-devbind -b vfio-pci 0000:03:00.0
+        dpdk-devbind --status
+EOF
+    )
+    python tools.py login_vm_and_run_cmds gg "${cmd[*]}"
 
-update_ssh_trust()
-{
-        mkdir -p ~/.ssh
-        rm -f ~/.ssh/*
-        touch ~/.ssh/known_hosts
-        chmod 644 ~/.ssh/known_hosts
-        ssh-keyscan $TREX_SERVER_IP >> ~/.ssh/known_hosts
-        echo 'y\n' | ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
-        python tools.py config-ssh-trust ~/.ssh/id_rsa.pub $TREX_SERVER_IP root ${TREX_SERVER_PASSWORD}
+    local q_num=$1
+    local hw_vlan_flag="--disable-hw-vlan"
+    local legacy_mem=""
+
+    local cmd_test="testpmd -l 0,1,2  \
+    --socket-mem 1024 \
+    ${legacy_mem} \
+    -n 4 \
+    -- \
+    --forward-mode=macswap \
+    --port-topology=chained \
+    ${hw_vlan_flag} \
+    --disable-rss \
+    -i \
+    --rxq=${q_num} \
+    --txq=${q_num} \
+    --rxd=256 \
+    --txd=256 \
+    --nb-cores=2 \
+    --auto-start"
+    python tools.py login_vm_and_run_cmds gg "${cmd_test}"
+
 }
 
 clear_dpdk_interface()
@@ -693,64 +613,50 @@ clear_env()
 {
     systemctl start openvswitch
     ovs-vsctl --if-exists del-br ovsbr0
-    virsh destroy guest30032
-    virsh undefine guest30032
+    virsh destroy gg
+    virsh undefine gg
     systemctl stop openvswitch
-    #rhts-reboot
     rlRun clear_trex
     rlRun "clear_dpdk_interface" "0,1"
     rlRun -l "clear_hugepage"
-    if i_am_server; then
-        local nic1_name=`get_nic_name_from_mac $SERVER_NIC1_MAC`
-        local nic2_name=`get_nic_name_from_mac $SERVER_NIC2_MAC`
-        ip link set $nic1_name down
-        ip link set $nic2_name down
-    elif i_am_client; then
-        local nic1_name=`get_nic_name_from_mac $CLIENT_NIC1_MAC`
-        local nic2_name=`get_nic_name_from_mac $CLIENT_NIC2_MAC`
-        ip link set $nic1_name down
-        ip link set $nic2_name down
-    else
-        echo "Here wrong rule"        
-    fi
-
     return 0
 }
 
-
 bonding_test_trex()
 {
+    local t_time=$1
+    local pkt_size=$2
     pushd $CASE_PATH
     #get trex server ip 
     rm -f /tmp/conn_is_ok
-    timeout -s SIGINT 3 ping $TREX_SERVER_IP -c 3 > /tmp/conn_is_ok
+    timeout -s SIGINT 3 ping $TRAFFICGEN_TREX_HOST_IP_ADDR -c 3 > /tmp/conn_is_ok
     loss_check=`grep packets /tmp/conn_is_ok | awk '{print $6}'`
     if [ "${loss_check::-1}" == "100" ];then
-            echo "trex server "$TREX_SERVER_IP" is no up "
+            echo "trex server "$TRAFFICGEN_TREX_HOST_IP_ADDR" is no up "
     else
             install_rpms
             init_python_env
-            update_ssh_trust
     fi
     #first use short time quick find the near value and test it long it to find is there any packet loss.
     local trex_dir=`basename .tar.gz $TREX_URL`
     local trex_name=`basename $TREX_URL`
     [ -d $trex_dir ] || wget $TREX_URL > /dev/null 2>&1
     [ -d $trex_dir ] || tar -xvf $trex_name > /dev/null 2>&1
-    rlRun "python ./trex_sport.py -c $TREX_SERVER_IP -t 60 --pkt_size=64 -m 10"
+    rlRun "python ./trex_sport.py -c $TRAFFICGEN_TREX_HOST_IP_ADDR -t $t_time --pkt_size=${pkt_size} -m 10"
 
     popd
     return 0
 }
 
-
-
 run_tests() {
+
 TESTLIST=$1
 
 if [ "$TESTLIST" == "pvp_cont" ]
 then
     echo "*** Running 1500 Byte PVP VSPerf verify check ***"
+    enalbe_python_venv
+
 
 scl enable rh-python34 - << \EOF
 source /root/vsperfenv/bin/activate
@@ -840,60 +746,6 @@ EOF
 fi
 }
 
-spinner() {
-if [ $# -eq 1 ]
-then
-    pid=$1
-else
-    pid=$! # Process Id of the previous running command
-fi
-
-spin[0]="-"
-spin[1]="\\"
-spin[2]="|"
-spin[3]="/"
-
-echo -n "${spin[0]}"
-while kill -0 $pid 2>/dev/null
-do
-  for i in "${spin[@]}"
-  do
-        echo -ne "\b$i"
-        sleep 0.1
-  done
-done
-
-}
-
-vsperf_make() {
-    if [ ! -f ~/vsperf_install.log ]
-    then
-        echo "*** Running VSPerf installation ***"
-
-        # since we are using rpms and due to build issues only run T-Rex build
-        sed -i s/'SUBDIRS += l2fwd'/'#SUBDIRS += l2fwd'/ src/Makefile
-        sed -i s/'SUBDIRS += dpdk'/'#SUBDIRS += dpdk'/ src/Makefile
-        sed -i s/'SUBDIRS += qemu'/'#SUBDIRS += qemu'/ src/Makefile
-        sed -i s/'SUBDIRS += ovs'/'#SUBDIRS += ovs'/ src/Makefile
-        sed -i s/'SUBDIRS += vpp'/'#SUBDIRS += vpp'/ src/Makefile
-        sed -i s/'SUBBUILDS = src_vanilla'/'#SUBBUILDS = src_vanilla'/ src/Makefile
-        if ! [ -d "./systems/rhel/$VERSION_ID" ]
-        then
-            cp -R systems/rhel/7.2 systems/rhel/$VERSION_ID
-        fi
-        cd systems
-        sed -i 's/source\s"$VSPERFENV_DIR".*/&\npip install --upgrade pip/' rhel/$VERSION_ID/prepare_python_env.sh
-        sed -i 's/source\s"$VSPERFENV_DIR".*/&\npip install --upgrade setuptools/' rhel/$VERSION_ID/prepare_python_env.sh
-        ./build_base_machine.sh &> $NIC_LOG_FOLDER/vsperf_install.log &
-        spinner
-        cd ..
-
-        if ! [[ `grep "finished making all" $NIC_LOG_FOLDER/vsperf_install.log` ]]
-        then
-            fail "VSPerf Install" "VSPerf installation failed, please check log at $NIC_LOG_FOLDER/vsperf_install.log"
-        fi
-    fi
-}
 
 print_results() {
 if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp*' -print -quit)"
@@ -957,11 +809,12 @@ cp /root/vswitchperf/conf/* $NIC_LOG_FOLDER
 cp /root/RHEL_NIC_QUALIFICATION/Perf-Verify.conf $NIC_LOG_FOLDER
 
 }
-function usage () {
+
+usage () {
    cat <<EOF
-Usage: $progname [-t test to execute] [-h print help]
--t tests to execute ['1Q, 2Q, Jumbo, Kernel, pvp_cont'] default is to run all tests
--h print this help message
+    Usage: $progname [-t test to execute] [-h print help]
+    -t tests to execute ['1Q, 2Q, Jumbo, Kernel, pvp_cont'] default is to run all tests
+    -h print this help message
 EOF
    exit 0
 }
@@ -1000,12 +853,20 @@ then
     
 fi
 
-git_clone_vsperf
-vsperf_make
-customize_VSPerf_code
-download_VNF_image
-download_conf_files
-generate_2queue_conf
+install_rpms
+enalbe_python_venv
+init_python_env
+enable_dpdk
+ovs_bridge_with_dpdk
+vcpupin_in_xml
+start_guest
+destroy_guest
+configure_guest
+guest_start_testpmd
+clear_dpdk_interface
+clear_env
+bonding_test_trex
+
 run_tests $TESTLIST
 print_results
 copy_config_files_to_log_folder

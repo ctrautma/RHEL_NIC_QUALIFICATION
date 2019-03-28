@@ -7,11 +7,12 @@ import subprocess as sp
 import json
 import base64
 import paramiko
-import xml.etree.ElementTree as xml
+import xml.etree.ElementTree as ET
 import ethtool
 from plumbum import local
 from shell import shell
 from shell import Shell
+import pexpect
 
 
 def run_and_getout(command):
@@ -24,20 +25,20 @@ class Tools(object):
     def __init__(self):
         self.default_code = sys.getdefaultencoding()
         pass
-    
 
-    def get_bus_from_name(name):
+    def get_bus_from_name(self, name):
         if name:
             return ethtool.get_businfo(name)
         else:
             return ""
-    def get_mac_from_name(name):
+
+    def get_mac_from_name(self, name):
         if name:
             return ethtool.get_hwaddr(name)
         else:
             return ""
 
-    def get_nic_name_from_mac(mac):
+    def get_nic_name_from_mac(self, mac):
         if not mac:
             return "name-error"
         temp_path = local.path("/sys/class/net")
@@ -47,77 +48,162 @@ class Tools(object):
                 return i.name
 
         return "name-error"
-        
-    @staticmethod
-    def get_random_mac_addr():
+
+    def get_random_mac_addr(self):
         import random
         mac = [
-        0x52,
-        0x54,
-        0x11, 
-        random.randint(0x00, 0xff), 
-        random.randint(0x00, 0xff), 
-        random.randint(0x00, 0xff)
+            0x52,
+            0x54,
+            0x11,
+            random.randint(0x00, 0xff),
+            random.randint(0x00, 0xff),
+            random.randint(0x00, 0xff)
         ]
         return ':'.join(map(lambda x: "{:02x}".format(x), mac))
 
+    def xml_add_vcpupin_item(self, xml_file, num):
+        """
+        <vcpu placement="static">3</vcpu>
+        <cputune>
+            <vcpupin cpuset="1" vcpu="0" />
+            <vcpupin cpuset="2" vcpu="1" />
+            <vcpupin cpuset="3" vcpu="2" />
+        </cputune>
+        """
+        tree = ET.parse(xml_file)
+        root = tree.getroot()
+        vcpu_item = ET.ElementPath.find(root, "./vcpu")
+        current_num = 0
+        if None != vcpu_item:
+            current_num = int(vcpu_item.text)
+            vcpu_item.text = str(num)
+        item = ET.ElementPath.find(root, "./cputune")
+        sub_item = ET.ElementPath.find(root, "./cputune/vcpupin")
+        if num > current_num:
+            for i in range(num-current_num):
+                item.append(sub_item)
+        sub_item_list = list(item)
+        for i in range(sub_item_list.__len__()):
+            sub_item_list[i].set(str("vcpu"), str(i))
+            sub_item_list[i].set(str("cpuset"), str(i))
+        sub_item_list.sort()
 
-    """
-    <cputune>
-    <vcpupin cpuset="1" vcpu="8" />
-    <vcpupin cpuset="2" vcpu="3" />
-    <vcpupin cpuset="3" vcpu="4" />
-    <emulatorpin cpuset="8" />
-    </cputune>
-	"""
+        print(ET.tostringlist(item))
+        tree.write(xml_file)
+        pass
 
     def update_vcpu(self, xml_file, index, value):
-        tree = xml.parse(xml_file)
+        """
+        <cputune>
+        <vcpupin cpuset="1" vcpu="8" />
+        <vcpupin cpuset="2" vcpu="3" />
+        <vcpupin cpuset="3" vcpu="4" />
+        </cputune>
+        """
+        tree = ET.parse(xml_file)
         item = tree.find("cputune")
         item[index].set(str("cpuset"), str(value))
-        if index == 0:
-            item[3].set("cpuset", str(value))
         tree.write(xml_file)
 
-    """
-	<numatune>
-	<memory mode='strict' nodeset='0'/>
-	</numatune>
-	"""
-
     def update_numa(self, xml_file, value):
-        tree = xml.parse(xml_file)
+        """
+        <numatune>
+        <memory mode='strict' nodeset='0'/>
+        </numatune>
+        """
+        tree = ET.parse(xml_file)
         item = tree.find("numatune")
         item[0].set("nodeset", str(value))
         tree.write(xml_file)
 
-    """
-	<interface type='bridge'>
-      <mac address='52:54:00:bb:63:7b'/>
-      <source bridge='virbr0'/>
-      <model type='virtio'/>
-      <address type='pci' domain='0x0000' bus='0x02' slot='0x00' function='0x0'/>
-    </interface>
-	<interface type='vhostuser'>
-      <mac address='52:54:00:11:8f:ea'/>
-      <source type='unix' path='/tmp/vhost0' mode='server'/>
-      <model type='virtio'/>
-      <driver name='vhost' iommu='on' ats='on'/>
-      <address type='pci' domain='0x0000' bus='0x03' slot='0x00' function='0x0'/>
-    </interface>
-	<interface type='hostdev' managed='yes'>
-            <source>
-                    <address type='pci' domain='0x${domain}' bus='0x${bus}' slot='0x${slot}' function='0x${function}'/>
-            </source>
-            <mac address='${mac}'/>
-            <vlan>
-                <tag id='${vlan}'/>
-            </vlan>
-        </interface>
-	"""
+    def update_image_source(self, xml_file, image_name):
+        """
+        <devices>
+            <emulator>/usr/libexec/qemu-kvm</emulator>
+            <disk device="disk" type="file">
+                    <driver name="qemu" type="qcow2" />
+                    <source file="/root/rhel.qcow2" />
+                    <target bus="virtio" dev="vda" />
+                    <address bus="0x01" domain="0x0000" function="0x0" slot="0x00" type="pci" />
+            </disk>
+        """
+        tree = ET.parse(xml_file)
+        root = tree.getroot()
+        source_item = ET.ElementPath.find(root, "./devices/disk/source")
+        source_item.set(str("file"), str(image_name))
+        tree.write(xml_file)
+
+    def login_vm_and_run_cmds(self,vm_domain,cmds,prompt=None):
+        patterm = ["login:","Password:","]#",pexpect.EOF, pexpect.TIMEOUT,r"Escape character is \^]"]
+        child = pexpect.spawn("virsh console gg")
+        child.logfile = None
+        child.logfile_read=sys.stdout.buffer
+        child.logfile_send=None
+        err_flag = False
+        if None == prompt:
+            prompt="]#"
+        while True:
+            index = child.expect(patterm)
+            if index == 0:
+                child.sendline("root")
+            elif index == 1:
+                child.sendline("redhat")
+            elif index == 2:
+                break
+            elif index == 3:
+                break
+            elif index == 4:
+                print("Timeout error")
+                err_flag = True
+                break
+            elif index == 5:
+                child.sendline("")
+                child.send(chr(3))
+            else:
+                err_flag = True
+                print("unknow virsh console return str")
+                child.send(chr(3))
+                break
+        if err_flag:
+            return -1
+        cmd_list = cmds.split('\n')
+        #print(cmd_list)
+        for c in cmd_list:
+            child.sendline(c.strip('{ }'))
+            child.expect(prompt)
+            if prompt == "]#":
+                child.sendline("echo $?")
+                child.expect(prompt)
+        sys.stdout.flush()
+        child.close()
+        return 0
 
     def update_vhostuser_interface(self, xml_file, mac, slot):
-        tree = xml.parse(xml_file)
+        """
+        <interface type='bridge'>
+        <mac address='52:54:00:bb:63:7b'/>
+        <source bridge='virbr0'/>
+        <model type='virtio'/>
+        <address type='pci' domain='0x0000' bus='0x02' slot='0x00' function='0x0'/>
+        </interface>
+        <interface type='vhostuser'>
+        <mac address='52:54:00:11:8f:ea'/>
+        <source type='unix' path='/tmp/vhost0' mode='server'/>
+        <model type='virtio'/>
+        <driver name='vhost' iommu='on' ats='on'/>
+        <address type='pci' domain='0x0000' bus='0x03' slot='0x00' function='0x0'/>
+        </interface>
+        <interface type='hostdev' managed='yes'>
+                <source>
+                        <address type='pci' domain='0x${domain}' bus='0x${bus}' slot='0x${slot}' function='0x${function}'/>
+                </source>
+                <mac address='${mac}'/>
+                <vlan>
+                    <tag id='${vlan}'/>
+                </vlan>
+            </interface>
+        """
+        tree = ET.parse(xml_file)
         item_list = tree.findall("devices/interface")
         for item in item_list:
             if item.get("type") == "vhostuser":
@@ -140,7 +226,7 @@ class Tools(object):
     def get_pci_address_of_vm_hostdev(self, xml_file, index=0):
 
         all_hostdev_item = []
-        tree = xml.parse(xml_file)
+        tree = ET.parse(xml_file)
         item_list = tree.findall("devices/interface")
         for item in item_list:
             if item.get("type") == "hostdev":
@@ -175,7 +261,7 @@ class Tools(object):
 
     def get_mac_address_of_vm_hostdev(self, xml_file, index=0):
         all_hostdev_item = []
-        tree = xml.parse(xml_file)
+        tree = ET.parse(xml_file)
         item_list = tree.findall("devices/interface")
         for item in item_list:
             if item.get("type") == "hostdev":
@@ -244,8 +330,8 @@ class Tools(object):
             else:
                 ret_val |= 0x1 << int(str_cpulist)
                 return hex(ret_val)
-                pass
         pass
+
 
 if __name__ == '__main__':
     import fire
