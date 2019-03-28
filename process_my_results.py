@@ -11,53 +11,53 @@ import xlsxwriter
 if sys.version_info[0] == 3:
     raw_input = input
 
-DPDK_L3_PVP_PNGS = ['root/pvp_results_10_l3_dpdk/test_p2v2p_all_l3_ref.png',
-                    'root/pvp_results_10_l3_dpdk/test_p2v2p_all_l3.png',
-                    'root/pvp_results_10_l3_dpdk/test_p2v2p_1000000_l3.png',
-                    'root/pvp_results_10_l3_dpdk/test_p2v2p_100000_l3.png',
-                    'root/pvp_results_10_l3_dpdk/test_p2v2p_10000_l3.png',
-                    'root/pvp_results_10_l3_dpdk/test_p2v2p_1000_l3.png',
-                    'root/pvp_results_10_l3_dpdk/test_p2v2p_10_l3.png',]
+DPDK_L3_PVP_PNGS = ['root/pvp_results_1_l3_dpdk/test_p2v2p_all_l3_ref.png',
+                    'root/pvp_results_1_l3_dpdk/test_p2v2p_all_l3.png',
+                    'root/pvp_results_1_l3_dpdk/test_p2v2p_1000000_l3.png',
+                    'root/pvp_results_1_l3_dpdk/test_p2v2p_100000_l3.png',
+                    'root/pvp_results_1_l3_dpdk/test_p2v2p_10000_l3.png',
+                    'root/pvp_results_1_l3_dpdk/test_p2v2p_1000_l3.png',
+                    'root/pvp_results_1_l3_dpdk/test_p2v2p_10_l3.png',]
 
-DPDK_L2_PVP_PNGS = ['root/pvp_results_10_l2_dpdk/test_p2v2p_all_l2_ref.png',
-                    'root/pvp_results_10_l2_dpdk/test_p2v2p_all_l2.png',
-                    'root/pvp_results_10_l2_dpdk/test_p2v2p_1000000_l2.png',
-                    'root/pvp_results_10_l2_dpdk/test_p2v2p_100000_l2.png',
-                    'root/pvp_results_10_l2_dpdk/test_p2v2p_10000_l2.png',
-                    'root/pvp_results_10_l2_dpdk/test_p2v2p_1000_l2.png',
-                    'root/pvp_results_10_l2_dpdk/test_p2v2p_10_l2.png',]
+DPDK_L2_PVP_PNGS = ['root/pvp_results_1_l2_dpdk/test_p2v2p_all_l2_ref.png',
+                    'root/pvp_results_1_l2_dpdk/test_p2v2p_all_l2.png',
+                    'root/pvp_results_1_l2_dpdk/test_p2v2p_1000000_l2.png',
+                    'root/pvp_results_1_l2_dpdk/test_p2v2p_100000_l2.png',
+                    'root/pvp_results_1_l2_dpdk/test_p2v2p_10000_l2.png',
+                    'root/pvp_results_1_l2_dpdk/test_p2v2p_1000_l2.png',
+                    'root/pvp_results_1_l2_dpdk/test_p2v2p_10_l2.png',]
 
-KERNEL_L3_PVP_PNGS = ['root/pvp_results_10_l3_kernel/test_p2v2p_all_l3_ref.png',
-                      'root/pvp_results_10_l3_kernel/test_p2v2p_all_l3.png',
-                      'root/pvp_results_10_l3_kernel/test_p2v2p_1000000_l3.png',
-                      'root/pvp_results_10_l3_kernel/test_p2v2p_100000_l3.png',
-                      'root/pvp_results_10_l3_kernel/test_p2v2p_10000_l3.png',
-                      'root/pvp_results_10_l3_kernel/test_p2v2p_1000_l3.png',
-                      'root/pvp_results_10_l3_kernel/test_p2v2p_10_l3.png',]
+KERNEL_L3_PVP_PNGS = ['root/pvp_results_1_l3_kernel/test_p2v2p_all_l3_ref.png',
+                      'root/pvp_results_1_l3_kernel/test_p2v2p_all_l3.png',
+                      'root/pvp_results_1_l3_kernel/test_p2v2p_1000000_l3.png',
+                      'root/pvp_results_1_l3_kernel/test_p2v2p_100000_l3.png',
+                      'root/pvp_results_1_l3_kernel/test_p2v2p_10000_l3.png',
+                      'root/pvp_results_1_l3_kernel/test_p2v2p_1000_l3.png',
+                      'root/pvp_results_1_l3_kernel/test_p2v2p_10_l3.png',]
 
-KERNEL_L2_PVP_PNGS = ['root/pvp_results_10_l2_kernel/test_p2v2p_all_l2_ref.png',
-                      'root/pvp_results_10_l2_kernel/test_p2v2p_all_l2.png',
-                      'root/pvp_results_10_l2_kernel/test_p2v2p_1000000_l2.png',
-                      'root/pvp_results_10_l2_kernel/test_p2v2p_100000_l2.png',
-                      'root/pvp_results_10_l2_kernel/test_p2v2p_10000_l2.png',
-                      'root/pvp_results_10_l2_kernel/test_p2v2p_1000_l2.png',
-                      'root/pvp_results_10_l2_kernel/test_p2v2p_10_l2.png',]
+KERNEL_L2_PVP_PNGS = ['root/pvp_results_1_l2_kernel/test_p2v2p_all_l2_ref.png',
+                      'root/pvp_results_1_l2_kernel/test_p2v2p_all_l2.png',
+                      'root/pvp_results_1_l2_kernel/test_p2v2p_1000000_l2.png',
+                      'root/pvp_results_1_l2_kernel/test_p2v2p_100000_l2.png',
+                      'root/pvp_results_1_l2_kernel/test_p2v2p_10000_l2.png',
+                      'root/pvp_results_1_l2_kernel/test_p2v2p_1000_l2.png',
+                      'root/pvp_results_1_l2_kernel/test_p2v2p_10_l2.png',]
 
-TC_L3_PVP_PNGS = ['root/pvp_results_10_l3_tc/test_p2v2p_all_l3_ref.png',
-                  'root/pvp_results_10_l3_tc/test_p2v2p_all_l3.png',
-                  'root/pvp_results_10_l3_tc/test_p2v2p_1000000_l3.png',
-                  'root/pvp_results_10_l3_tc/test_p2v2p_100000_l3.png',
-                  'root/pvp_results_10_l3_tc/test_p2v2p_10000_l3.png',
-                  'root/pvp_results_10_l3_tc/test_p2v2p_1000_l3.png',
-                  'root/pvp_results_10_l3_tc/test_p2v2p_10_l3.png',]
+TC_L3_PVP_PNGS = ['root/pvp_results_1_l3_tc/test_p2v2p_all_l3_ref.png',
+                  'root/pvp_results_1_l3_tc/test_p2v2p_all_l3.png',
+                  'root/pvp_results_1_l3_tc/test_p2v2p_1000000_l3.png',
+                  'root/pvp_results_1_l3_tc/test_p2v2p_100000_l3.png',
+                  'root/pvp_results_1_l3_tc/test_p2v2p_10000_l3.png',
+                  'root/pvp_results_1_l3_tc/test_p2v2p_1000_l3.png',
+                  'root/pvp_results_1_l3_tc/test_p2v2p_10_l3.png',]
 
-TC_L2_PVP_PNGS = ['root/pvp_results_10_l2_tc/test_p2v2p_all_l2_ref.png',
-                  'root/pvp_results_10_l2_tc/test_p2v2p_all_l2.png',
-                  'root/pvp_results_10_l2_tc/test_p2v2p_1000000_l2.png',
-                  'root/pvp_results_10_l2_tc/test_p2v2p_100000_l2.png',
-                  'root/pvp_results_10_l2_tc/test_p2v2p_10000_l2.png',
-                  'root/pvp_results_10_l2_tc/test_p2v2p_1000_l2.png',
-                  'root/pvp_results_10_l2_tc/test_p2v2p_10_l2.png',]
+TC_L2_PVP_PNGS = ['root/pvp_results_1_l2_tc/test_p2v2p_all_l2_ref.png',
+                  'root/pvp_results_1_l2_tc/test_p2v2p_all_l2.png',
+                  'root/pvp_results_1_l2_tc/test_p2v2p_1000000_l2.png',
+                  'root/pvp_results_1_l2_tc/test_p2v2p_100000_l2.png',
+                  'root/pvp_results_1_l2_tc/test_p2v2p_10000_l2.png',
+                  'root/pvp_results_1_l2_tc/test_p2v2p_1000_l2.png',
+                  'root/pvp_results_1_l2_tc/test_p2v2p_10_l2.png',]
 
 
 
