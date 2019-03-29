@@ -199,7 +199,11 @@ class Tools(object):
         item_list = ET.ElementPath.findall(root,path)
         for item in item_list:
             root.remove(item)
-        tree.write(xml_file)    
+        tree.write(xml_file)   
+
+    def test(self):
+        import asyncio
+        pass
 
 
     def get_pci_address_of_vm_hostdev(self, xml_file, index=0):
