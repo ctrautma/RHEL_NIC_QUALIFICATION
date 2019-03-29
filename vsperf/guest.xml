@@ -9,18 +9,11 @@
 		</hugepages>
 		<access mode="shared" />
 	</memoryBacking>
-	<vcpu placement="static">10</vcpu>
+	<vcpu placement="static">3</vcpu>
 	<cputune>
 		<vcpupin cpuset="1" vcpu="0" />
 		<vcpupin cpuset="2" vcpu="1" />
 		<vcpupin cpuset="3" vcpu="2" />
-		<vcpupin cpuset="1" vcpu="0" />
-		<vcpupin cpuset="1" vcpu="0" />
-		<vcpupin cpuset="1" vcpu="0" />
-		<vcpupin cpuset="1" vcpu="0" />
-		<vcpupin cpuset="1" vcpu="0" />
-		<vcpupin cpuset="1" vcpu="0" />
-		<vcpupin cpuset="1" vcpu="0" />
 	</cputune>
 	<numatune>
 		<memory mode="strict" nodeset="0" />
@@ -106,17 +99,17 @@
 			<model type="virtio" />
 			<address bus="0x02" domain="0x0000" function="0x0" slot="0x00" type="pci" />
 		</interface>
-		<serial type='pty'>
-			<source path='/dev/pts/1'/>
-			<target type='isa-serial' port='0'>
-				<model name='isa-serial'/>
+		<serial type="pty">
+			<source path="/dev/pts/1" />
+			<target port="0" type="isa-serial">
+				<model name="isa-serial" />
 			</target>
-			<alias name='serial0'/>
+			<alias name="serial0" />
 		</serial>
-		<console type='pty' tty='/dev/pts/1'>
-			<source path='/dev/pts/1'/>
-			<target type='serial' port='0'/>
-			<alias name='serial0'/>
+		<console tty="/dev/pts/1" type="pty">
+			<source path="/dev/pts/1" />
+			<target port="0" type="serial" />
+			<alias name="serial0" />
 		</console>
 		<input bus="ps2" type="mouse" />
 		<input bus="ps2" type="keyboard" />

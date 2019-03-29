@@ -48,6 +48,12 @@ then
     two_queue_zip="RHEL76-2Q.qcow2.lrz"
 fi
 
+pytool()
+{
+    echo "args "$*
+    python tools.py $*
+}
+
 fail() 
 {
     # Param 1, Fail Header
@@ -412,14 +418,13 @@ enable_dpdk()
     fi
 }
 
-
-ovs_bridge_with_dpdk()
+ovs_bridge_with_kernel()
 {
     local nic1_mac=$1
     local nic2_mac=$2
-    local bond_mode=$3
-    local mtu_val=$4
-    local pmd_cpu_mask=$5
+    local mtu_val=$3
+    local pmd_cpu_mask=$4
+    local queue_num=$5
 
 	modprobe openvswitch
 	systemctl stop openvswitch
@@ -449,48 +454,101 @@ ovs_bridge_with_dpdk()
 
 	sleep 2
 	ovs-vsctl show
+
+}
+
+
+ovs_bridge_with_dpdk()
+{
+    local nic1_mac=$1
+    local nic2_mac=$2
+    local mtu_val=$3
+    local pmd_cpu_mask=$4
+
+	modprobe openvswitch
+	systemctl stop openvswitch
+	sleep 3
+	systemctl start openvswitch
+	sleep 3
+	ovs-vsctl --if-exists del-br ovsbr0
+	sleep 5
+
+	ovs-vsctl set Open_vSwitch . other_config={}
+	ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-init=true
+	ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-socket-mem="4096,4096"
+	ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask="$pmd_cpu_mask"
+    ovs-vsctl --no-wait set Open_vSwitch . other_config:vhost-iommu-support=true
+	systemctl restart openvswitch
+	sleep 3
+	ovs-vsctl add-br ovsbr0 -- set bridge ovsbr0 datapath_type=netdev
+
+    ovs-vsctl add-port ovsbr0 dpdk0 \
+    -- set Interface dpdk0 type=dpdk \
+    options:dpdk-devargs="class=eth,mac=${nic1_mac}" mtu_request=$mtu_val
+    
+    ovs-vsctl add-port ovsbr0 dpdk1 \
+    -- set Interface dpdk1 type=dpdk \
+    options:dpdk-devargs="class=eth,mac=${nic2_mac}" mtu_request=$mtu_val
+	
+    ovs-vsctl add-port ovsbr0 vhost0 \
+    -- set interface vhost0 \
+    type=dpdkvhostuserclient \
+    options:vhost-server-path=/tmp/vhost0
+    
+    ovs-vsctl add-port ovsbr0 vhost1 \
+    -- set interface vhost1 \
+    type=dpdkvhostuserclient \
+    options:vhost-server-path=/tmp/vhost1
+
+	ovs-ofctl del-flows ovsbr0
+	ovs-ofctl add-flow ovsbr0 actions=NORMAL
+
+	sleep 2
+	ovs-vsctl show
 }
 
 vcpupin_in_xml()
 {
     local numa_node=$1
-    local num_cpu_cores=$2
-    local template_xml=$3
-    local new_xml=$4
-
+    local template_xml=$2
+    local new_xml=$3
+    local cpu_list=$4
     pushd $CASE_PATH 1>/dev/null
+
     config_file_checks
-    local cpu_list="${VCPU_LIST}"
     
     cp $template_xml $new_xml
     
-    local num_cpu=${#cpu_list[@]}
-    python tools.py xml_add_vcpupin_item $new_xml $num_cpu
+    pytool xml_add_vcpupin_item $new_xml ${#cpu_list[@]}
 
     for i in `seq ${#cpu_list[@]}`
     do
         local index=$((i-1))
-        python tools.py update_vcpu $new_xml $index ${cpu_list[$index]}
+        pytool update_vcpu $new_xml $index ${cpu_list[$index]}
     done
 
-    python tools.py update_numa $new_xml $numa_node
+    pytool update_numa $new_xml $numa_node
 	popd 1>/dev/null
 
 }
 
 start_guest()
 {
-    local image_name=$1
-    local guest_xml=$2
+    local guest_xml=$1
+
     pushd $CASE_PATH
+
     systemctl list-units --state=stop --type=service | grep libvirtd || systemctl restart libvirtd
+
     download_VNF_image
 
     #update guest xml config for image
-    python tools.py update_image_source $guest_xml $image_name
+    #pytool update_image_source $guest_xml $image_name
         
-    virsh define ${CASE_PATH}/g1.xml
+    virsh define ${CASE_PATH}/${guest_xml}
+
     virsh start gg    
+
     popd
 }
 
@@ -543,12 +601,11 @@ configure_guest()
 		ip6tables -t mangle -X
 		ip6tables -t nat -F
 		ip6tables -t nat -X
-		ip addr add $1/24 dev eth1
 		ip -d addr show
 EOF
 	)
 
-	python tools.py login_vm_and_run_cmds gg "${cmd[*]}"
+	pytool login_vm_and_run_cmds gg "${cmd[*]}"
 }
 
 
@@ -568,7 +625,7 @@ guest_start_testpmd()
         dpdk-devbind --status
 EOF
     )
-    python tools.py login_vm_and_run_cmds gg "${cmd[*]}"
+    pytool login_vm_and_run_cmds gg "${cmd[*]}"
 
     local q_num=$1
     local hw_vlan_flag="--disable-hw-vlan"
@@ -590,8 +647,8 @@ EOF
     --txd=256 \
     --nb-cores=2 \
     --auto-start"
-    python tools.py login_vm_and_run_cmds gg "${cmd_test}"
 
+    pytool login_vm_and_run_cmds gg "${cmd_test}"
 }
 
 clear_dpdk_interface()
@@ -604,7 +661,7 @@ clear_dpdk_interface()
             kernel_driver=`lspci -s $i -v | grep Kernel  | grep modules  | awk '{print $NF}'`
             dpdk-devbind -b $kernel_driver $i
         done
-        rlRun "dpdk-devbind -s "
+        dpdk-devbind -s
     fi
     return 0
 }
@@ -617,8 +674,8 @@ clear_env()
     virsh undefine gg
     systemctl stop openvswitch
     rlRun clear_trex
-    rlRun "clear_dpdk_interface" "0,1"
-    rlRun -l "clear_hugepage"
+    clear_dpdk_interface
+    clear_hugepage
     return 0
 }
 
@@ -642,27 +699,75 @@ bonding_test_trex()
     local trex_name=`basename $TREX_URL`
     [ -d $trex_dir ] || wget $TREX_URL > /dev/null 2>&1
     [ -d $trex_dir ] || tar -xvf $trex_name > /dev/null 2>&1
-    rlRun "python ./trex_sport.py -c $TRAFFICGEN_TREX_HOST_IP_ADDR -t $t_time --pkt_size=${pkt_size} -m 10"
+    loginfo "python ./trex_sport.py -c $TRAFFICGEN_TREX_HOST_IP_ADDR -t $t_time --pkt_size=${pkt_size} -m 10"
+    python ./trex_sport.py -c $TRAFFICGEN_TREX_HOST_IP_ADDR -t $t_time --pkt_size=${pkt_size} -m 10
 
     popd
     return 0
 }
 
-run_tests() {
+update_xml_vhostuser()
+{
+    pytool remove_item_from_xml g1.xml "./devices/interface[@type='vhostuser']" 
 
-TESTLIST=$1
+    local item=$(
+    cat <<EOF
+    <interface type='vhostuser'>
+        <mac address={}'/>
+        <source type='unix' path={} mode='server'/>
+        <model type='virtio'/>
+        <driver name='vhost' iommu='on' ats='on'/>
+        <address type='pci' domain={} bus={} slot={} function={}/>
+    </interface>
+EOF    
+    )
 
-if [ "$TESTLIST" == "pvp_cont" ]
-then
-    echo "*** Running 1500 Byte PVP VSPerf verify check ***"
-    enalbe_python_venv
+    local format_list=('52:54:00:11:8f:ea' '/tmp/vhost0' '0x0000' '0x03' '0x0' '0x0')
+    local format_item=`pytool format_item $item "${format_list[@]}"`
+    pytool add_item_from_xml g1.xml "./devices" "$format_item"
+
+    local format_list_1=('52:54:00:11:8f:eb' '/tmp/vhost1' '0x0000' '0x04' '0x0' '0x0')
+    local format_item_1=`pytool format_item $item "${format_list_1[@]}"`
+    pytool add_item_from_xml g1.xml "./devices" "$format_item"
+
+}
 
 
-scl enable rh-python34 - << \EOF
-source /root/vsperfenv/bin/activate
-python ./vsperf pvp_cont --test-params="TRAFFICGEN_DURATION=30; TRAFFICGEN_PKT_SIZES=1500,"
-EOF
-fi
+run_tests() 
+{
+    TESTLIST=$1
+
+    if [ "$TESTLIST" == "pvp_cont" ];then
+        echo "*** Running 1500 Byte PVP VSPerf verify check ***"
+        echo "*** For 1Q 2PMD Test"
+
+        loginfo "Clean Env Now Begin"
+        clearn_env
+
+        local nic1_mac=`pytool get_mac_from_name $NIC1`
+        local nic2_mac=`pytool get_mac_from_name $NIC2` 
+        enable_dpdk $nic1_mac $nic2_mac
+
+        ovs_bridge_with_dpdk "${nic1_mac}" "${nic2_mac}" 1500 "${PMD2MASK}"
+        local numa_node=`cat /sys/class/net/${NIC1}/device/numa_node`
+        local vcpu_list=($VCPU1 $VCPU2 $VCPU3)
+        
+        vcpupin_in_xml $numa_node guest.xml g1.xml $vcpu_list
+
+        update_xml_vhostuser
+
+        pytool update_image_source g1.xml ${CASE_PATH}/${one_queue_image}
+
+        start_guest g1.xml 
+
+        configure_guest
+
+        guest_start_testpmd
+
+
+        bonding_test_trex
+    fi
+
 
 
 if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "1Q" ]
@@ -833,6 +938,10 @@ network_connection_check
 ovs_running_check
 # finished running checks
 
+install_rpms
+init_python_env
+
+
 TESTLIST="ALL"
 
 progname=$0
@@ -853,9 +962,6 @@ then
     
 fi
 
-install_rpms
-enalbe_python_venv
-init_python_env
 enable_dpdk
 ovs_bridge_with_dpdk
 vcpupin_in_xml

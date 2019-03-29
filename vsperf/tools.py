@@ -133,15 +133,16 @@ class Tools(object):
         source_item.set(str("file"), str(image_name))
         tree.write(xml_file)
 
-    def login_vm_and_run_cmds(self,vm_domain,cmds,prompt=None):
-        patterm = ["login:","Password:","]#",pexpect.EOF, pexpect.TIMEOUT,r"Escape character is \^]"]
+    def login_vm_and_run_cmds(self, vm_domain, cmds, prompt=None):
+        patterm = ["login:", "Password:", "]#", pexpect.EOF,
+                   pexpect.TIMEOUT, r"Escape character is \^]"]
         child = pexpect.spawn("virsh console gg")
         child.logfile = None
-        child.logfile_read=sys.stdout.buffer
-        child.logfile_send=None
+        child.logfile_read = sys.stdout.buffer
+        child.logfile_send = None
         err_flag = False
         if None == prompt:
-            prompt="]#"
+            prompt = "]#"
         while True:
             index = child.expect(patterm)
             if index == 0:
@@ -167,7 +168,7 @@ class Tools(object):
         if err_flag:
             return -1
         cmd_list = cmds.split('\n')
-        #print(cmd_list)
+        # print(cmd_list)
         for c in cmd_list:
             child.sendline(c.strip('{ }'))
             child.expect(prompt)
@@ -178,40 +179,31 @@ class Tools(object):
         child.close()
         return 0
 
-    def update_vhostuser_interface(self, xml_file, mac, slot):
-        """
-        <interface type='bridge'>
-        <mac address='52:54:00:bb:63:7b'/>
-        <source bridge='virbr0'/>
-        <model type='virtio'/>
-        <address type='pci' domain='0x0000' bus='0x02' slot='0x00' function='0x0'/>
-        </interface>
-        <interface type='vhostuser'>
-        <mac address='52:54:00:11:8f:ea'/>
-        <source type='unix' path='/tmp/vhost0' mode='server'/>
-        <model type='virtio'/>
-        <driver name='vhost' iommu='on' ats='on'/>
-        <address type='pci' domain='0x0000' bus='0x03' slot='0x00' function='0x0'/>
-        </interface>
-        <interface type='hostdev' managed='yes'>
-                <source>
-                        <address type='pci' domain='0x${domain}' bus='0x${bus}' slot='0x${slot}' function='0x${function}'/>
-                </source>
-                <mac address='${mac}'/>
-                <vlan>
-                    <tag id='${vlan}'/>
-                </vlan>
-            </interface>
-        """
-        tree = ET.parse(xml_file)
-        item_list = tree.findall("devices/interface")
-        for item in item_list:
-            if item.get("type") == "vhostuser":
-                item[0].set("address", str(mac))
-                item[4].set("slot", str(slot))
-        tree.write(xml_file)
+    def format_item(self,info,format_list):
+        if info:
+            return str(info).format(*format_list)
+        pass
 
-    """
+    def add_item_from_xml(self, xml_file, parent_path, xml_info):
+        tree = ET.parse(xml_file)
+        item = ET.fromstring(xml_info)
+        root = tree.getroot()
+        parent_item = ET.ElementPath.find(root, parent_path)
+        if parent_item:
+            parent_item.append(item)
+        tree.write(xml_file)
+    
+    def remove_item_from_xml(self,xml_file,path):
+        tree = ET.parse(xml_file)
+        root = tree.getroot()
+        item_list = ET.ElementPath.findall(root,path)
+        for item in item_list:
+            root.remove(item)
+        tree.write(xml_file)    
+
+
+    def get_pci_address_of_vm_hostdev(self, xml_file, index=0):
+        """
         <interface type='hostdev' managed='yes'>
                 <mac address='52:54:00:7e:f4:6d'/>
                 <driver name='vfio'/>
@@ -221,9 +213,7 @@ class Tools(object):
                 <alias name='hostdev1'/>
                 <address type='pci' domain='0x0000' bus='0x04' slot='0x00' function='0x0'/>
         </interface>
-    """
-
-    def get_pci_address_of_vm_hostdev(self, xml_file, index=0):
+        """
 
         all_hostdev_item = []
         tree = ET.parse(xml_file)
