@@ -289,6 +289,17 @@ download_VNF_image()
         lrzip -d $two_queue_zip || fail "VNF decompress" "Unable to decompress VNF zip"
         rm -f $one_queue_zip
         rm -f $two_queue_zip
+
+    local udev_file=60-persistent-net.rules
+    touch $udev_file
+    cat > $udev_file <<EOF
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:03:00.0", NAME:="eth1"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:04:00.0", NAME:="eth2"
+EOF
+
+    virt-copy-in -a $CASE_PATH/${one_queue_image} $udev_file /etc/udev/rules.d/
+    virt-copy-in -a $CASE_PATH/${two_queue_image} $udev_file /etc/udev/rules.d/
+
     fi
     popd
 
@@ -542,8 +553,6 @@ start_guest()
 
     download_VNF_image
 
-    #update guest xml config for image
-    #pytool update_image_source $guest_xml $image_name
         
     virsh define ${CASE_PATH}/${guest_xml}
 
@@ -564,6 +573,7 @@ configure_guest()
 		cat <<EOF
         stty rows 24 cols 120 
 		nmcli dev set eth1 managed no
+        nmcli dev set eth2 managed no
 		systemctl stop firewalld
 		iptables -t filter -P INPUT ACCEPT
 		iptables -t filter -P FORWARD ACCEPT
@@ -620,32 +630,43 @@ guest_start_testpmd()
         modprobe -r vfio
         modprobe  vfio 
         modprobe vfio-pci
-        #ip link set eth1 down
-        #dpdk-devbind -b vfio-pci 0000:03:00.0
+        ip link set eth1 down
+        ip link set eth2 down
+        dpdk-devbind -b vfio-pci 0000:03:00.0
+        dpdk-devbind -b vfio-pci 0000:04:00.0
         dpdk-devbind --status
 EOF
     )
     pytool login_vm_and_run_cmds gg "${cmd[*]}"
 
     local q_num=$1
+    local num_core=2
+    if (( $q_num == 1 ))
+    then
+        num_core=2
+    else
+        num_core=4
+    fi
+    
+    local cpu_list=$2
     local hw_vlan_flag="--disable-hw-vlan"
     local legacy_mem=""
 
-    local cmd_test="testpmd -l 0,1,2  \
+    local cmd_test="testpmd -l ${cpu_list}  \
     --socket-mem 1024 \
     ${legacy_mem} \
     -n 4 \
     -- \
-    --forward-mode=macswap \
-    --port-topology=chained \
+    --forward-mode=io \
+    --port-topology=pair \
     ${hw_vlan_flag} \
     --disable-rss \
     -i \
     --rxq=${q_num} \
     --txq=${q_num} \
-    --rxd=256 \
-    --txd=256 \
-    --nb-cores=2 \
+    --rxd=${RXD_SIZE} \
+    --txd=${TXD_SIZE} \
+    --nb-cores=${num_core} \
     --auto-start"
 
     pytool login_vm_and_run_cmds gg "${cmd_test}"
@@ -732,6 +753,51 @@ EOF
 
 }
 
+pvp_test()
+{
+    local q_num=$1
+    local pkt_size=$2
+    local cont_time=$3
+
+    loginfo "Clean Env Now Begin"
+    clearn_env
+
+    local nic1_mac=`pytool get_mac_from_name $NIC1`
+    local nic2_mac=`pytool get_mac_from_name $NIC2` 
+    enable_dpdk $nic1_mac $nic2_mac
+
+    local numa_node=`cat /sys/class/net/${NIC1}/device/numa_node`
+    local vcpu_list=($VCPU1 $VCPU2 $VCPU3)
+    if (( $q_num == 1 ))
+    then
+        vcpu_list=($VCPU1 $VCPU2 $VCPU3)
+        ovs_bridge_with_dpdk "${nic1_mac}" "${nic2_mac}" ${pkt_size} "${PMD2MASK}"
+    else
+        vcpu_list=($VCPU1 $VCPU2 $VCPU3 $VCPU4 $VCPU5)
+        ovs_bridge_with_dpdk "${nic1_mac}" "${nic2_mac}" ${pkt_size} "${PMD4MASK}"
+    fi
+
+    vcpupin_in_xml $numa_node guest.xml g1.xml $vcpu_list
+
+    update_xml_vhostuser
+
+    if (( $q_num == 1 ))
+    then
+        pytool update_image_source g1.xml ${CASE_PATH}/${one_queue_image}
+    else
+        pytool update_image_source g1.xml ${CASE_PATH}/${two_queue_image}
+    fi
+
+    start_guest g1.xml 
+
+    configure_guest
+
+    guest_start_testpmd $q_num "${vcpu_list[@]}"
+
+    bonding_test_trex $cont_time $pkt_size
+
+}
+
 
 run_tests() 
 {
@@ -740,115 +806,61 @@ run_tests()
     if [ "$TESTLIST" == "pvp_cont" ];then
         echo "*** Running 1500 Byte PVP VSPerf verify check ***"
         echo "*** For 1Q 2PMD Test"
-
-        loginfo "Clean Env Now Begin"
-        clearn_env
-
-        local nic1_mac=`pytool get_mac_from_name $NIC1`
-        local nic2_mac=`pytool get_mac_from_name $NIC2` 
-        enable_dpdk $nic1_mac $nic2_mac
-
-        ovs_bridge_with_dpdk "${nic1_mac}" "${nic2_mac}" 1500 "${PMD2MASK}"
-        local numa_node=`cat /sys/class/net/${NIC1}/device/numa_node`
-        local vcpu_list=($VCPU1 $VCPU2 $VCPU3)
-        
-        vcpupin_in_xml $numa_node guest.xml g1.xml $vcpu_list
-
-        update_xml_vhostuser
-
-        pytool update_image_source g1.xml ${CASE_PATH}/${one_queue_image}
-
-        start_guest g1.xml 
-
-        configure_guest
-
-        guest_start_testpmd
-
-
-        bonding_test_trex
+        pvp_test 1 1500 30
     fi
 
+    if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "1Q" ];then
+        echo ""
+        echo "***********************************************************"
+        echo "*** Running 64/1500 Bytes 2PMD OVS/DPDK PVP VSPerf TEST ***"
+        echo "***********************************************************"
+        echo ""
+        pvp_test 1 64 30
 
+        pvp_test 1 1500 30
 
-if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "1Q" ]
-then
-    echo ""
-    echo "***********************************************************"
-    echo "*** Running 64/1500 Bytes 2PMD OVS/DPDK PVP VSPerf TEST ***"
-    echo "***********************************************************"
-    echo ""
+    fi
 
-scl enable rh-python34 - << \EOF
-source /root/vsperfenv/bin/activate
-source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
-python ./vsperf pvp_tput &>$NIC_LOG_FOLDER/vsperf_pvp_2pmd.log &
-EOF
+    if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "2Q" ];then
+        echo ""
+        echo "*******************************************************************"
+        echo "*** Running 64/1500 Bytes 2 queue 4PMD OVS/DPDK PVP VSPerf TEST ***"
+        echo "*******************************************************************"
+        echo ""
 
-    sleep 2
-    vsperf_pid=`pgrep -f vsperf`
+        pvp_test 2 64 30
+        
+        pvp_test 2 1500 30
 
-    spinner $vsperf_pid
-fi
+    fi
 
-if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "2Q" ]
-then
-    echo ""
-    echo "*******************************************************************"
-    echo "*** Running 64/1500 Bytes 2 queue 4PMD OVS/DPDK PVP VSPerf TEST ***"
-    echo "*******************************************************************"
-    echo ""
+    if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "Jumbo" ]
+    then
+        echo ""
+        echo "*************************************************************"
+        echo "*** Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST ***"
+        echo "*************************************************************"
+        echo ""
 
-scl enable rh-python34 - << \EOF
-source /root/vsperfenv/bin/activate
-source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
-python ./vsperf pvp_tput --conf-file=/root/vswitchperf/twoqueue.conf &>$NIC_LOG_FOLDER/vsperf_pvp_4pmd-2q.log &
-EOF
+        pvp_test 1 2000 30
+            
+        pvp_test 2 9000 30
 
-    sleep 2
-    vsperf_pid=`pgrep -f vsperf`
+    fi
 
-    spinner $vsperf_pid
-fi
+    if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "Kernel" ]
+    then
+        echo ""
+        echo "********************************************************"
+        echo "*** Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST ***"
+        echo "********************************************************"
+        echo ""
 
-if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "Jumbo" ]
-then
-    echo ""
-    echo "*************************************************************"
-    echo "*** Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST ***"
-    echo "*************************************************************"
-    echo ""
+        pvp_test 1 2000 30
+            
+        pvp_test 2 9000 30
 
-scl enable rh-python34 - << \EOF
-source /root/vsperfenv/bin/activate
-source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
-python ./vsperf pvp_tput --test-params="TRAFFICGEN_PKT_SIZES=2000,9000; VSWITCH_JUMBO_FRAMES_ENABLED=True" &>$NIC_LOG_FOLDER/vsperf_pvp_2pmd_jumbo.log &
-EOF
-
-    sleep 2
-    vsperf_pid=`pgrep -f vsperf`
-
-    spinner $vsperf_pid
-fi
-
-if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "Kernel" ]
-then
-    echo ""
-    echo "********************************************************"
-    echo "*** Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST ***"
-    echo "********************************************************"
-    echo ""
-
-scl enable rh-python34 - << \EOF
-source /root/vsperfenv/bin/activate
-source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
-python ./vsperf pvp_tput --vswitch=OvsVanilla --vnf=QemuVirtioNet --test-params="TRAFFICGEN_LOSSRATE=0.002" &>$NIC_LOG_FOLDER/vsperf_pvp_ovs_kernel.log &
-EOF
-
-    sleep 2
-    vsperf_pid=`pgrep -f vsperf`
-
-    spinner $vsperf_pid
-fi
+    fi
 }
 
 
@@ -961,17 +973,6 @@ then
     TESTLIST=$TESTLIST1
     
 fi
-
-enable_dpdk
-ovs_bridge_with_dpdk
-vcpupin_in_xml
-start_guest
-destroy_guest
-configure_guest
-guest_start_testpmd
-clear_dpdk_interface
-clear_env
-bonding_test_trex
 
 run_tests $TESTLIST
 print_results

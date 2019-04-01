@@ -3,6 +3,7 @@
 
 import os
 import sys
+import select
 import subprocess as sp
 import json
 import base64
@@ -132,6 +133,43 @@ class Tools(object):
         source_item = ET.ElementPath.find(root, "./devices/disk/source")
         source_item.set(str("file"), str(image_name))
         tree.write(xml_file)
+
+    def get_out(fd):
+        out = ""
+        while True:
+            r,w,e = select.select([fd],[],[],3)
+            if fd in r:
+                out += fd.read(1).decode()
+            else:
+                break
+        return out.strip()
+
+    def vm_login(pts):
+        output=""
+        with open(pts,"wb+",buffering=0) as fd:
+            fd.write(chr(3).encode())
+            fd.write(chr(4).encode())
+            while True:
+                output = get_out(fd)
+                #import pdb; pdb.set_trace()
+                if str(output).endswith("login:"):
+                    fd.write("root\r\n".encode())
+                elif str(output).endswith("Password:"):
+                    fd.write("redhat\r\n".encode())
+                elif str(output).endswith("]#"):
+                    break                    
+                else:
+                    return 1
+        return 0
+
+    def run_cmd_get_output(self,pts,cmd):
+        vm_login(pts)
+        output=""
+        with open(pts,"wb+",buffering=0) as fd:
+            fd.write("\r\n".encode())
+            fd.write((str(cmd) + "\r\n").encode())
+            return get_out(fd)
+
 
     def login_vm_and_run_cmds(self, vm_domain, cmds, prompt=None):
         patterm = ["login:", "Password:", "]#", pexpect.EOF,
