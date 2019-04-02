@@ -534,10 +534,31 @@ You may have to install some modules for run this test script.
 yum install -y perf gnuplot kernel-debuginfo
 ```
 
-You must modify the run.sh script and change the IFACE variable at the top to the
-network card port you are testing.
+You must build perf from a recent kernel source in order to make it work with python3:
 
-Then execute the run.sh script.
+```
+yum install -y git make gcc flex bison libdwarf-devel \
+	python36-devel elfutils-devel ncurses-devel xz-devel \
+	elfutils-libelf-devel pcre2-devel binutils-devel numactl-devel \
+	slang-devel libcrypto-devel zlib-devel audit-libs-devel asciidoc \
+	xmlto openssl-devel perl-ExtUtils-Embed
+git clone --depth 1 https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+cd linux/tools/perf
+make PYTHON=/usr/bin/python3.6 install
+```
+
+Uncompress the cls_flower module (this is needed because RHEL8's elfutils can't
+deal with a compressed module with uncompressed debuginfo):
+
+```
+unxz /lib/modules/<kernel version>/kernel/net/sched/cls_flower.ko.xz
+```
+
+Now you shall execute the run.sh script as:
+
+```
+PATH=~/bin:$PATH ./run.sh -i <PF interface>
+```
 
 Please save the result files fl_change.dat and fl_change.png off to be processed later.
 
