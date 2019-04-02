@@ -4,6 +4,7 @@
 #
 #   Description: Run VSPerf tests
 #   Author: Christian Trautman <ctrautma@redhat.com>
+#   Modifier: Hekai Wang <hewang@redhat.com>
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
@@ -73,7 +74,6 @@ loginfo()
     echo $1
     echo "####################################"
 }
-
 
 OS_checks() 
 {
@@ -169,6 +169,8 @@ config_file_checks()
     echo "*** Checking Config File ***"
     sleep 1
 
+    pushd $CASE_PATH
+
     if test -f ./Perf-Verify.conf
     then
         set -o allexport
@@ -190,9 +192,18 @@ config_file_checks()
         then
             fail "TREX Params" "T-Rex settings not set in Perf-Verify.conf file"
         fi
+
+        if [ -z $ $TREX_URL ]
+        then
+            fail "TREX_URL Trex package shoule be specified , please set in Perf-Verify.conf file"
+        fi
+
     else
         fail "Config File" "Cannot locate Perf-Verify.conf"
     fi
+
+    popd
+
     return 0
 }
 
@@ -302,47 +313,55 @@ EOF
 
     fi
     popd
-
+    
 }
 
 
 install_rpms()
 {
     #add repo
-	if (( $SYSTEM_VERSION_ID < 80 ))
-	then
-		/bin/bash ./repo.sh
-        yum -y install python-netifaces
-        rpm -qa | grep python36  || yum -y install python36 python36-devel scl-utils
-	else
-        yum -y install python3-netifaces
-	fi
+    pushd $CASE_PATH
+    source ./repo.sh
+    all_package=(
+        yum-utils
+        scl-utils
+        python36
+        python36-devel 
+        python-netifaces
+        python3-pyelftools
+        wget 
+        nano 
+        ftp 
+        git 
+        tuna 
+        openssl 
+        sysstat
+        libvirt 
+        libvirt-devel 
+        virt-install 
+        virt-manager 
+        virt-viewer
+        czmq-devel
+        libguestfs-tools
+        ethtool
+        vim
+        lrzip
+        libnl3-devel
+    )
 
-    yum -y install python3-pyelftools
-	rpm -qa | grep yum-utils || yum -y install yum-utils
-	rpm -qa | grep wget || yum install -y wget nano ftp yum-utils git tuna openssl sysstat
-	rpm -qa | grep tuned-profiles-cpu-partitioning || yum -y install tuned-profiles-cpu-partitioning
-	
-    #install libvirt
-	yum install -y libvirt libvirt-devel virt-install virt-manager virt-viewer
+    for pack in "${all_package[@]}"
+    do
+        if ! rpm -qa | grep $pack
+        then
+            loginfo "Install package "$pack" Now"
+            yum -y install $pack
+            loginfo "Install package "$pack" End"
+        fi
+    done
+
+    popd
 
 	systemctl restart libvirtd
-	
-    #install python
-	yum install -y python
-	
-    #install zmq for trex 
-	yum install -y czmq-devel
-	
-    #here for virt-copy-in
-	yum install -y libguestfs-tools
-    
-    #add ethtools
-    yum -y install ethtool
-
-    #for vim
-    yum -y install vim
-    yum -y install lrzip
 
 }
 
@@ -379,7 +398,6 @@ enalbe_python_venv()
 init_python_env()
 {
     enalbe_python_venv
-    yum install -y libnl3-devel
     pip install --upgrade pip
     pip install fire
     pip install psutil
@@ -398,6 +416,7 @@ enable_dpdk()
 {
     local nic1_mac=$1
     local nic2_mac=$2
+
     local nic1_name=`get_nic_name_from_mac $nic1_mac`
     local nic2_name=`get_nic_name_from_mac $nic2_mac`
     local nic1_businfo=$(ethtool -i $nic1_name | grep "bus-info" | awk  '{print $2}')
@@ -467,7 +486,6 @@ ovs_bridge_with_kernel()
 	ovs-vsctl show
 
 }
-
 
 ovs_bridge_with_dpdk()
 {
@@ -694,7 +712,6 @@ clear_env()
     virsh destroy gg
     virsh undefine gg
     systemctl stop openvswitch
-    rlRun clear_trex
     clear_dpdk_interface
     clear_hugepage
     return 0
