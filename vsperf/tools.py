@@ -231,18 +231,16 @@ class Tools(object):
             parent_item.append(item)
         tree.write(xml_file)
     
-    def remove_item_from_xml(self,xml_file,path):
+    def remove_item_from_xml(self,xml_file,path,index=None):
         tree = ET.parse(xml_file)
         root = tree.getroot()
         item_list = ET.ElementPath.findall(root,path)
-        for item in item_list:
-            root.remove(item)
-        tree.write(xml_file)   
-
-    def test(self):
-        import asyncio
-        pass
-
+        if None == index:
+            for item in item_list:
+                root.remove(item)
+        else:
+            root.remove(item_list[int(index)])
+        tree.write(xml_file)
 
     def get_pci_address_of_vm_hostdev(self, xml_file, index=0):
         """

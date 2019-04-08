@@ -476,8 +476,8 @@ ovs_bridge_with_kernel()
     ovs-vsctl add-port ovsbr0 dpdk0 -- set Interface dpdk0 type=dpdk options:dpdk-devargs="class=eth,mac=${nic1_mac}"
     ovs-vsctl add-port ovsbr0 dpdk1 -- set Interface dpdk1 type=dpdk options:dpdk-devargs="class=eth,mac=${nic2_mac}"
 	
-    ovs-vsctl add-port ovsbr0 vhost0 -- set interface vhost0 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost0
-    ovs-vsctl add-port ovsbr0 vhost1 -- set interface vhost1 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost1
+    # ovs-vsctl add-port ovsbr0 vhost0 -- set interface vhost0 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost0
+    # ovs-vsctl add-port ovsbr0 vhost1 -- set interface vhost1 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost1
 
 	ovs-ofctl del-flows ovsbr0
 	ovs-ofctl add-flow ovsbr0 actions=NORMAL
@@ -643,7 +643,8 @@ guest_start_testpmd()
     local cmd=$(
         cat << EOF
         /root/one_gig_hugepages.sh 1
-        rpm -ivh  /root/$GUEST_DPDK_VERSION/dpdk*.rpm
+        #rpm -ivh  /root/$GUEST_DPDK_VERSION/dpdk*.rpm
+        rpm -ivh  /root/$dpdk_ver/dpdk*.rpm
         modprobe -r vfio_iommu_type1
         modprobe -r vfio
         modprobe  vfio 
@@ -667,6 +668,9 @@ EOF
     fi
     
     local cpu_list=$2
+    local rxd_size=$3
+    local txd_size=$4
+
     local hw_vlan_flag="--disable-hw-vlan"
     local legacy_mem=""
 
@@ -682,8 +686,8 @@ EOF
     -i \
     --rxq=${q_num} \
     --txq=${q_num} \
-    --rxd=${RXD_SIZE} \
-    --txd=${TXD_SIZE} \
+    --rxd=${rxd_size} \
+    --txd=${txd_size} \
     --nb-cores=${num_core} \
     --auto-start"
 
@@ -744,6 +748,118 @@ bonding_test_trex()
     return 0
 }
 
+update_xml_sriov_vf_port()
+{
+    local vlan_id=$1
+
+    local vf1_bus_info=`pytool get_bus_from_name $NIC1_VF`
+    local vf2_bus_info=`pytool get_bus_from_name $NIC2_VF`
+    vf1_bus_info=`sed s/:/_/g <<< "$vf1_bus_info" | sed s/'\.'/_/g`
+    vf2_bus_info=`sed s/:/_/g <<< "$vf1_bus_info" | sed s/'\.'/_/g`
+
+    local vf1_domain=`echo $vf1_bus_info | cut -d '_' -f1`
+    local vf1_bus=`echo $vf1_bus_info    | cut -d '_' -f2`
+    local vf1_slot=`echo $vf1_bus_info   | cut -d '_' -f3`
+    local vf1_func=`echo $vf1_bus_info   | cut -d '_' -f4`
+
+    local vf2_domain=`echo $vf2_bus_info | cut -d '_' -f1`
+    local vf2_bus=`echo $vf2_bus_info    | cut -d '_' -f2`
+    local vf2_slot=`echo $vf2_bus_info   | cut -d '_' -f3`
+    local vf2_func=`echo $vf2_bus_info   | cut -d '_' -f4`
+
+
+    local vlan_item=$(
+        cat << EOF
+        <interface type='hostdev' managed='yes'>
+            <mac address={}/>
+            <vlan>
+                <tag id='{}'/>
+            </vlan>
+            <driver name='vfio'/>
+            <source>
+                <address type='pci' domain={} bus={} slot={} function={}/>
+            </source>
+            <address type='pci' domain={} bus={} slot={} function={}/>
+        </interface>
+EOF
+    )
+
+    local item=$(
+        cat << EOF
+        <interface type='hostdev' managed='yes'>
+            <mac address={}/>
+            <driver name='vfio'/>
+            <source>
+                <address type='pci' domain={} bus={} slot={} function={}/>
+            </source>
+            <address type='pci' domain={} bus={} slot={} function={}/>
+        </interface>
+EOF
+    )
+
+    pytool remove_item_from_xml g1.xml "./devices/interface[@type='hostdev']" 
+
+    if (( $vlan_id != 0 ))
+    then
+        local format_list=('52:54:00:11:8f:ea' $vlan_id $vf1_domain $vf1_bus $vf1_slot $vf1_func '0x0000' '0x03' '0x0' '0x0')
+        local format_item=`pytool format_item $item "${format_list[@]}"`
+        pytool add_item_from_xml g1.xml "./devices" "$format_item"
+
+        local format_list_1=('52:54:00:11:8f:eb' $vlan_id $vf2_domain $vf2_bus $vf2_slot $vf2_func '0x0000' '0x04' '0x0' '0x0')
+        local format_item_1=`pytool format_item $item "${format_list_1[@]}"`
+        pytool add_item_from_xml g1.xml "./devices" "$format_item_1"
+    else
+        local format_list=('52:54:00:11:8f:ea' $vf1_domain $vf1_bus $vf1_slot $vf1_func '0x0000' '0x03' '0x0' '0x0')
+        local format_item=`pytool format_item $item "${format_list[@]}"`
+        pytool add_item_from_xml g1.xml "./devices" "$format_item"
+
+        local format_list_1=('52:54:00:11:8f:eb' $vf2_domain $vf2_bus $vf2_slot $vf2_func '0x0000' '0x04' '0x0' '0x0')
+        local format_item_1=`pytool format_item $item "${format_list_1[@]}"`
+        pytool add_item_from_xml g1.xml "./devices" "$format_item_1"
+
+    fi
+}
+
+update_xml_vnet_port()
+{
+    local append_item=$(
+        cat <<EOF
+        <interface type="bridge">
+			<mac address="52:54:00:bb:63:7b" />
+			<source bridge="virbr0" />
+			<model type="virtio" />
+			<address bus="0x02" domain="0x0000" function="0x0" slot="0x00" type="pci" />
+		</interface>
+EOF
+    )
+
+    local item=$(
+    cat <<EOF
+    <interface type='bridge'>
+        <mac address={}/>
+        <source bridge={}/>
+        <virtualport type='openvswitch'/>
+        <address type='pci' domain={} bus={} slot={} function={}/>
+        <target dev={}/>
+        <model type='virtio'/>
+    </interface>
+EOF
+    )
+
+    pytool remove_item_from_xml g1.xml "./devices/interface[@type='bridge']" 
+
+    pytool add_item_from_xml g1.xml "./devices" $append_item
+
+    local format_list=('52:54:00:11:8f:ea' 'ovsbr0' '0x0000' '0x03' '0x0' '0x0' 'vnet0')
+    local format_item=`pytool format_item $item "${format_list[@]}"`
+    pytool add_item_from_xml g1.xml "./devices" "$format_item"
+
+    local format_list_1=('52:54:00:11:8f:eb' 'ovsbr0' '0x0000' '0x04' '0x0' '0x0' 'vnet1')
+    local format_item_1=`pytool format_item $item "${format_list_1[@]}"`
+    pytool add_item_from_xml g1.xml "./devices" "$format_item_1"
+
+}
+
 update_xml_vhostuser()
 {
     pytool remove_item_from_xml g1.xml "./devices/interface[@type='vhostuser']" 
@@ -766,17 +882,19 @@ EOF
 
     local format_list_1=('52:54:00:11:8f:eb' '/tmp/vhost1' '0x0000' '0x04' '0x0' '0x0')
     local format_item_1=`pytool format_item $item "${format_list_1[@]}"`
-    pytool add_item_from_xml g1.xml "./devices" "$format_item"
+    pytool add_item_from_xml g1.xml "./devices" "$format_item_1"
 
 }
 
-pvp_test()
+ovs_dpdk_pvp_test()
 {
     local q_num=$1
     local pkt_size=$2
     local cont_time=$3
 
-    loginfo "Clean Env Now Begin"
+    local func_name=${FUNCNAME[0]}
+
+    loginfo "$func_name Clean Env Now Begin"
     clearn_env
 
     local nic1_mac=`pytool get_mac_from_name $NIC1`
@@ -809,7 +927,93 @@ pvp_test()
 
     configure_guest
 
-    guest_start_testpmd $q_num "${vcpu_list[@]}"
+    guest_start_testpmd $q_num "${vcpu_list[@]}" $RXD_SIZE $TXD_SIZE
+
+    bonding_test_trex $cont_time $pkt_size
+
+}
+
+ovs_kernel_datapath_test()
+{
+    local q_num=$1
+    local pkt_size=$2
+    local cont_time=$3
+    local func_name=${FUNCNAME[0]}
+
+    loginfo "$func_name Clean Env Now Begin"
+    clearn_env
+
+    local nic1_mac=`pytool get_mac_from_name $NIC1`
+    local nic2_mac=`pytool get_mac_from_name $NIC2` 
+    enable_dpdk $nic1_mac $nic2_mac
+
+    local numa_node=`cat /sys/class/net/${NIC1}/device/numa_node`
+    local vcpu_list=($VCPU1 $VCPU2 $VCPU3)
+    if (( $q_num == 1 ))
+    then
+        vcpu_list=($VCPU1 $VCPU2 $VCPU3)
+        ovs_bridge_with_kernel "${nic1_mac}" "${nic2_mac}" ${pkt_size} "${PMD2MASK}"
+    else
+        vcpu_list=($VCPU1 $VCPU2 $VCPU3 $VCPU4 $VCPU5)
+        ovs_bridge_with_kernel "${nic1_mac}" "${nic2_mac}" ${pkt_size} "${PMD4MASK}"
+    fi
+
+    vcpupin_in_xml $numa_node guest.xml g1.xml $vcpu_list
+
+    update_xml_vnet_port
+
+    if (( $q_num == 1 ))
+    then
+        pytool update_image_source g1.xml ${CASE_PATH}/${one_queue_image}
+    else
+        pytool update_image_source g1.xml ${CASE_PATH}/${two_queue_image}
+    fi
+
+    start_guest g1.xml 
+
+    configure_guest
+
+    guest_start_testpmd $q_num "${vcpu_list[@]}" $RXD_SIZE $TXD_SIZE
+
+    bonding_test_trex $cont_time $pkt_size
+
+}
+
+sriov_pci_passthrough_test()
+{
+    local q_num=$1
+    local pkt_size=$2
+    local cont_time=$3
+    local func_name=${FUNCNAME[0]}
+
+    loginfo "$func_name Clean Env Now Begin"
+    clearn_env
+
+    local numa_node=`cat /sys/class/net/${NIC1_VF}/device/numa_node`
+    local vcpu_list=($VCPU1 $VCPU2 $VCPU3)
+    if (( $q_num == 1 ))
+    then
+        vcpu_list=($VCPU1 $VCPU2 $VCPU3)
+    else
+        vcpu_list=($VCPU1 $VCPU2 $VCPU3 $VCPU4 $VCPU5)
+    fi
+
+    vcpupin_in_xml $numa_node guest.xml g1.xml $vcpu_list
+
+    update_xml_sriov_vf_port 0
+
+    if (( $q_num == 1 ))
+    then
+        pytool update_image_source g1.xml ${CASE_PATH}/${one_queue_image}
+    else
+        pytool update_image_source g1.xml ${CASE_PATH}/${two_queue_image}
+    fi
+
+    start_guest g1.xml 
+
+    configure_guest
+
+    guest_start_testpmd $q_num "${vcpu_list[@]}" $SRIOV_RXD_SIZE $SRIOV_TXD_SIZE
 
     bonding_test_trex $cont_time $pkt_size
 
@@ -823,7 +1027,7 @@ run_tests()
     if [ "$TESTLIST" == "pvp_cont" ];then
         echo "*** Running 1500 Byte PVP VSPerf verify check ***"
         echo "*** For 1Q 2PMD Test"
-        pvp_test 1 1500 30
+        ovs_dpdk_pvp_test 1 1500 30
     fi
 
     if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "1Q" ];then
@@ -832,9 +1036,9 @@ run_tests()
         echo "*** Running 64/1500 Bytes 2PMD OVS/DPDK PVP VSPerf TEST ***"
         echo "***********************************************************"
         echo ""
-        pvp_test 1 64 30
+        ovs_dpdk_pvp_test 1 64 30
 
-        pvp_test 1 1500 30
+        ovs_dpdk_pvp_test 1 1500 30
 
     fi
 
@@ -845,9 +1049,9 @@ run_tests()
         echo "*******************************************************************"
         echo ""
 
-        pvp_test 2 64 30
+        ovs_dpdk_pvp_test 2 64 30
         
-        pvp_test 2 1500 30
+        ovs_dpdk_pvp_test 2 1500 30
 
     fi
 
@@ -859,9 +1063,9 @@ run_tests()
         echo "*************************************************************"
         echo ""
 
-        pvp_test 1 2000 30
+        ovs_dpdk_pvp_test 1 2000 30
             
-        pvp_test 2 9000 30
+        ovs_dpdk_pvp_test 2 9000 30
 
     fi
 
@@ -873,11 +1077,24 @@ run_tests()
         echo "********************************************************"
         echo ""
 
-        pvp_test 1 2000 30
-            
-        pvp_test 2 9000 30
+        ovs_kernel_datapath_test 1 64 30            
+        ovs_kernel_datapath_test 2 1500 30
 
     fi
+
+    if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "SRIOV" ]
+    then
+        echo ""
+        echo "************************************************"
+        echo "*** Running 64/1500 Bytes SR-IOV VSPerf TEST ***"
+        echo "************************************************"
+        echo ""
+
+        sriov_pci_passthrough_test 1 64 30
+        sriov_pci_passthrough_test 2 1500 30
+
+    fi
+
 }
 
 
@@ -937,14 +1154,13 @@ fi
 
 }
 
-copy_config_files_to_log_folder() {
-
-cp /root/vswitchperf/conf/* $NIC_LOG_FOLDER
-cp /root/RHEL_NIC_QUALIFICATION/Perf-Verify.conf $NIC_LOG_FOLDER
-
+copy_config_files_to_log_folder() 
+{
+    cp /root/RHEL_NIC_QUALIFICATION/Perf-Verify.conf $NIC_LOG_FOLDER
 }
 
-usage () {
+usage () 
+{
    cat <<EOF
     Usage: $progname [-t test to execute] [-h print help]
     -t tests to execute ['1Q, 2Q, Jumbo, Kernel, pvp_cont'] default is to run all tests
@@ -954,46 +1170,47 @@ EOF
 }
 
 
-main() {
-# run all checks
-OS_checks
-log_folder_check
-hugepage_checks
-conf_checks
-config_file_checks
-nic_card_check
-rpm_check
-network_connection_check
-ovs_running_check
-# finished running checks
+main() 
+{
+    # run all checks
+    OS_checks
+    log_folder_check
+    hugepage_checks
+    conf_checks
+    config_file_checks
+    nic_card_check
+    rpm_check
+    network_connection_check
+    ovs_running_check
+    # finished running checks
 
-install_rpms
-init_python_env
+    install_rpms
+    init_python_env
 
+    TESTLIST="ALL"
 
-TESTLIST="ALL"
+    progname=$0
+    while getopts t:l:h FLAG; do
+    case $FLAG in
 
-progname=$0
-while getopts t:l:h FLAG; do
-   case $FLAG in
+    t)  TESTLIST1=$OPTARG
+        echo "Running test(s) $OPTARG"
+        ;;
+    h)  echo "found $opt" ; usage ;;
+    \?)  usage ;;
+    esac
+    done
 
-   t)  TESTLIST1=$OPTARG
-       echo "Running test(s) $OPTARG"
-       ;;
-   h)  echo "found $opt" ; usage ;;
-   \?)  usage ;;
-   esac
-done
+    if [[ ! "$TESTLIST1" == "" ]]
+    then
+        TESTLIST=$TESTLIST1
+        
+    fi
 
-if [[ ! "$TESTLIST1" == "" ]]
-then
-    TESTLIST=$TESTLIST1
-    
-fi
+    run_tests $TESTLIST
+    print_results
+    copy_config_files_to_log_folder
 
-run_tests $TESTLIST
-print_results
-copy_config_files_to_log_folder
 }
 
 if [ "${1}" != "--source-only" ]
