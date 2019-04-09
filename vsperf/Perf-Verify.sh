@@ -193,7 +193,7 @@ config_file_checks()
             fail "TREX Params" "T-Rex settings not set in Perf-Verify.conf file"
         fi
 
-        if [ -z $ $TREX_URL ]
+        if [ -z $TREX_URL ]
         then
             fail "TREX_URL Trex package shoule be specified , please set in Perf-Verify.conf file"
         fi
@@ -873,7 +873,7 @@ update_xml_vhostuser()
         <driver name='vhost' iommu='on' ats='on'/>
         <address type='pci' domain={} bus={} slot={} function={}/>
     </interface>
-EOF    
+EOF
     )
 
     local format_list=('52:54:00:11:8f:ea' '/tmp/vhost0' '0x0000' '0x03' '0x0' '0x0')
@@ -1025,20 +1025,24 @@ run_tests()
     TESTLIST=$1
 
     if [ "$TESTLIST" == "pvp_cont" ];then
-        echo "*** Running 1500 Byte PVP VSPerf verify check ***"
+        local log_name=$NIC_LOG_FOLDER/pvp_2pmd_check.log
+        {
+        echo "*** Running 1500 Byte PVP verify check ***"
         echo "*** For 1Q 2PMD Test"
-        ovs_dpdk_pvp_test 1 1500 30
+        } | tee -a $log_name
+        ovs_dpdk_pvp_test 1 1500 30 $log_name
     fi
 
     if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "1Q" ];then
+        {
         echo ""
         echo "***********************************************************"
         echo "*** Running 64/1500 Bytes 2PMD OVS/DPDK PVP VSPerf TEST ***"
         echo "***********************************************************"
         echo ""
-        ovs_dpdk_pvp_test 1 64 30
-
-        ovs_dpdk_pvp_test 1 1500 30
+        } | 
+        ovs_dpdk_pvp_test 1 64 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log
+        ovs_dpdk_pvp_test 1 1500 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log
 
     fi
 
@@ -1049,9 +1053,8 @@ run_tests()
         echo "*******************************************************************"
         echo ""
 
-        ovs_dpdk_pvp_test 2 64 30
-        
-        ovs_dpdk_pvp_test 2 1500 30
+        ovs_dpdk_pvp_test 2 64 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log        
+        ovs_dpdk_pvp_test 2 1500 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log
 
     fi
 
@@ -1063,9 +1066,8 @@ run_tests()
         echo "*************************************************************"
         echo ""
 
-        ovs_dpdk_pvp_test 1 2000 30
-            
-        ovs_dpdk_pvp_test 2 9000 30
+        ovs_dpdk_pvp_test 1 2000 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log            
+        ovs_dpdk_pvp_test 2 9000 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log
 
     fi
 
@@ -1077,8 +1079,8 @@ run_tests()
         echo "********************************************************"
         echo ""
 
-        ovs_kernel_datapath_test 1 64 30            
-        ovs_kernel_datapath_test 2 1500 30
+        ovs_kernel_datapath_test 1 64 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log           
+        ovs_kernel_datapath_test 2 1500 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log
 
     fi
 
@@ -1090,8 +1092,8 @@ run_tests()
         echo "************************************************"
         echo ""
 
-        sriov_pci_passthrough_test 1 64 30
-        sriov_pci_passthrough_test 2 1500 30
+        sriov_pci_passthrough_test 1 64 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log
+        sriov_pci_passthrough_test 2 1500 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log
 
     fi
 
