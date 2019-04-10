@@ -895,7 +895,7 @@ ovs_dpdk_pvp_test()
     local func_name=${FUNCNAME[0]}
 
     loginfo "$func_name Clean Env Now Begin"
-    clearn_env
+    clear_env
 
     local nic1_mac=`pytool get_mac_from_name $NIC1`
     local nic2_mac=`pytool get_mac_from_name $NIC2` 
@@ -941,7 +941,7 @@ ovs_kernel_datapath_test()
     local func_name=${FUNCNAME[0]}
 
     loginfo "$func_name Clean Env Now Begin"
-    clearn_env
+    clear_env
 
     local nic1_mac=`pytool get_mac_from_name $NIC1`
     local nic2_mac=`pytool get_mac_from_name $NIC2` 
@@ -987,7 +987,7 @@ sriov_pci_passthrough_test()
     local func_name=${FUNCNAME[0]}
 
     loginfo "$func_name Clean Env Now Begin"
-    clearn_env
+    clear_env
 
     local numa_node=`cat /sys/class/net/${NIC1_VF}/device/numa_node`
     local vcpu_list=($VCPU1 $VCPU2 $VCPU3)
@@ -1025,135 +1025,97 @@ run_tests()
     TESTLIST=$1
 
     if [ "$TESTLIST" == "pvp_cont" ];then
-        local log_name=$NIC_LOG_FOLDER/pvp_2pmd_check.log
+        local log_file=$NIC_LOG_FOLDER/pvt_cont.log
         {
         echo "*** Running 1500 Byte PVP verify check ***"
         echo "*** For 1Q 2PMD Test"
-        } | tee -a $log_name
-        ovs_dpdk_pvp_test 1 1500 30 $log_name
+        } | tee -a $log_file
+        ovs_dpdk_pvp_test 1 1500 30 $log_file
     fi
 
     if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "1Q" ];then
+        local log_file=$NIC_LOG_FOLDER/pvp_1Q_.log
         {
         echo ""
         echo "***********************************************************"
         echo "*** Running 64/1500 Bytes 2PMD OVS/DPDK PVP VSPerf TEST ***"
         echo "***********************************************************"
         echo ""
-        } | 
-        ovs_dpdk_pvp_test 1 64 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log
-        ovs_dpdk_pvp_test 1 1500 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log
+        } | tee -a $log_file
+        ovs_dpdk_pvp_test 1 64 30 | tee -a $log_file
+        ovs_dpdk_pvp_test 1 1500 30 | tee -a $log_file
 
     fi
 
     if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "2Q" ];then
+        local log_file=$NIC_LOG_FOLDER/pvp_2Q_.log
+        {
         echo ""
         echo "*******************************************************************"
         echo "*** Running 64/1500 Bytes 2 queue 4PMD OVS/DPDK PVP VSPerf TEST ***"
         echo "*******************************************************************"
         echo ""
+        } | tee -a $log_file
 
-        ovs_dpdk_pvp_test 2 64 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log        
-        ovs_dpdk_pvp_test 2 1500 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log
+        ovs_dpdk_pvp_test 2 64 30 | tee -a $log_file
+        ovs_dpdk_pvp_test 2 1500 30 | tee -a $log_file
 
     fi
 
     if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "Jumbo" ]
     then
+        local log_file=$NIC_LOG_FOLDER/pvp_Jumbo_.log
+        {
         echo ""
         echo "*************************************************************"
         echo "*** Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST ***"
         echo "*************************************************************"
         echo ""
+        } | tee -a $log_file
 
-        ovs_dpdk_pvp_test 1 2000 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log            
-        ovs_dpdk_pvp_test 2 9000 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log
+        ovs_dpdk_pvp_test 1 2000 30 | tee -a $log_file            
+        ovs_dpdk_pvp_test 2 9000 30 | tee -a $log_file
 
     fi
 
     if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "Kernel" ]
     then
+        local log_file=$NIC_LOG_FOLDER/pvp_Kernel_.log
+        {
         echo ""
         echo "********************************************************"
         echo "*** Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST ***"
         echo "********************************************************"
         echo ""
+        } | tee -a $log_file
 
-        ovs_kernel_datapath_test 1 64 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log           
-        ovs_kernel_datapath_test 2 1500 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log
+        ovs_kernel_datapath_test 1 64 30 | tee -a $log_file
+        ovs_kernel_datapath_test 2 1500 30 | tee -a $log_file
 
     fi
 
     if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "SRIOV" ]
     then
+        local log_file=$NIC_LOG_FOLDER/pvp_SRIOV_.log
+        {
         echo ""
         echo "************************************************"
         echo "*** Running 64/1500 Bytes SR-IOV VSPerf TEST ***"
         echo "************************************************"
         echo ""
+        } | tee -a $log_file
 
-        sriov_pci_passthrough_test 1 64 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log
-        sriov_pci_passthrough_test 2 1500 30 | tee -a $NIC_LOG_FOLDER/pvp_2pmd.log
+        sriov_pci_passthrough_test 1 64 30 | tee -a $log_file
+        sriov_pci_passthrough_test 2 1500 30 | tee -a $log_file
 
     fi
 
 }
 
 
-print_results() {
-if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp*' -print -quit)"
-then
-cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
-########################################################
-#             RESULTS OF ALL VSPERF TESTS              #
-#                                                      #
-EOT
-fi
-
-if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp_2pmd.log' -print -quit)"
-then
-mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_2pmd.log | awk '{print $11}' )
-cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
-# 64   Byte 2PMD OVS/DPDK PVP test result: ${array[0]} #
-# 1500 Byte 2PMD OVS/DPDK PVP test result: ${array[1]} #
-EOT
-fi
-
-if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp_4pmd-2q.log' -print -quit)"
-then
-mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_4pmd-2q.log | awk '{print $11}' )
-cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
-# 64   Byte 4PMD 2Q OVS/DPDK PVP test result: ${array[0]} #
-# 1500 Byte 4PMD 2Q OVS/DPDK PVP test result: ${array[1]} #
-EOT
-fi
-
-if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp_2pmd_jumbo.log' -print -quit)"
-then
-mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_2pmd_jumbo.log | awk '{print $11}' )
-cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
-# 2000 Byte 2PMD OVS/DPDK Phy2Phy test result: ${array[0]} #
-# 9000 Byte 2PMD OVS/DPDK Phy2Phy test result: ${array[1]} #
-EOT
-fi
-
-if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp_ovs_kernel.log' -print -quit)"
-then
-mapfile -t array < <( grep "Key: throughput_rx_fps, Value:" $NIC_LOG_FOLDER/vsperf_pvp_ovs_kernel.log | awk '{print $11}' )
-cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
-# 64   Byte OVS Kernel PVP test result: ${array[0]} #
-# 1500 Byte OVS Kernel PVP test result: ${array[1]} #
-EOT
-fi
-
-if test -n "$(find $NIC_LOG_FOLDER -maxdepth 1 -name 'vsperf_pvp*' -print -quit)"
-then
-cat <<EOT >>$NIC_LOG_FOLDER/vsperf_results.txt
-########################################################
-EOT
-cat $NIC_LOG_FOLDER//vsperf_results.txt
-fi
-
+print_results() 
+{
+    echo 
 }
 
 copy_config_files_to_log_folder() 
@@ -1165,7 +1127,7 @@ usage ()
 {
    cat <<EOF
     Usage: $progname [-t test to execute] [-h print help]
-    -t tests to execute ['1Q, 2Q, Jumbo, Kernel, pvp_cont'] default is to run all tests
+    -t tests to execute ['1Q, 2Q, Jumbo, Kernel, pvp_cont','SRIOV'] default is to run all tests
     -h print this help message
 EOF
    exit 0
