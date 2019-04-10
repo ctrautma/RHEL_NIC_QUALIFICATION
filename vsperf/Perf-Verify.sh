@@ -180,19 +180,18 @@ config_file_checks()
         then
             fail "NIC Param" "NIC Params not set in Perf-Verify.conf file"
         fi
-        if [ -z $PMD2MASK ] || [ -z $PMD4MASK ]
+        if [ -z $PMD_CPU_1 ] || [ -z $PMD_CPU_2 ] || [ -z $PMD_CPU_3 ] || [ -z $PMD_CPU_4 ]
         then
-            fail "PMD Mask PARAM" "PMD2MASK Param and/or PMD4MASK not set in Perf-Verify.conf file"
+            fail "Please set all PMD_CPU_X config in Perf-Verify.conf file"
         fi
         if [ -z $VCPU1 ] || [ -z $VCPU2 ] || [ -z $VCPU3 ] || [ -z $VCPU4 ] || [ -z $VCPU5 ]
         then
             fail "VCPU Params" "Guest VCPU Param not set in Perf-Verify.conf file"
         fi
-        if [ -z $TRAFFICGEN_TREX_HOST_IP_ADDR ] || [ -z $TRAFFICGEN_TREX_USER ] || [ -z $TRAFFICGEN_TREX_BASE_DIR ] || [ -z $TRAFFICGEN_TREX_PORT1 ] || [ -z $TRAFFICGEN_TREX_PORT2 ]
+        if [ -z $TRAFFICGEN_TREX_HOST_IP_ADDR ] || [ -z $TRAFFICGEN_TREX_PORT1 ] || [ -z $TRAFFICGEN_TREX_PORT2 ]
         then
             fail "TREX Params" "T-Rex settings not set in Perf-Verify.conf file"
         fi
-
         if [ -z $TREX_URL ]
         then
             fail "TREX_URL Trex package shoule be specified , please set in Perf-Verify.conf file"
@@ -321,7 +320,9 @@ install_rpms()
 {
     #add repo
     pushd $CASE_PATH
-    source ./repo.sh
+
+    source `pwd`/repo.sh
+
     all_package=(
         yum-utils
         scl-utils
