@@ -540,11 +540,18 @@ You must build perf from a recent kernel source in order to make it work with py
 yum install -y git make gcc flex bison libdwarf-devel \
 	python36-devel elfutils-devel ncurses-devel xz-devel \
 	elfutils-libelf-devel pcre2-devel binutils-devel numactl-devel \
-	slang-devel libcrypto-devel zlib-devel audit-libs-devel asciidoc \
+	slang-devel zlib-devel audit-libs-devel asciidoc \
 	xmlto openssl-devel perl-ExtUtils-Embed
 git clone --depth 1 https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 cd linux/tools/perf
 make PYTHON=/usr/bin/python3.6 install
+
+```
+
+Navigate back to the rule-install-rate folder
+
+```
+cd ../../../
 ```
 
 Uncompress the cls_flower module (this is needed because RHEL8's elfutils can't
@@ -552,6 +559,12 @@ deal with a compressed module with uncompressed debuginfo):
 
 ```
 unxz /lib/modules/<kernel version>/kernel/net/sched/cls_flower.ko.xz
+```
+
+Run depmod to prevent module symbol error.
+
+```
+depmod -a
 ```
 
 Now you shall execute the run.sh script as:
