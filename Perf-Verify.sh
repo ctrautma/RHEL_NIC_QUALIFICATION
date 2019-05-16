@@ -892,8 +892,8 @@ vsperf_make() {
             sed -i s/'pip'/'pip3'/ rhel/8.0/prepare_python_env.sh
             sed -i s/'14.5.0'/'17.1.2'/ ../requirements.txt
             sed -i s/'pycrypto'/'pycryptodome'/ ../requirements.txt
-            sed -i s/'import tkinter'/'# import tkinter' ../tools/pkt_gen/ixnet/ixnet.py
-            sed -i s/'import tkinter'/'# import tkinter' ../tools/pkt_gen/ixia/ixia.py
+            sed -i s/'import tkinter'/'# import tkinter'/ ../tools/pkt_gen/ixnet/ixnet.py
+            sed -i s/'import tkinter'/'# import tkinter'/ ../tools/pkt_gen/ixia/ixia.py
         fi
         sed -i 's/source\s"$VSPERFENV_DIR".*/&\npip install --upgrade pip/' rhel/$VERSION_ID/prepare_python_env.sh
         sed -i 's/source\s"$VSPERFENV_DIR".*/&\npip install --upgrade setuptools/' rhel/$VERSION_ID/prepare_python_env.sh
