@@ -25,7 +25,6 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Detect OS name and version from systemd based os-release file
-# Detect OS name and version from systemd based os-release file
 set -a
 CASE_PATH="$(dirname $(readlink -f $0))"
 source /etc/os-release
@@ -53,21 +52,25 @@ unlink $work_pipe
 unlink $notify_pipe
 mkfifo $work_pipe
 mkfifo $notify_pipe
+python_file="start.py"
+bash_exit_str="sriov-github-vsperf"
 
 set +a
 
 trap ctrl_c INT
 ctrl_c() 
 {
-    local my_pid=`ps -ef | grep python | grep start.py | awk '{print $2}'`
+    local my_pid=`ps -ef | grep python | grep ${python_file} | awk '{print $2}'`
     kill -n 9 $my_pid
     exit
 }
 
-
 install_beakerlib()
 {
     pushd $CASE_PATH
+    rpm -q git  || yum -y install git
+    rpm -q gcc  || yum -y install gcc
+    rpm -q make || yum -y install make
     git clone https://github.com/beakerlib/beakerlib.git
     git checkout beakerlib-1.18
     make 
@@ -76,7 +79,30 @@ install_beakerlib()
     return 0
 }
 
-
+check_python_process()
+{
+	while true
+	do
+        sleep 3
+		my_pid=`ps -ef | grep python | grep ${python_file} | awk '{print $2}'`
+		#this time read line timeout
+		if (( ${#my_pid} == 0 ))
+		then
+			echo "Shell Check that python process exit "
+			break
+		else
+			if kill -0 $$
+			then
+				continue
+			else
+				echo "parent process not exist"
+				exit 1
+			fi
+		fi
+	done
+	kill -9 $$
+	exit 1
+}
 
 install_python_and_init_env()
 {
@@ -121,47 +147,21 @@ install_python_and_init_env()
 	pip install pyserial
 }
 
+install_beakerlib
 install_python_and_init_env
 python start.py &
-exec {fd}<>$fd_nic_pipe
-
-check_python_process()
-{
-	while true
-	do
-		my_pid=`ps -ef | grep python | grep start.py | awk '{print $2}'`
-		#this time read line timeout
-		if (( ${#my_pid} == 0 ))
-		then
-			#because python exit for no normal reason
-			echo "Shell Check that python process exit "
-			break
-		else
-			if kill -0 $$
-			then
-				continue
-			else
-				echo "parent process not exist"
-				exit 1
-			fi
-		fi
-	done
-	kill -9 $$
-	exit 1
-}
-
+sleep 3
 check_python_process & 
 
 while true
 do	
 	echo -n "OK" > $notify_pipe
-    if read -r line  <& $fd; then
-        if [[ "$line" == 'fd-nic-partition-quit' ]]; then
-            my_pid=`ps -ef | grep python | grep start.py | awk '{print $2}'`
+    if read -r line  <& $work_pipe; then
+        if [[ "$line" == "${bash_exit_str}" ]]; then
+            my_pid=`ps -ef | grep python | grep ${python_file} | awk '{print $2}'`
             kill -n 9 $my_pid
             break
         fi
-        #echo "$line"
         eval $line
     fi
 done
