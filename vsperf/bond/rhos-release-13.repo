@@ -1,0 +1,103 @@
+#
+# Release Engineering Builds
+#
+[rhelosp-13.0-puddle]
+name=RHOS-13.0
+baseurl=http://download.lab.bos.redhat.com/rcm-guest/puddles/OpenStack/13.0-RHEL-7/latest/RH7-RHOS-13.0/$basearch/os
+gpgcheck=0
+enabled=1
+
+[rhelosp-13.0-devtools-puddle]
+name=RHOS-13.0 dev tools
+baseurl=http://download.lab.bos.redhat.com/rcm-guest/puddles/OpenStack/13.0-RHEL-7/latest/RH7-RHOS-DEVTOOLS-13.0/$basearch/os
+gpgcheck=0
+enabled=0
+skip_if_unavailable=1
+
+[rhelosp-13.0-debuginfo]
+name=RHOS-13.0 Debuginfo
+baseurl=http://download.lab.bos.redhat.com/rcm-guest/puddles/OpenStack/13.0-RHEL-7/latest/RH7-RHOS-13.0/$basearch/debuginfo
+gpgcheck=0
+enabled=0
+skip_if_unavailable=1
+
+[rhelosp-13.0-sources]
+name=RHOS-13.0 Sources
+baseurl=http://download.lab.bos.redhat.com/rcm-guest/puddles/OpenStack/13.0-RHEL-7/latest/RH7-RHOS-13.0/source
+gpgcheck=0
+enabled=0
+skip_if_unavailable=1
+
+[rhelosp-13.0-deployment-tools]
+name=RHOS-14.0 deployment tools
+baseurl=http://download.lab.bos.redhat.com/rcm-guest/puddles/OpenStack/13.0-RHEL-7/latest/Server-RH7-RHOS-DEPLOYMENT-TOOLS-13.0/$basearch/os
+gpgcheck=0
+enabled=0
+
+# end substitution #
+[rhelosp-13.0-optools-puddle]
+name=RH-OSP 13 optools
+baseurl=http://download.lab.bos.redhat.com/rcm-guest/puddles/OpenStack/13.0-RHEL-7-Opt/latest/RH7-RHOS-13.0-OPTOOLS/$basearch/os
+gpgcheck=0
+enabled=1
+
+[rhelosp-13.0-optools-debuginfo]
+name=RH-OSP 13 optools Debuginfo
+baseurl=http://download.lab.bos.redhat.com/rcm-guest/puddles/OpenStack/13.0-RHEL-7-Opt/latest/RH7-RHOS-13.0-OPTOOLS/$basearch/debuginfo
+gpgcheck=0
+enabled=0
+
+[rhelosp-13.0-optools-sources]
+name=RH-OSP 13 optools Sources
+baseurl=http://download.lab.bos.redhat.com/rcm-guest/puddles/OpenStack/13.0-RHEL-7-Opt/latest/RH7-RHOS-13.0-OPTOOLS/source
+gpgcheck=0
+enabled=0
+
+
+# OSP 13 override repo
+[rhelosp-13.0-image-build-override]
+name=RHOS 13.0 Override
+baseurl=http://download-node-02.eng.bos.redhat.com/rcm-guest/puddles/OpenStack/rhosp-13.0-image-build-override/latest/$basearch
+enabled=1
+gpgcheck=0
+skip_if_unavailable=1
+
+# Flea repo for RHEL-OSP 13
+[rhelosp-13.0-flea]
+name=RHOS-13.0 Flea
+baseurl=http://shale.boston.devel.redhat.com/poodles/rhos-devel-ci/13.0/fleas/latest
+enabled=0
+skip_if_unavailable=1
+gpgcheck=0
+
+#
+# Development builds (brew)
+#
+[rhelosp-13.0-brew]
+name=RHOS-13.0
+baseurl=http://download.eng.bos.redhat.com/rel-eng/repos/rhos-13.0-rhel-7-candidate/$basearch/
+gpgcheck=0
+enabled=0
+
+# unit test dependencies that are not in base RHEL OSP
+[rhelosp-13.0-unittest]
+name=RHOS-13.0 Unit Test Dependency
+baseurl=http://download.eng.bos.redhat.com/rel-eng/repos/rhos-13.0-rhel-7-testdeps/$basearch/
+enabled=0
+skip_if_unavailable=1
+gpgcheck=0
+
+#
+# Test dependancies
+#
+[rhelosp-13.0-test-deps]
+name=Copr repo for el7-rhos13-test-deps owned by abregman
+baseurl=https://copr-be.cloud.fedoraproject.org/results/abregman/el7-rhos13-test-deps/epel-7-$basearch/
+skip_if_unavailable=1
+enabled=0
+gpgcheck=0
+gpgkey=https://copr-be.cloud.fedoraproject.org/results/abregman/el7-rhos13-test-deps/pubkey.gpg
+
+#
+# Other dependencies
+#

@@ -69,13 +69,11 @@ if [[ -e /etc/redhat-release ]]; then
 			echo "detected CentOS ${RELEASE}"
 			supported_version_check
 			centos_install_epel
-			centos_install_ius
 			;;
 		redhat*)
 			echo "detected RHEL ${RELEASE}"
 			supported_version_check
 			rhel_install_epel
-			rhel_install_ius
 			;;
 		*)
 			echo "unknown EL clone"

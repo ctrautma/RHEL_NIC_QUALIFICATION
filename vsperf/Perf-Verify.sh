@@ -27,10 +27,9 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Detect OS name and version from systemd based os-release file
+set -a
 CASE_PATH="$(dirname $(readlink -f $0))"
-
-. /etc/os-release
-
+source /etc/os-release
 SYSTEM_VERSION_ID=`echo $VERSION_ID | tr -d '.'`
 
 if [ $VERSION_ID == "7.5" ]
@@ -48,6 +47,7 @@ then
     one_queue_zip="RHEL76-1Q.qcow2.lrz"
     two_queue_zip="RHEL76-2Q.qcow2.lrz"
 fi
+set +a
 
 pytool()
 {
