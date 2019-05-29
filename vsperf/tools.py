@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 
-
 import os
 import sys
-import select
 import subprocess as sp
 import json
 import base64
 import paramiko
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as xml
 import ethtool
+import fire
 from plumbum import local
 from shell import shell
 from shell import Shell
+import select
 import pexpect
-
+import io
+import serial
 
 def run_and_getout(command):
     fd = sp.Popen(command, shell=True, stdout=sp.PIPE)
@@ -22,7 +23,6 @@ def run_and_getout(command):
 
 
 class Tools(object):
-
     def __init__(self):
         self.default_code = sys.getdefaultencoding()
         pass
@@ -44,9 +44,10 @@ class Tools(object):
             return "name-error"
         temp_path = local.path("/sys/class/net")
         for i in temp_path:
-            temp_mac = ethtool.get_hwaddr(str(i.name))
-            if temp_mac == mac:
-                return i.name
+            if i.is_symlink():
+                temp_mac = ethtool.get_hwaddr(str(i.name))
+                if temp_mac == mac:
+                    return i.name
 
         return "name-error"
 
@@ -62,118 +63,163 @@ class Tools(object):
         ]
         return ':'.join(map(lambda x: "{:02x}".format(x), mac))
 
-    def xml_add_vcpupin_item(self, xml_file, num):
-        """
-        <vcpu placement="static">3</vcpu>
-        <cputune>
-            <vcpupin cpuset="1" vcpu="0" />
-            <vcpupin cpuset="2" vcpu="1" />
-            <vcpupin cpuset="3" vcpu="2" />
-        </cputune>
-        """
-        tree = ET.parse(xml_file)
-        root = tree.getroot()
-        vcpu_item = ET.ElementPath.find(root, "./vcpu")
-        current_num = 0
-        if None != vcpu_item:
-            current_num = int(vcpu_item.text)
-            vcpu_item.text = str(num)
-        item = ET.ElementPath.find(root, "./cputune")
-        sub_item = ET.ElementPath.find(root, "./cputune/vcpupin")
-        if num > current_num:
-            for i in range(num-current_num):
-                item.append(sub_item)
-        sub_item_list = list(item)
-        for i in range(sub_item_list.__len__()):
-            sub_item_list[i].set(str("vcpu"), str(i))
-            sub_item_list[i].set(str("cpuset"), str(i))
-        sub_item_list.sort()
+    def config_ssh_trust(self, file_name, remote_host, username, password):
+        client = paramiko.SSHClient()
+        client.load_system_host_keys()
+        # client.set_missing_host_key_policy(paramiko.WarningPolicy())
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        with open(file_name, "r") as fd:
+            kaizi = fd.read()
+        client.connect(remote_host, username=username, password=password)
+        client.exec_command("mkdir -p /root/.ssh/")
+        client.exec_command(
+            'test -f /root/.ssh/known_hosts || touch /root/.ssh/known_hosts')
+        cmd = "echo %s >> /root/.ssh/authorized_keys" % (kaizi.strip('\n'))
+        client.exec_command(cmd)
+        client.close()
 
-        print(ET.tostringlist(item))
-        tree.write(xml_file)
+    def get_isolate_cpus(self):
+        """Here Get all cpu from this system without cpu0"""
+
+        command = "cat /proc/cpuinfo | grep processor | awk '{print $NF}'"
+        out = run_and_getout(command)
+        str_out = out.decode(self.default_code).replace('\n', ' ').strip()
+        str_out = str(str_out)
+        if str_out[0] == "0":
+                return str_out[2:]
+        else:
+                return str_out
+
+    def get_isolate_cpus_on_numa(self, numa):
+        cpu_cmd = "lscpu | grep 'NUMA node%s' | awk '{print $NF}'" % (str(int(numa)))
+        cpu_info = run_and_getout(cpu_cmd)
+        str_out = cpu_info.decode(self.default_code).strip()
+        # 0,1,2,3,4
+        # 0-9,9-29
+        temp_list = str(str_out).split(',')
+        all_str = ""
+        for i in temp_list:
+            if '-' in i:
+                start_index = int(str(i).split('-')[0])
+                last_index = int(str(i).split('-')[-1])+1
+                all_str += " ".join([str(i) for i in range(start_index, last_index)]) + " "
+            else:
+                all_str += str(i)
+                all_str += " "
+
+        all_str = all_str.strip()
+        if all_str[0] == "0":
+            return all_str[2:]
+        else:
+            return all_str
+
+    def get_isolate_cpus_with_nic(self, nic_name):
+        """
+            First get cpu numa node and then get cpu list without cpu 0
+        """
+        cmd = "cat /sys/class/net/{}/device/numa_node".format(str(nic_name))
+        out = run_and_getout(cmd)
+        return self.get_isolate_cpus_on_numa(out)
+
+    def get_pmd_masks(self, str_cpulist):
+        ret_val = 0x0
+        if str_cpulist == None or str_cpulist == "":
+            return 0x0
+        else:
+            # print(type(str_cpulist))
+            if isinstance(str_cpulist, str):
+                for i in str_cpulist.split():
+                    ret_val |= 0x1 << int(i)
+                return hex(ret_val)
+            else:
+                ret_val |= 0x1 << int(str_cpulist)
+                return hex(ret_val)
+                pass
         pass
 
-    def update_vcpu(self, xml_file, index, value):
-        """
-        <cputune>
-        <vcpupin cpuset="1" vcpu="8" />
-        <vcpupin cpuset="2" vcpu="3" />
-        <vcpupin cpuset="3" vcpu="4" />
-        </cputune>
-        """
-        tree = ET.parse(xml_file)
-        item = tree.find("cputune")
-        item[index].set(str("cpuset"), str(value))
-        tree.write(xml_file)
-
-    def update_numa(self, xml_file, value):
-        """
-        <numatune>
-        <memory mode='strict' nodeset='0'/>
-        </numatune>
-        """
-        tree = ET.parse(xml_file)
-        item = tree.find("numatune")
-        item[0].set("nodeset", str(value))
-        tree.write(xml_file)
-
-    def update_image_source(self, xml_file, image_name):
-        """
-        <devices>
-            <emulator>/usr/libexec/qemu-kvm</emulator>
-            <disk device="disk" type="file">
-                    <driver name="qemu" type="qcow2" />
-                    <source file="/root/rhel.qcow2" />
-                    <target bus="virtio" dev="vda" />
-                    <address bus="0x01" domain="0x0000" function="0x0" slot="0x00" type="pci" />
-            </disk>
-        """
-        tree = ET.parse(xml_file)
-        root = tree.getroot()
-        source_item = ET.ElementPath.find(root, "./devices/disk/source")
-        source_item.set(str("file"), str(image_name))
-        tree.write(xml_file)
-
-    def get_out(fd):
-        out = ""
-        while True:
-            r,w,e = select.select([fd],[],[],3)
-            if fd in r:
-                out += fd.read(1).decode()
+    def make_xena_config(self, template_file, module_index):
+        if os.path.exists(template_file):
+            fd = open(template_file, "r")
+            if fd:
+                data_json = json.loads(fd.read())
+                fd.close()
+                data_json['PortHandler']['EntityList'][0]['PortRef']['ModuleIndex'] = module_index
+                # data_json['PortHandler']['EntityList'][1]['PortRef']['ModuleIndex'] = module_index
+                # here means 100G
+                if module_index == 5:
+                    data_json['PortHandler']['EntityList'][0]['EnableFec'] = "false"
+                    # data_json['PortHandler']['EntityList'][1]['EnableFec'] = "false"
             else:
-                break
-        return out.strip()
-
-    def vm_login(pts):
-        output=""
-        with open(pts,"wb+",buffering=0) as fd:
-            fd.write(chr(3).encode())
-            fd.write(chr(4).encode())
-            while True:
-                output = get_out(fd)
-                #import pdb; pdb.set_trace()
-                if str(output).endswith("login:"):
-                    fd.write("root\r\n".encode())
-                elif str(output).endswith("Password:"):
-                    fd.write("redhat\r\n".encode())
-                elif str(output).endswith("]#"):
-                    break                    
-                else:
-                    return 1
-        return 0
+                print("Can not open %s File " % (template_file))
+                return
+            with open(template_file, "w") as nfd:
+                nfd.write(json.dumps(data_json, indent=4))
+        else:
+            pass
+        pass
 
     def run_cmd_get_output(self,pts,cmd):
-        vm_login(pts)
-        output=""
-        with open(pts,"wb+",buffering=0) as fd:
-            fd.write("\r\n".encode())
-            fd.write((str(cmd) + "\r\n").encode())
-            return get_out(fd)
-
+        if not os.path.exists(pts):
+            return "pts not found"
+        sr = serial.Serial(pts,115200,timeout=0.1)
+        if not sr:
+            return "open dev pts failed"
+        sio = io.TextIOWrapper(io.BufferedRWPair(sr, sr))
+        sio.write(os.linesep)
+        sio.flush()
+        while True:
+            data = sio.readline()
+            if data == '':
+                continue
+            else:
+                # print(data)
+                if "login:" in data and "root" not in data:
+                    sio.write("root" + os.linesep)
+                    sio.flush()
+                elif "Password:" in data:
+                    sio.write("redhat" + os.linesep)
+                    sio.flush()
+                elif "]#" in data:
+                    break
+                else:
+                    continue
+        cmd = cmd + os.linesep
+        all_data = ""
+        cmds =  cmd.split(os.linesep)
+        cmds = [ i.strip() for i in cmds ]
+        cmds = [ i for i in cmds if len(i) > 0 ]
+        for cmd in cmds:
+            while True:
+                data = sio.readline()
+                if len(data) ==  0:
+                    sio.write(os.linesep)
+                    sio.flush()
+                else:
+                    # print(data)
+                    if "]#" in data:
+                        sio.write(cmd + os.linesep)
+                        sio.flush()
+                        break
+                    else:
+                        continue
+            while True:
+                data = sio.readline()
+                if len(data) == 0:
+                    sio.write(os.linesep)
+                    sio.flush()
+                else:
+                    # print(data)
+                    if "]#" in data:
+                        break
+                    else:
+                        if len(data.strip(os.linesep)):
+                            all_data = all_data + data
+        
+        return all_data
 
     def login_vm_and_run_cmds(self, vm_domain, cmds, prompt=None):
         patterm = ["login:", "Password:", "]#", pexpect.EOF,
-                   pexpect.TIMEOUT, r"Escape character is \^]"]
+                    pexpect.TIMEOUT, r"Escape character is \^]"]
         child = pexpect.spawn("virsh console gg")
         child.logfile = None
         child.logfile_read = sys.stdout.buffer
@@ -216,151 +262,6 @@ class Tools(object):
         sys.stdout.flush()
         child.close()
         return 0
-
-    def format_item(self,info,format_list):
-        if info:
-            return str(info).format(*format_list)
-        pass
-
-    def add_item_from_xml(self, xml_file, parent_path, xml_info):
-        tree = ET.parse(xml_file)
-        item = ET.fromstring(xml_info)
-        root = tree.getroot()
-        parent_item = ET.ElementPath.find(root, parent_path)
-        if parent_item:
-            parent_item.append(item)
-        tree.write(xml_file)
-    
-    def remove_item_from_xml(self,xml_file,path,index=None):
-        tree = ET.parse(xml_file)
-        root = tree.getroot()
-        item_list = ET.ElementPath.findall(root,path)
-        if None == index:
-            for item in item_list:
-                root.remove(item)
-        else:
-            root.remove(item_list[int(index)])
-        tree.write(xml_file)
-
-    def get_pci_address_of_vm_hostdev(self, xml_file, index=0):
-        """
-        <interface type='hostdev' managed='yes'>
-                <mac address='52:54:00:7e:f4:6d'/>
-                <driver name='vfio'/>
-                <source>
-                <address type='pci' domain='0x0000' bus='0x04' slot='0x10' function='0x1'/>
-                </source>
-                <alias name='hostdev1'/>
-                <address type='pci' domain='0x0000' bus='0x04' slot='0x00' function='0x0'/>
-        </interface>
-        """
-
-        all_hostdev_item = []
-        tree = ET.parse(xml_file)
-        item_list = tree.findall("devices/interface")
-        for item in item_list:
-            if item.get("type") == "hostdev":
-                all_hostdev_item.append(item)
-        if len(all_hostdev_item) > index:
-            all_str = ""
-            for i in list(all_hostdev_item[index]):
-                if i.tag == "address" and i.get("type") == "pci":
-                    all_str += str(i.get("domain"))[2:]
-                    all_str += ":"
-                    all_str += str(i.get("bus"))[2:]
-                    all_str += ":"
-                    all_str += str(i.get("slot"))[2:]
-                    all_str += "."
-                    all_str += str(i.get("function"))[2:]
-                    break
-            return all_str
-        else:
-            return ""
-
-    """
-	<interface type='hostdev' managed='yes'>
-		<mac address='52:54:00:7e:f4:6d'/>
-		<driver name='vfio'/>
-		<source>
-			<address type='pci' domain='0x0000' bus='0x04' slot='0x10' function='0x1'/>
-		</source>
-	<alias name='hostdev1'/>
-	<address type='pci' domain='0x0000' bus='0x04' slot='0x00' function='0x0'/>
-	</interface>
-	"""
-
-    def get_mac_address_of_vm_hostdev(self, xml_file, index=0):
-        all_hostdev_item = []
-        tree = ET.parse(xml_file)
-        item_list = tree.findall("devices/interface")
-        for item in item_list:
-            if item.get("type") == "hostdev":
-                all_hostdev_item.append(item)
-        if len(all_hostdev_item) > index:
-            all_str = ""
-            for i in list(all_hostdev_item[index]):
-                if i.tag == "mac":
-                    all_str = str(i.get("address"))
-                    break
-            return all_str
-        else:
-            return ""
-
-    def get_isolate_cpus(self):
-        """Here Get all cpu from this system without cpu0"""
-
-        command = "cat /proc/cpuinfo | grep processor | awk '{print $NF}'"
-        out = run_and_getout(command)
-        str_out = out.decode(self.default_code).replace('\n', ' ').strip()
-        str_out = str(str_out)
-        if str_out[0] == "0":
-            return str_out[2:]
-        else:
-            return str_out
-
-    def get_isolate_cpus_with_nic(self, nic_name):
-        """
-            First get cpu numa node and then get cpu list without cpu 0
-        """
-        cmd = "cat /sys/class/net/{}/device/numa_node".format(str(nic_name))
-        out = run_and_getout(cmd)
-        cpu_cmd = "lscpu | grep 'NUMA node%s' | awk '{print $NF}'" % (
-            str(int(out)))
-        cpu_info = run_and_getout(cpu_cmd)
-        str_out = cpu_info.decode(self.default_code).strip()
-        # 0,1,2,3,4
-        # 0-9,9-29
-        temp_list = str(str_out).split(',')
-        all_str = ""
-        for i in temp_list:
-            if '-' in i:
-                start_index = int(str(i).split('-')[0])
-                last_index = int(str(i).split('-')[-1])+1
-                all_str += " ".join([str(i)
-                                     for i in range(start_index, last_index)]) + " "
-            else:
-                all_str += str(i)
-                all_str += " "
-
-        all_str = all_str.strip()
-        if all_str[0] == "0":
-            return all_str[2:]
-        else:
-            return all_str
-
-    def get_pmd_masks(self, str_cpulist):
-        ret_val = 0x0
-        if str_cpulist == None or str_cpulist == "":
-            return 0x0
-        else:
-            if isinstance(str_cpulist, str):
-                for i in str_cpulist.split():
-                    ret_val |= 0x1 << int(i)
-                return hex(ret_val)
-            else:
-                ret_val |= 0x1 << int(str_cpulist)
-                return hex(ret_val)
-        pass
 
 
 if __name__ == '__main__':
