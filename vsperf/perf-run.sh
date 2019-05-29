@@ -38,58 +38,58 @@ source /etc/os-release || exit 1
 
 SYSTEM_VERSION_ID=`echo $VERSION_ID | tr -d '.'`
 
-check_install()
-{
-	local pkg_name=$1
-	echo "***************************************"
-	rpm -q $pkg_name || yum -y install $pkg_name
-	echo "***************************************"
-	return 0
-}
+# check_install()
+# {
+# 	local pkg_name=$1
+# 	echo "***************************************"
+# 	rpm -q $pkg_name || yum -y install $pkg_name
+# 	echo "***************************************"
+# 	return 0
+# }
 
-install_init_package()
-{
-	pushd $CASE_PATH
-	[[ -d beakerlib ]] || rm -rf beakerlib
+# install_init_package()
+# {
+# 	pushd $CASE_PATH
+# 	[[ -d beakerlib ]] || rm -rf beakerlib
 
-	local all_packs=(
-		wget
-		git
-		gcc
-		make
-		bc
-		lsof
-		nmap-ncat
-		tcpdump
-		expect
-	)
-	for pack in "${all_packs[@]}"
-	do
-		check_install $pack
-	done
+# 	local all_packs=(
+# 		wget
+# 		git
+# 		gcc
+# 		make
+# 		bc
+# 		lsof
+# 		nmap-ncat
+# 		tcpdump
+# 		expect
+# 	)
+# 	for pack in "${all_packs[@]}"
+# 	do
+# 		check_install $pack
+# 	done
 	
-	if (( $SYSTEM_VERSION_ID < 80 ))
-	then
-		check_install bridge-utils
-	fi
+# 	if (( $SYSTEM_VERSION_ID < 80 ))
+# 	then
+# 		check_install bridge-utils
+# 	fi
 
-	#install beakerlib
-	if ! [[ -f /usr/share/beakerlib/beakerlib.sh ]]
-	then
-		git clone https://github.com/beakerlib/beakerlib
-		pushd beakerlib
-			git checkout beakerlib-1.18
-			make
-			make install
-		popd
-	fi
+# 	#install beakerlib
+# 	if ! [[ -f /usr/share/beakerlib/beakerlib.sh ]]
+# 	then
+# 		git clone https://github.com/beakerlib/beakerlib
+# 		pushd beakerlib
+# 			git checkout beakerlib-1.18
+# 			make
+# 			make install
+# 		popd
+# 	fi
 
-	popd
-}
+# 	popd
+# }
 
-source lib/lib_nc_sync.sh || exit 1
-source lib/lib_utils.sh || exit 1
-source /usr/share/beakerlib/beakerlib.sh || exit 1
+# source lib/lib_nc_sync.sh || exit 1
+# source lib/lib_utils.sh || exit 1
+# source /usr/share/beakerlib/beakerlib.sh || exit 1
 
 add_epel_repo()
 {

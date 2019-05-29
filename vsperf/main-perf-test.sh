@@ -76,6 +76,7 @@ install_beakerlib()
     popd
     return 0
 }
+
 install_python_and_init_env()
 {
     pushd $CASE_PATH
@@ -91,6 +92,7 @@ install_python_and_init_env()
     rpm -q python36-devel || yum -y install python36-devel
     rpm -q libvirt-devel || yum -y install libvirt-devel
     rpm -q telnet || yum -y install telnet
+    rpm -q vim || yum -y install vim
     
     if (( $SYSTEM_VERSION_ID >= 80 ))
     then
@@ -145,6 +147,12 @@ check_python_process()
     kill -9 $$
     exit 1
 }
+
+install_beakerlib
+sleep 3
+source lib/lib_nc_sync.sh || exit 1
+source lib/lib_utils.sh || exit 1
+source /usr/share/beakerlib/beakerlib.sh || exit 1
 
 install_python_and_init_env
 python start.py &

@@ -4,40 +4,39 @@ import os
 import contextlib
 import sys
 import pprint
+import base64
+import time
 import platform as pl
 import shutil as sh
 import subprocess as sp
-import base64
-import time
-
 from envbash import load_envbash
 from plumbum import local
 from functools import wraps
 from bash import bash
+import tools
+import xmltool
 
-sys.path.append(os.getcwd() + "/../")
-sys.path.append(os.getcwd() + "/../common/")
-import bond.tools as tools
-import bond.xmltool as xmltool
-
-from common.lib_sriov import LIB_SRIOV as pysriov
 case_path = os.environ.get("CASE_PATH")
 system_version_id = int(os.environ.get("SYSTEM_VERSION_ID"))
+sys.path.append(case_path + "/common/")
+from common.lib_sriov import LIB_SRIOV as pysriov
+
+
 my_tool = tools.Tools()
 xml_tool = xmltool.XmlTool()
-fd_nic_pipe = os.environ.get("fd_nic_pipe")
+work_pipe = os.environ.get("work_pipe")
 notify_pipe = os.environ.get("notify_pipe")
 
 def set_check(ret):
     def my_wrap(f):
         @wraps(f)
         def log_f_as_called(*args, **kwargs):
-            cur_time = time.asctime()
+            #cur_time = time.asctime()
             my_command = f'{f.__name__} {args} {kwargs}'
             cmd = f""":: [  BEGIN   ] :: Running '{my_command}'"""
             log(cmd)
             value = f(*args, **kwargs)
-            cur_time = time.asctime()
+            #cur_time = time.asctime()
             cmd = f""":: [  END   ] :: Running '{my_command}' RETURN {value}"""
             log(cmd)
             return value
@@ -49,7 +48,7 @@ def send_command(cmd):
     try:
         with open(notify_pipe,"r") as rfd:
             rfd.read()
-            with open(fd_nic_pipe,"w") as fd:
+            with open(work_pipe,"w") as fd:
                 fd.write(cmd)
                 fd.flush()
     except IOError as e:
@@ -105,14 +104,6 @@ def shpopd():
     send_command(cmd)
     pass
 
-
-@set_check(0)
-def main():
-    print(sys.path)
-    log(sys.path)
-    load_envbash(os.getcwd() + "/env.sh")
-
-
 @contextlib.contextmanager
 def pushd(path):
     shpushd(path)
@@ -125,11 +116,17 @@ def pushd(path):
 def enter_phase(str):
     cmd = f""" rlPhaseStartTest '{str}' """
     send_command(cmd)
+    time.sleep(3)
     try:
         yield
     finally:
         send_command("rlPhaseEnd")
+        time.sleep(3)
 
+###############################################################################################
+###############################################################################################
+###############################################################################################
+###############################################################################################
 
 def check_install(pkg_name):
     run("rpm -q {} || yum -y install {}".format(pkg_name, pkg_name))
@@ -313,10 +310,7 @@ def scout_connect(port1, port2):
     dir_name = f"""{case_path}/NetScout"""
     with pushd(dir_name):
         log(f"NETSCOUT CONNECT PORT {port1} AND {port2}")
-        if system_version_id < 80:
-            run(f"python3 NSConnect.py --connect {port1} {port2}")
-        else:
-            run(f"python36 NSConnect.py --connect {port1} {port2}")
+        run(f"python NSConnect.py --connect {port1} {port2}")
 
 
 @set_check(0)
@@ -324,11 +318,8 @@ def scout_disconnect(port1, port2):
     dir_name = f"""{case_path}/NetScout"""
     with pushd(dir_name):
         log(f"NETSCOUT DISCONNECT PORT {port1} AND {port2}")
-        if system_version_id < 80:
-            run(f"python3 NSConnect.py --disconnect {port1} {port2}")
-        else:
-            run(f"python36 NSConnect.py --disconnect {port1} {port2}")
-
+        run(f"python NSConnect.py --disconnect {port1} {port2}")
+        run("python NSConnect.py --showconnections")
 
 @set_check(0)
 def scout_show():
@@ -462,7 +453,7 @@ def enable_dpdk(nic1_mac, nic2_mac):
         log("This Driver is Mallenox , So just return 0")
         return 0
     if os.path.exists("/usr/share/dpdk/usertools/dpdk-devbind.py"):
-        log("using dpdk-devbind.py set the vfio-pci driver to nic)
+        log("using dpdk-devbind.py set the vfio-pci driver to nic")
         cmd = f"""
         /usr/share/dpdk/usertools/dpdk-devbind.py -b vfio-pci {nic1_businfo}
         /usr/share/dpdk/usertools/dpdk-devbind.py -b vfio-pci {nic2_businfo}
@@ -744,7 +735,7 @@ def update_ssh_trust():
 def clear_dpdk_interface():
     if bash("rpm -qa | grep dpdk-tools").value():
         bus_list = bash(
-            "dpdk-devbind -s | grep  -E drv=vfio-pci\|drv=igb | awk '{print $1}'").value()
+            r"dpdk-devbind -s | grep  -E drv=vfio-pci\|drv=igb | awk '{print $1}'").value()
         for i in list(bus_list):
             kernel_driver = bash(
                 "lspci -s {i} -v | grep Kernel  | grep modules  | awk '{print $NF}'".format(i)).value()
@@ -897,6 +888,7 @@ def clear_trex_and_free_hugepage():
 # create vf from pf nic name with special num
 @set_check(0)
 def vf_create(pf, num):
+    run(f"ip li set {pf} up")
     pf_bus = pysriov.sriov_get_pf_bus_from_pf_name(pf)
     pysriov.sriov_create_vfs(pf_bus[0], num)
     #for some nic create speed is low so here wait some time
@@ -920,7 +912,7 @@ def vf_mtu_change(vf_name, mtu_val):
         real_mtu = mtu_val
     else:
         real_mtu = 9200
-    run(f"ip link set {vf_name} mtu {mtu_val}")
+    run(f"ip link set {vf_name} mtu {real_mtu}")
     pass
 
 
@@ -1049,7 +1041,7 @@ def ovs_linux_bond_functional_test(bond_mode):
             vf_create(nic2_name, 1)
             vf1_name = pysriov.sriov_get_vf_name_from_pf(nic1_name)
             vf2_name = pysriov.sriov_get_vf_name_from_pf(nic2_name)
-            slaves = [vf1_name, vf2_name]
+            #slaves = [vf1_name, vf2_name]
 
         with enter_phase("create linux bonding and add it to ovs "):
             br_name = "ovsbr0"
@@ -1112,7 +1104,7 @@ def ovs_linux_bond_functional_test(bond_mode):
             vf_create(nic2_name, 1)
             vf1_name = pysriov.sriov_get_vf_name_from_pf(nic1_name)
             vf2_name = pysriov.sriov_get_vf_name_from_pf(nic2_name)
-            slaves = [vf1_name, vf2_name]
+            #slaves = [vf1_name, vf2_name]
         
         with enter_phase("create linux bonding and add it to ovs "):
             br_name = "ovsbr0"
@@ -1174,7 +1166,7 @@ def ovs_linux_bond_failover_test(guest_name,remote_ip):
     timeout -s SIGINT 160 ping -n -i 0.001 {remote_ip} -c {packet_num}  > {file_name} &
     """
     log(cmd)
-    connection_ping_check(guest_name,cmd)
+    result = connection_ping_check(guest_name,cmd)
     with pushd(case_path):
         local.path(case_path + "/latency.log").write(result)
     #here we need down one vf port
@@ -1192,22 +1184,25 @@ def ovs_linux_bond_failover_test(guest_name,remote_ip):
         tty_console = bash(f"virsh ttyconsole {guest_name}").value()
         cmd = f""" cat {file_name}"""
         result = my_tool.run_cmd_get_output(tty_console, cmd)
-        #log(result)
-        #print(result)
         #Now Check packet loss
         cmd = f"""grep received {file_name}"""
         result = my_tool.run_cmd_get_output(tty_console, cmd)
         #result link this
         #10 packets transmitted, 10 received, 0% packet loss, time 24ms
-        received_packet = int(str(result).split(',')[1].split()[0])
+        if result == cmd + os.linesep:
+            received_packet = 0
+        else:
+            received_packet = int(str(result).split(',')[1].split()[0])
         lose_packet = int(packet_num) - received_packet
+    
         cmd = f"""grep max {file_name}"""
         result = my_tool.run_cmd_get_output(tty_console,cmd)
         #rtt min/avg/max/mdev = 3.912/4.149/4.295/0.118 ms
-        if len(str(result)) > 0:
-            max_delay_time = float(str(result).split("=")[1].split('/')[2])
-        else:
+        if result == cmd + os.linesep:
             max_delay_time = 0
+        else:
+            max_delay_time = float(str(result).split("=")[1].split('/')[2])
+
         all_lose_time = max_delay_time + lose_packet
         send_command(f"rlLog 'TEST FAILOVER TIME IS '{all_lose_time}")
         
@@ -1476,9 +1471,9 @@ def ovs_dpdk_and_sriov_dpdk_performance_test(bond_mode):
             vf2_name = pysriov.sriov_get_vf_name_from_pf(nic1_name,1)
             vf3_name = pysriov.sriov_get_vf_name_from_pf(nic2_name)
             vf4_name = pysriov.sriov_get_vf_name_from_pf(nic2_name,1)
-            vf1_mac  = pysriov.sriov_get_mac_from_name(vf1_name)
+            #vf1_mac  = pysriov.sriov_get_mac_from_name(vf1_name)
             vf2_mac  = pysriov.sriov_get_mac_from_name(vf2_name)
-            vf3_mac  = pysriov.sriov_get_mac_from_name(vf3_name)
+            #vf3_mac  = pysriov.sriov_get_mac_from_name(vf3_name)
             vf4_mac  = pysriov.sriov_get_mac_from_name(vf4_name)
             # update qos bandwidth vf1 and vf3 10000 and vf2 vf4 3000
             # vf1 and vf3 with passthrough and bonding in testpmd
@@ -1529,59 +1524,1153 @@ def ovs_dpdk_and_sriov_dpdk_performance_test(bond_mode):
     elif i_am_client():
         with enter_phase(f"{name} {bond_mode} client side begin"):
             clear_trex_and_free_hugepage()
-            install_trex_and_start()
+            #install_trex_and_start()
     else:
         log("not client or server, test fail")
     pass
 
-# #Here Begin ALL test for FD nic partition
-# # All Test Items Based on SRIOV VF
-# # linux bond
-# # ovs bond with linux kernel port
-# # OVS DPDK BOND
+#################################################################################
+#################################################################################
+#################################################################################
+#################################################################################
 
-TEMP_FILE = "/tmp/FD_NIC_PARTITION_FOR_BOND"
-if __name__ == "__main__":
-    send_command("rlJournalStart")
-    main()
-    if not os.path.exists(TEMP_FILE):
-        with enter_phase("Install package and init environment"):
-            update_beaker_tasks_repo()
-            add_epel_repo()
-            add_yum_profiles()
-            install_init_package()
-            install_package()
-            install_ovs()
-            install_driverctl()
-            install_dpdk()
-        with enter_phase("Update temp file and reboot system"):
-            config_hugepage()
-            local.path(TEMP_FILE).touch()
-            run("rhts-reboot")
-    else:       
-        init_test_env()
-        with enter_phase("ovs linux bond functional test with mode active-backup"):
-            ovs_linux_bond_functional_test("active-backup")
+def os_check():
+    if os.environ.get("ID") != 'rhel':
+        log("system distro not correct")
+        return 1
+    import getpass
+    if getpass.getuser() != "root":
+        log("User check ,must be logged in as root")
+        return 1
+    run("""rpm -ivh lrzip-0.616-5.el7.x86_64.rpm || echo "lrzip install" "Failed to install lrzip"  """)
+    pass
 
-        with enter_phase("ovs linux bond functional test with mode balance-tcp"):
-            ovs_linux_bond_functional_test("balance-tcp")
+def log_folder_check():
+    log_folder = "/root/RHEL_NIC_QUAL_LOGS"
+    if not os.path.exists(log_folder):
+        os.mkdir(log_folder)
+    time_stamp = time.strftime("%Y-%m-%d-%H-%M-%S")
+    nic_log_folder = log_folder + "/" + time_stamp
+    if os.path.exists(nic_log_folder):
+        os.rmdir(nic_log_folder)
+        os.mkdir(nic_log_folder)
+    else:
+        os.mkdir(nic_log_folder)
+    local.path(nic_log_folder + "/vsperf_log_folder.txt").write(nic_log_folder)
 
-        with enter_phase("ovs bond functional test with mode  active-backup"):
-            ovs_bond_functional_test("active-backup")
+def conf_checks():
+    proc_cmdline_info =  local.path("/proc/cmdline").read()
+    if not "intel_iommu=on" in proc_cmdline_info:
+        log("Iommu Enablement" "Please enable IOMMU mode in your grub config")
+        return 1
+    if bash.bash("tuned-adm active | grep cpu-partitioning").value() == '':
+        log("Tuned-adm" "cpu-partitioning profile must be active")
+        return 1
+    if bash.bash(""" cat /proc/cmdline  | grep "nohz_full=[0-9]"  """).value() == '':
+        log("Tuned Config" "Must set cores to isolate in tuned-adm profile")
+        return 1
+    return 0
+    pass
+    
 
-        with enter_phase("ovs bond functional test with mode  balance-tcp"):
-            ovs_bond_functional_test("balance-tcp")
+def hugepage_checks():
+    log("*** Checking Hugepage Config ***")
+    run("sleep 1")
+    if bash.bash("""cat /proc/meminfo | awk /Hugepagesize/ | awk /1048576/""").value() == '':
+        log("Hugepage Check" "Please enable 1G Hugepages")
+        return 1
+    return 0
 
-        with enter_phase("ovs dpdk bond function test with mode active-backup"):
-            ovs_dpdk_bond_functional_test("active-backup")
+config_file_checks() 
+{
 
-        with enter_phase("ovs dpdk bond function test with mode balance-tcp"):
-            ovs_dpdk_bond_functional_test("balance-tcp")
+    echo "*** Checking Config File ***"
+    sleep 1
+
+    pushd $CASE_PATH
+
+    if test -f ./Perf-Verify.conf
+    then
+        set -o allexport
+        source Perf-Verify.conf
+        set +o allexport
+        if [[ -z $NIC1 ]] || [[ -z $NIC2 ]]
+        then
+            fail "NIC Param" "NIC Params not set in Perf-Verify.conf file"
+        fi
+        if [ -z $PMD_CPU_1 ] || [ -z $PMD_CPU_2 ] || [ -z $PMD_CPU_3 ] || [ -z $PMD_CPU_4 ]
+        then
+            fail "Please set all PMD_CPU_X config in Perf-Verify.conf file"
+        fi
+        if [ -z $VCPU1 ] || [ -z $VCPU2 ] || [ -z $VCPU3 ] || [ -z $VCPU4 ] || [ -z $VCPU5 ]
+        then
+            fail "VCPU Params" "Guest VCPU Param not set in Perf-Verify.conf file"
+        fi
+        if [ -z $TRAFFICGEN_TREX_HOST_IP_ADDR ] || [ -z $TRAFFICGEN_TREX_PORT1 ] || [ -z $TRAFFICGEN_TREX_PORT2 ]
+        then
+            fail "TREX Params" "T-Rex settings not set in Perf-Verify.conf file"
+        fi
+        if [ -z $TREX_URL ]
+        then
+            fail "TREX_URL Trex package shoule be specified , please set in Perf-Verify.conf file"
+        fi
+
+    else
+        fail "Config File" "Cannot locate Perf-Verify.conf"
+    fi
+
+    popd
+
+    return 0
+}
+
+nic_card_check() 
+{
+    echo "*** Checking for NIC cards ***"
+    if [[ ! `ip a | grep $NIC1` ]] ||  [[ ! `ip a | grep $NIC2` ]]
+    then
+        fail "NIC Check" "NIC $NIC1 or NIC $NIC2 cannot be seen by kernel"
+    fi
+    return 0
+}
+
+rpm_check() 
+{
+    echo "*** Checking for installed RPMS ***"
+    sleep 1
+
+    if ! [[ `rpm -qa | grep ^openvswitch-[0-9]` ]]
+    then
+        fail "Openvswitch rpm" "Please install Openvswitch rpm"
+    fi
+    if ! [ `rpm -qa | grep dpdk-tools` ]
+    then
+        fail "DPDK Tools rpm" "Please install dpdk tools rpm"
+    fi
+    if ! [ `rpm -qa | grep dpdk-[0-9]` ]
+    then
+        fail "DPDK package rpm" "Please install dpdk package rpm"
+    fi
+    if ! [ `rpm -qa | grep qemu-kvm-rhev` ]
+    then
+        fail "QEMU-KVM-RHEV rpms" "Please install qemu-kvm-rhev rpm"
+    fi
+
+    if (( $SYSTEM_VERSION_ID < 80 ))
+	then
+        if ! [ `rpm -qa | grep qemu-img-rhev` ]
+        then
+            fail "QEMU-IMG-RHEV rpms" "Please install qemu-img-rhev rpm"
+        fi
+        if ! [ `rpm -qa | grep qemu-kvm-tools-rhev` ]
+        then
+            fail "QEMU-KVM-TOOLS-RHEV rpms" "Please install qemu-kvm-tools-rhev rpm"
+        fi
+	else
+        if ! [ `rpm -qa | grep qemu-img` ]
+        then
+            fail "QEMU-IMG rpms" "Please install qemu-img rpm"
+        fi
+        if ! [ `rpm -qa | grep qemu-kvm` ]
+        then
+            fail "QEMU-KVM rpms" "Please install qemu-kvm rpm"
+        fi
+	fi
+
+    return 0
+}
+
+network_connection_check() 
+{
+    echo "*** Checking connection to people.redhat.com ***"
+    if ping -c 1 people.redhat.com &> /dev/null
+    then
+        echo "*** Connection to server succesful ***"
+    else
+        fail "People.redhat.com connection fail" "!!! Cannot connect to people.redhat.com, please verify internet connection !!!"
+    fi
+    return 0
+}
+
+ovs_running_check() 
+{
+    echo "*** Checking for running instance of Openvswitch ***"
+    if [ `pgrep ovs-vswitchd` ] || [ `pgrep ovsdb-server` ]
+    then
+        fail "Openvswitch running" "It appears Openvswitch may be running, please stop all services and processes"
+    fi
+}
+
+download_VNF_image() 
+{
+    pushd $CASE_PATH
+    if [ ! -f $one_queue_image ] || [ ! -f $two_queue_image ]
+    then
+        echo ""
+        echo "***********************************************************************"
+        echo "*** Downloading and decompressing VNF image. This may take a while! ***"
+        echo "***********************************************************************"
+        echo ""
+        wget people.redhat.com/ctrautma/$one_queue_zip || fail "VNF download" "Unabled to download VNF"
+        wget people.redhat.com/ctrautma/$two_queue_zip || fail "VNF download" "Unable to download VNF 2Q"
+        lrzip -d $one_queue_zip || fail "VNF decompress" "Unable to decompress VNF zip"
+        lrzip -d $two_queue_zip || fail "VNF decompress" "Unable to decompress VNF zip"
+        rm -f $one_queue_zip
+        rm -f $two_queue_zip
+
+    local udev_file=60-persistent-net.rules
+    touch $udev_file
+    cat > $udev_file <<EOF
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:03:00.0", NAME:="eth1"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:04:00.0", NAME:="eth2"
+EOF
+
+    virt-copy-in -a $CASE_PATH/${one_queue_image} $udev_file /etc/udev/rules.d/
+    virt-copy-in -a $CASE_PATH/${two_queue_image} $udev_file /etc/udev/rules.d/
+
+    fi
+    popd
+    
+}
+
+
+install_rpms()
+{
+    #add repo
+    pushd $CASE_PATH
+
+    source `pwd`/repo.sh
+
+    all_package=(
+        yum-utils
+        scl-utils
+        python36
+        python36-devel 
+        python-netifaces
+        python3-pyelftools
+        wget 
+        nano 
+        ftp 
+        git 
+        tuna 
+        openssl 
+        sysstat
+        libvirt 
+        libvirt-devel 
+        virt-install 
+        virt-manager 
+        virt-viewer
+        czmq-devel
+        libguestfs-tools
+        ethtool
+        vim
+        lrzip
+        libnl3-devel
+    )
+
+    for pack in "${all_package[@]}"
+    do
+        if ! rpm -qa | grep $pack
+        then
+            loginfo "Install package "$pack" Now"
+            yum -y install $pack
+            loginfo "Install package "$pack" End"
+        fi
+    done
+
+    popd
+
+	systemctl restart libvirtd
+
+}
+
+#get nic name from mac address
+get_nic_name_from_mac()
+{
+    local mac_addr=$1
+    local temp_addr
+    for i in `ls /sys/class/net/`
+    do
+        temp_addr=`ethtool -P $i | awk '{print $NF}'`
+        if [[ $mac_addr == $temp_addr ]]
+        then
+            echo $i
+            return 0
+        fi
+    done
+    echo "name-error"
+    return 1
+}
+
+enalbe_python_venv()
+{
+    if (( $SYSTEM_VERSION_ID >= 80 ))
+	then
+		python3 -m venv ${CASE_PATH}/venv
+	else
+        yum install -y python36
+		python36 -m venv ${CASE_PATH}/venv
+	fi
+    source venv/bin/activate
+}
+
+init_python_env()
+{
+    enalbe_python_venv
+    pip install --upgrade pip
+    pip install fire
+    pip install psutil
+    pip install paramiko
+    pip install xmlrunner
+	pip install netifaces
+    pip install pyelftools
+	pip install libvirt-python
+	pip install argparse
+	pip install plumbum
+	pip install ethtool
+	pip install shell
+}
+
+enable_dpdk() 
+{
+    local nic1_mac=$1
+    local nic2_mac=$2
+
+    local nic1_name=`get_nic_name_from_mac $nic1_mac`
+    local nic2_name=`get_nic_name_from_mac $nic2_mac`
+    local nic1_businfo=$(ethtool -i $nic1_name | grep "bus-info" | awk  '{print $2}')
+    local nic2_businfo=$(ethtool -i $nic2_name | grep "bus-info" | awk  '{print $2}')
+    modprobe -r vfio-pci
+    modprobe -r vfio
+    modprobe vfio-pci
+    modprobe vfio
+    local driver_name=`ethtool -i $nic1_name | grep driver | awk '{print $NF}'`
+    if [ "$driver_name" == "mlx5_core" ];then
+        loginfo "************************************************"
+        loginfo "This Driver is Mallenox , So just return 0"
+        loginfo "************************************************"
+        return 0
+    fi
+
+    if [[ -f /usr/share/dpdk/usertools/dpdk-devbind.py ]]; then
+        echo "using dpdk-devbind.py set the vfio-pci driver to nic"
+        /usr/share/dpdk/usertools/dpdk-devbind.py -b vfio-pci ${nic1_businfo}
+        /usr/share/dpdk/usertools/dpdk-devbind.py -b vfio-pci ${nic2_businfo}
+        /usr/share/dpdk/usertools/dpdk-devbind.py --status
+    else
+        echo "using driverctl set the vfio-pci driver to nic"
+        driverctl -v set-override $nic1_businfo vfio-pci
+        sleep 3
+        driverctl -v set-override $nic2_businfo vfio-pci
+        sleep 3
+        driverctl -v list-devices | grep vfio-pci
+    fi
+}
+
+ovs_bridge_with_kernel()
+{
+    local nic1_mac=$1
+    local nic2_mac=$2
+    local mtu_val=$3
+    local pmd_cpu_mask=$4
+    local queue_num=$5
+
+	modprobe openvswitch
+	systemctl stop openvswitch
+	sleep 3
+	systemctl start openvswitch
+	sleep 3
+	ovs-vsctl --if-exists del-br ovsbr0
+	sleep 5
+
+	ovs-vsctl set Open_vSwitch . other_config={}
+	ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-init=true
+	ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-socket-mem="4096,4096"
+	ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask="$pmd_cpu_mask"
+    ovs-vsctl --no-wait set Open_vSwitch . other_config:vhost-iommu-support=true
+	systemctl restart openvswitch
+	sleep 3
+	ovs-vsctl add-br ovsbr0 -- set bridge ovsbr0 datapath_type=netdev
+
+    ovs-vsctl add-port ovsbr0 dpdk0 -- set Interface dpdk0 type=dpdk options:dpdk-devargs="class=eth,mac=${nic1_mac}"
+    ovs-vsctl add-port ovsbr0 dpdk1 -- set Interface dpdk1 type=dpdk options:dpdk-devargs="class=eth,mac=${nic2_mac}"
+	
+    # ovs-vsctl add-port ovsbr0 vhost0 -- set interface vhost0 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost0
+    # ovs-vsctl add-port ovsbr0 vhost1 -- set interface vhost1 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost1
+
+	ovs-ofctl del-flows ovsbr0
+	ovs-ofctl add-flow ovsbr0 actions=NORMAL
+
+	sleep 2
+	ovs-vsctl show
+
+}
+
+ovs_bridge_with_dpdk()
+{
+    local nic1_mac=$1
+    local nic2_mac=$2
+    local mtu_val=$3
+    local pmd_cpu_mask=$4
+
+	modprobe openvswitch
+	systemctl stop openvswitch
+	sleep 3
+	systemctl start openvswitch
+	sleep 3
+	ovs-vsctl --if-exists del-br ovsbr0
+	sleep 5
+
+	ovs-vsctl set Open_vSwitch . other_config={}
+	ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-init=true
+	ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-socket-mem="4096,4096"
+	ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask="$pmd_cpu_mask"
+    ovs-vsctl --no-wait set Open_vSwitch . other_config:vhost-iommu-support=true
+	systemctl restart openvswitch
+	sleep 3
+	ovs-vsctl add-br ovsbr0 -- set bridge ovsbr0 datapath_type=netdev
+
+    ovs-vsctl add-port ovsbr0 dpdk0 \
+    -- set Interface dpdk0 type=dpdk \
+    options:dpdk-devargs="class=eth,mac=${nic1_mac}" mtu_request=$mtu_val
+    
+    ovs-vsctl add-port ovsbr0 dpdk1 \
+    -- set Interface dpdk1 type=dpdk \
+    options:dpdk-devargs="class=eth,mac=${nic2_mac}" mtu_request=$mtu_val
+	
+    ovs-vsctl add-port ovsbr0 vhost0 \
+    -- set interface vhost0 \
+    type=dpdkvhostuserclient \
+    options:vhost-server-path=/tmp/vhost0
+    
+    ovs-vsctl add-port ovsbr0 vhost1 \
+    -- set interface vhost1 \
+    type=dpdkvhostuserclient \
+    options:vhost-server-path=/tmp/vhost1
+
+	ovs-ofctl del-flows ovsbr0
+	ovs-ofctl add-flow ovsbr0 actions=NORMAL
+
+	sleep 2
+	ovs-vsctl show
+}
+
+vcpupin_in_xml()
+{
+    local numa_node=$1
+    local template_xml=$2
+    local new_xml=$3
+    local cpu_list=$4
+    pushd $CASE_PATH 1>/dev/null
+
+    config_file_checks
+    
+    cp $template_xml $new_xml
+    
+    pytool xml_add_vcpupin_item $new_xml ${#cpu_list[@]}
+
+    for i in `seq ${#cpu_list[@]}`
+    do
+        local index=$((i-1))
+        pytool update_vcpu $new_xml $index ${cpu_list[$index]}
+    done
+
+    pytool update_numa $new_xml $numa_node
+	popd 1>/dev/null
+
+}
+
+start_guest()
+{
+    local guest_xml=$1
+
+    pushd $CASE_PATH
+
+    systemctl list-units --state=stop --type=service | grep libvirtd || systemctl restart libvirtd
+
+    download_VNF_image
+
         
-        with enter_phase("QUIT TEST CASE"):
-            send_command("fd-nic-partition-quit")
+    virsh define ${CASE_PATH}/${guest_xml}
 
-    send_command("rlJournalPrintText")
-    send_command("rlJournalEnd")
-    time.sleep(30)
-    send_command("fd-nic-partition-quit")
+    virsh start gg    
+
+    popd
+}
+
+destroy_guest()
+{
+    virsh destroy gg
+    virsh undefine gg
+}
+
+configure_guest()
+{
+    local cmd=$(
+		cat <<EOF
+        stty rows 24 cols 120 
+		nmcli dev set eth1 managed no
+        nmcli dev set eth2 managed no
+		systemctl stop firewalld
+		iptables -t filter -P INPUT ACCEPT
+		iptables -t filter -P FORWARD ACCEPT
+		iptables -t filter -P OUTPUT ACCEPT
+		iptables -t mangle -P PREROUTING ACCEPT
+		iptables -t mangle -P INPUT ACCEPT
+		iptables -t mangle -P FORWARD ACCEPT
+		iptables -t mangle -P OUTPUT ACCEPT
+		iptables -t mangle -P POSTROUTING ACCEPT
+		iptables -t nat -P PREROUTING ACCEPT
+		iptables -t nat -P INPUT ACCEPT
+		iptables -t nat -P OUTPUT ACCEPT
+		iptables -t nat -P POSTROUTING ACCEPT
+		iptables -t filter -F
+		iptables -t filter -X
+		iptables -t mangle -F
+		iptables -t mangle -X
+		iptables -t nat -F
+		iptables -t nat -X
+		ip6tables -t filter -P INPUT ACCEPT
+		ip6tables -t filter -P FORWARD ACCEPT
+		ip6tables -t filter -P OUTPUT ACCEPT
+		ip6tables -t mangle -P PREROUTING ACCEPT
+		ip6tables -t mangle -P INPUT ACCEPT
+		ip6tables -t mangle -P FORWARD ACCEPT
+		ip6tables -t mangle -P OUTPUT ACCEPT
+		ip6tables -t mangle -P POSTROUTING ACCEPT
+		ip6tables -t nat -P PREROUTING ACCEPT
+		ip6tables -t nat -P INPUT ACCEPT
+		ip6tables -t nat -P OUTPUT ACCEPT
+		ip6tables -t nat -P POSTROUTING ACCEPT
+		ip6tables -t filter -F
+		ip6tables -t filter -X
+		ip6tables -t mangle -F
+		ip6tables -t mangle -X
+		ip6tables -t nat -F
+		ip6tables -t nat -X
+		ip -d addr show
+EOF
+	)
+
+	pytool login_vm_and_run_cmds gg "${cmd[*]}"
+}
+
+
+#{modprobe  vfio enable_unsafe_noiommu_mode=1}
+guest_start_testpmd()
+{
+    local cmd=$(
+        cat << EOF
+        /root/one_gig_hugepages.sh 1
+        #rpm -ivh  /root/$GUEST_DPDK_VERSION/dpdk*.rpm
+        rpm -ivh  /root/$dpdk_ver/dpdk*.rpm
+        modprobe -r vfio_iommu_type1
+        modprobe -r vfio
+        modprobe  vfio 
+        modprobe vfio-pci
+        ip link set eth1 down
+        ip link set eth2 down
+        dpdk-devbind -b vfio-pci 0000:03:00.0
+        dpdk-devbind -b vfio-pci 0000:04:00.0
+        dpdk-devbind --status
+EOF
+    )
+    pytool login_vm_and_run_cmds gg "${cmd[*]}"
+
+    local q_num=$1
+    local num_core=2
+    if (( $q_num == 1 ))
+    then
+        num_core=2
+    else
+        num_core=4
+    fi
+    
+    local cpu_list=$2
+    local rxd_size=$3
+    local txd_size=$4
+
+    local hw_vlan_flag="--disable-hw-vlan"
+    local legacy_mem=""
+
+    local cmd_test="testpmd -l ${cpu_list}  \
+    --socket-mem 1024 \
+    ${legacy_mem} \
+    -n 4 \
+    -- \
+    --forward-mode=io \
+    --port-topology=pair \
+    ${hw_vlan_flag} \
+    --disable-rss \
+    -i \
+    --rxq=${q_num} \
+    --txq=${q_num} \
+    --rxd=${rxd_size} \
+    --txd=${txd_size} \
+    --nb-cores=${num_core} \
+    --auto-start"
+
+    pytool login_vm_and_run_cmds gg "${cmd_test}"
+}
+
+clear_dpdk_interface()
+{
+    if rpm -qa | grep dpdk-tools
+    then
+        local bus_list=`dpdk-devbind -s | grep  -E drv=vfio-pci\|drv=igb | awk '{print $1}'`
+        for i in $bus_list
+        do
+            kernel_driver=`lspci -s $i -v | grep Kernel  | grep modules  | awk '{print $NF}'`
+            dpdk-devbind -b $kernel_driver $i
+        done
+        dpdk-devbind -s
+    fi
+    return 0
+}
+
+clear_env()
+{
+    systemctl start openvswitch
+    ovs-vsctl --if-exists del-br ovsbr0
+    virsh destroy gg
+    virsh undefine gg
+    systemctl stop openvswitch
+    clear_dpdk_interface
+    clear_hugepage
+    return 0
+}
+
+bonding_test_trex()
+{
+    local t_time=$1
+    local pkt_size=$2
+    pushd $CASE_PATH
+    #get trex server ip 
+    rm -f /tmp/conn_is_ok
+    timeout -s SIGINT 3 ping $TRAFFICGEN_TREX_HOST_IP_ADDR -c 3 > /tmp/conn_is_ok
+    loss_check=`grep packets /tmp/conn_is_ok | awk '{print $6}'`
+    if [ "${loss_check::-1}" == "100" ];then
+            echo "trex server "$TRAFFICGEN_TREX_HOST_IP_ADDR" is no up "
+    else
+            install_rpms
+            init_python_env
+    fi
+    #first use short time quick find the near value and test it long it to find is there any packet loss.
+    local trex_dir=`basename .tar.gz $TREX_URL`
+    local trex_name=`basename $TREX_URL`
+    [ -d $trex_dir ] || wget $TREX_URL > /dev/null 2>&1
+    [ -d $trex_dir ] || tar -xvf $trex_name > /dev/null 2>&1
+    loginfo "python ./trex_sport.py -c $TRAFFICGEN_TREX_HOST_IP_ADDR -t $t_time --pkt_size=${pkt_size} -m 10"
+    python ./trex_sport.py -c $TRAFFICGEN_TREX_HOST_IP_ADDR -t $t_time --pkt_size=${pkt_size} -m 10
+
+    popd
+    return 0
+}
+
+update_xml_sriov_vf_port()
+{
+    local vlan_id=$1
+
+    local vf1_bus_info=`pytool get_bus_from_name $NIC1_VF`
+    local vf2_bus_info=`pytool get_bus_from_name $NIC2_VF`
+    vf1_bus_info=`sed s/:/_/g <<< "$vf1_bus_info" | sed s/'\.'/_/g`
+    vf2_bus_info=`sed s/:/_/g <<< "$vf1_bus_info" | sed s/'\.'/_/g`
+
+    local vf1_domain=`echo $vf1_bus_info | cut -d '_' -f1`
+    local vf1_bus=`echo $vf1_bus_info    | cut -d '_' -f2`
+    local vf1_slot=`echo $vf1_bus_info   | cut -d '_' -f3`
+    local vf1_func=`echo $vf1_bus_info   | cut -d '_' -f4`
+
+    local vf2_domain=`echo $vf2_bus_info | cut -d '_' -f1`
+    local vf2_bus=`echo $vf2_bus_info    | cut -d '_' -f2`
+    local vf2_slot=`echo $vf2_bus_info   | cut -d '_' -f3`
+    local vf2_func=`echo $vf2_bus_info   | cut -d '_' -f4`
+
+
+    local vlan_item=$(
+        cat << EOF
+        <interface type='hostdev' managed='yes'>
+            <mac address={}/>
+            <vlan>
+                <tag id='{}'/>
+            </vlan>
+            <driver name='vfio'/>
+            <source>
+                <address type='pci' domain={} bus={} slot={} function={}/>
+            </source>
+            <address type='pci' domain={} bus={} slot={} function={}/>
+        </interface>
+EOF
+    )
+
+    local item=$(
+        cat << EOF
+        <interface type='hostdev' managed='yes'>
+            <mac address={}/>
+            <driver name='vfio'/>
+            <source>
+                <address type='pci' domain={} bus={} slot={} function={}/>
+            </source>
+            <address type='pci' domain={} bus={} slot={} function={}/>
+        </interface>
+EOF
+    )
+
+    pytool remove_item_from_xml g1.xml "./devices/interface[@type='hostdev']" 
+
+    if (( $vlan_id != 0 ))
+    then
+        local format_list=('52:54:00:11:8f:ea' $vlan_id $vf1_domain $vf1_bus $vf1_slot $vf1_func '0x0000' '0x03' '0x0' '0x0')
+        local format_item=`pytool format_item $item "${format_list[@]}"`
+        pytool add_item_from_xml g1.xml "./devices" "$format_item"
+
+        local format_list_1=('52:54:00:11:8f:eb' $vlan_id $vf2_domain $vf2_bus $vf2_slot $vf2_func '0x0000' '0x04' '0x0' '0x0')
+        local format_item_1=`pytool format_item $item "${format_list_1[@]}"`
+        pytool add_item_from_xml g1.xml "./devices" "$format_item_1"
+    else
+        local format_list=('52:54:00:11:8f:ea' $vf1_domain $vf1_bus $vf1_slot $vf1_func '0x0000' '0x03' '0x0' '0x0')
+        local format_item=`pytool format_item $item "${format_list[@]}"`
+        pytool add_item_from_xml g1.xml "./devices" "$format_item"
+
+        local format_list_1=('52:54:00:11:8f:eb' $vf2_domain $vf2_bus $vf2_slot $vf2_func '0x0000' '0x04' '0x0' '0x0')
+        local format_item_1=`pytool format_item $item "${format_list_1[@]}"`
+        pytool add_item_from_xml g1.xml "./devices" "$format_item_1"
+
+    fi
+}
+
+update_xml_vnet_port()
+{
+    local append_item=$(
+        cat <<EOF
+        <interface type="bridge">
+			<mac address="52:54:00:bb:63:7b" />
+			<source bridge="virbr0" />
+			<model type="virtio" />
+			<address bus="0x02" domain="0x0000" function="0x0" slot="0x00" type="pci" />
+		</interface>
+EOF
+    )
+
+    local item=$(
+    cat <<EOF
+    <interface type='bridge'>
+        <mac address={}/>
+        <source bridge={}/>
+        <virtualport type='openvswitch'/>
+        <address type='pci' domain={} bus={} slot={} function={}/>
+        <target dev={}/>
+        <model type='virtio'/>
+    </interface>
+EOF
+    )
+
+    pytool remove_item_from_xml g1.xml "./devices/interface[@type='bridge']" 
+
+    pytool add_item_from_xml g1.xml "./devices" $append_item
+
+    local format_list=('52:54:00:11:8f:ea' 'ovsbr0' '0x0000' '0x03' '0x0' '0x0' 'vnet0')
+    local format_item=`pytool format_item $item "${format_list[@]}"`
+    pytool add_item_from_xml g1.xml "./devices" "$format_item"
+
+    local format_list_1=('52:54:00:11:8f:eb' 'ovsbr0' '0x0000' '0x04' '0x0' '0x0' 'vnet1')
+    local format_item_1=`pytool format_item $item "${format_list_1[@]}"`
+    pytool add_item_from_xml g1.xml "./devices" "$format_item_1"
+
+}
+
+update_xml_vhostuser()
+{
+    pytool remove_item_from_xml g1.xml "./devices/interface[@type='vhostuser']" 
+
+    local item=$(
+    cat <<EOF
+    <interface type='vhostuser'>
+        <mac address={}'/>
+        <source type='unix' path={} mode='server'/>
+        <model type='virtio'/>
+        <driver name='vhost' iommu='on' ats='on'/>
+        <address type='pci' domain={} bus={} slot={} function={}/>
+    </interface>
+EOF
+    )
+
+    local format_list=('52:54:00:11:8f:ea' '/tmp/vhost0' '0x0000' '0x03' '0x0' '0x0')
+    local format_item=`pytool format_item $item "${format_list[@]}"`
+    pytool add_item_from_xml g1.xml "./devices" "$format_item"
+
+    local format_list_1=('52:54:00:11:8f:eb' '/tmp/vhost1' '0x0000' '0x04' '0x0' '0x0')
+    local format_item_1=`pytool format_item $item "${format_list_1[@]}"`
+    pytool add_item_from_xml g1.xml "./devices" "$format_item_1"
+
+}
+
+ovs_dpdk_pvp_test()
+{
+    local q_num=$1
+    local pkt_size=$2
+    local cont_time=$3
+
+    local func_name=${FUNCNAME[0]}
+
+    loginfo "$func_name Clean Env Now Begin"
+    clear_env
+
+    local nic1_mac=`pytool get_mac_from_name $NIC1`
+    local nic2_mac=`pytool get_mac_from_name $NIC2` 
+    enable_dpdk $nic1_mac $nic2_mac
+
+    local numa_node=`cat /sys/class/net/${NIC1}/device/numa_node`
+    local vcpu_list=($VCPU1 $VCPU2 $VCPU3)
+    if (( $q_num == 1 ))
+    then
+        vcpu_list=($VCPU1 $VCPU2 $VCPU3)
+        ovs_bridge_with_dpdk "${nic1_mac}" "${nic2_mac}" ${pkt_size} "${PMD2MASK}"
+    else
+        vcpu_list=($VCPU1 $VCPU2 $VCPU3 $VCPU4 $VCPU5)
+        ovs_bridge_with_dpdk "${nic1_mac}" "${nic2_mac}" ${pkt_size} "${PMD4MASK}"
+    fi
+
+    vcpupin_in_xml $numa_node guest.xml g1.xml $vcpu_list
+
+    update_xml_vhostuser
+
+    if (( $q_num == 1 ))
+    then
+        pytool update_image_source g1.xml ${CASE_PATH}/${one_queue_image}
+    else
+        pytool update_image_source g1.xml ${CASE_PATH}/${two_queue_image}
+    fi
+
+    start_guest g1.xml 
+
+    configure_guest
+
+    guest_start_testpmd $q_num "${vcpu_list[@]}" $RXD_SIZE $TXD_SIZE
+
+    bonding_test_trex $cont_time $pkt_size
+
+}
+
+ovs_kernel_datapath_test()
+{
+    local q_num=$1
+    local pkt_size=$2
+    local cont_time=$3
+    local func_name=${FUNCNAME[0]}
+
+    loginfo "$func_name Clean Env Now Begin"
+    clear_env
+
+    local nic1_mac=`pytool get_mac_from_name $NIC1`
+    local nic2_mac=`pytool get_mac_from_name $NIC2` 
+    enable_dpdk $nic1_mac $nic2_mac
+
+    local numa_node=`cat /sys/class/net/${NIC1}/device/numa_node`
+    local vcpu_list=($VCPU1 $VCPU2 $VCPU3)
+    if (( $q_num == 1 ))
+    then
+        vcpu_list=($VCPU1 $VCPU2 $VCPU3)
+        ovs_bridge_with_kernel "${nic1_mac}" "${nic2_mac}" ${pkt_size} "${PMD2MASK}"
+    else
+        vcpu_list=($VCPU1 $VCPU2 $VCPU3 $VCPU4 $VCPU5)
+        ovs_bridge_with_kernel "${nic1_mac}" "${nic2_mac}" ${pkt_size} "${PMD4MASK}"
+    fi
+
+    vcpupin_in_xml $numa_node guest.xml g1.xml $vcpu_list
+
+    update_xml_vnet_port
+
+    if (( $q_num == 1 ))
+    then
+        pytool update_image_source g1.xml ${CASE_PATH}/${one_queue_image}
+    else
+        pytool update_image_source g1.xml ${CASE_PATH}/${two_queue_image}
+    fi
+
+    start_guest g1.xml 
+
+    configure_guest
+
+    guest_start_testpmd $q_num "${vcpu_list[@]}" $RXD_SIZE $TXD_SIZE
+
+    bonding_test_trex $cont_time $pkt_size
+
+}
+
+sriov_pci_passthrough_test()
+{
+    local q_num=$1
+    local pkt_size=$2
+    local cont_time=$3
+    local func_name=${FUNCNAME[0]}
+
+    loginfo "$func_name Clean Env Now Begin"
+    clear_env
+
+    local numa_node=`cat /sys/class/net/${NIC1_VF}/device/numa_node`
+    local vcpu_list=($VCPU1 $VCPU2 $VCPU3)
+    if (( $q_num == 1 ))
+    then
+        vcpu_list=($VCPU1 $VCPU2 $VCPU3)
+    else
+        vcpu_list=($VCPU1 $VCPU2 $VCPU3 $VCPU4 $VCPU5)
+    fi
+
+    vcpupin_in_xml $numa_node guest.xml g1.xml $vcpu_list
+
+    update_xml_sriov_vf_port 0
+
+    if (( $q_num == 1 ))
+    then
+        pytool update_image_source g1.xml ${CASE_PATH}/${one_queue_image}
+    else
+        pytool update_image_source g1.xml ${CASE_PATH}/${two_queue_image}
+    fi
+
+    start_guest g1.xml 
+
+    configure_guest
+
+    guest_start_testpmd $q_num "${vcpu_list[@]}" $SRIOV_RXD_SIZE $SRIOV_TXD_SIZE
+
+    bonding_test_trex $cont_time $pkt_size
+
+}
+
+
+run_tests() 
+{
+    TESTLIST=$1
+
+    if [ "$TESTLIST" == "pvp_cont" ];then
+        local log_file=$NIC_LOG_FOLDER/pvt_cont.log
+        {
+        echo "*** Running 1500 Byte PVP verify check ***"
+        echo "*** For 1Q 2PMD Test"
+        } | tee -a $log_file
+        ovs_dpdk_pvp_test 1 1500 30 $log_file
+    fi
+
+    if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "1Q" ];then
+        local log_file=$NIC_LOG_FOLDER/pvp_1Q_.log
+        {
+        echo ""
+        echo "***********************************************************"
+        echo "*** Running 64/1500 Bytes 2PMD OVS/DPDK PVP VSPerf TEST ***"
+        echo "***********************************************************"
+        echo ""
+        } | tee -a $log_file
+        ovs_dpdk_pvp_test 1 64 30 | tee -a $log_file
+        ovs_dpdk_pvp_test 1 1500 30 | tee -a $log_file
+
+    fi
+
+    if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "2Q" ];then
+        local log_file=$NIC_LOG_FOLDER/pvp_2Q_.log
+        {
+        echo ""
+        echo "*******************************************************************"
+        echo "*** Running 64/1500 Bytes 2 queue 4PMD OVS/DPDK PVP VSPerf TEST ***"
+        echo "*******************************************************************"
+        echo ""
+        } | tee -a $log_file
+
+        ovs_dpdk_pvp_test 2 64 30 | tee -a $log_file
+        ovs_dpdk_pvp_test 2 1500 30 | tee -a $log_file
+
+    fi
+
+    if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "Jumbo" ]
+    then
+        local log_file=$NIC_LOG_FOLDER/pvp_Jumbo_.log
+        {
+        echo ""
+        echo "*************************************************************"
+        echo "*** Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST ***"
+        echo "*************************************************************"
+        echo ""
+        } | tee -a $log_file
+
+        ovs_dpdk_pvp_test 1 2000 30 | tee -a $log_file            
+        ovs_dpdk_pvp_test 2 9000 30 | tee -a $log_file
+
+    fi
+
+    if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "Kernel" ]
+    then
+        local log_file=$NIC_LOG_FOLDER/pvp_Kernel_.log
+        {
+        echo ""
+        echo "********************************************************"
+        echo "*** Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST ***"
+        echo "********************************************************"
+        echo ""
+        } | tee -a $log_file
+
+        ovs_kernel_datapath_test 1 64 30 | tee -a $log_file
+        ovs_kernel_datapath_test 2 1500 30 | tee -a $log_file
+
+    fi
+
+    if [ "$TESTLIST" == "ALL" ] || [ "$TESTLIST" == "SRIOV" ]
+    then
+        local log_file=$NIC_LOG_FOLDER/pvp_SRIOV_.log
+        {
+        echo ""
+        echo "************************************************"
+        echo "*** Running 64/1500 Bytes SR-IOV VSPerf TEST ***"
+        echo "************************************************"
+        echo ""
+        } | tee -a $log_file
+
+        sriov_pci_passthrough_test 1 64 30 | tee -a $log_file
+        sriov_pci_passthrough_test 2 1500 30 | tee -a $log_file
+
+    fi
+
+}
+
+
+print_results() 
+{
+    echo 
+}
+
+copy_config_files_to_log_folder() 
+{
+    cp /root/RHEL_NIC_QUALIFICATION/Perf-Verify.conf $NIC_LOG_FOLDER
+}
+
+usage () 
+{
+   cat <<EOF
+    Usage: $progname [-t test to execute] [-h print help]
+    -t tests to execute ['1Q, 2Q, Jumbo, Kernel, pvp_cont','SRIOV'] default is to run all tests
+    -h print this help message
+EOF
+   exit 0
+}
+
+
+main() 
+{
+    # run all checks
+    OS_checks
+    log_folder_check
+    hugepage_checks
+    conf_checks
+    config_file_checks
+    nic_card_check
+    rpm_check
+    network_connection_check
+    ovs_running_check
+    # finished running checks
+
+    install_rpms
+    init_python_env
+
+    TESTLIST="ALL"
+
+    progname=$0
+    while getopts t:l:h FLAG; do
+    case $FLAG in
+
+    t)  TESTLIST1=$OPTARG
+        echo "Running test(s) $OPTARG"
+        ;;
+    h)  echo "found $opt" ; usage ;;
+    \?)  usage ;;
+    esac
+    done
+
+    if [[ ! "$TESTLIST1" == "" ]]
+    then
+        TESTLIST=$TESTLIST1
+        
+    fi
+
+    run_tests $TESTLIST
+    print_results
+    copy_config_files_to_log_folder
+
+}
+
+if [ "${1}" != "--source-only" ]
+then
+    main "${@}"
+fi
+
+
+# main
+# rlJournalStart
+# rlPhaseStartSetup
+# if [[ ! -f /tmp/nic_cert_file ]]
+# then
+# 	rlRun install_init_package
+# 	rlRun install_package
+# 	rlRun init_python_env
+# 	cpus_for_isolate=`get_isolate_cpus $NIC1`
+# 	rlRun "config_isolated_cpu_and_Gb_hugepage ${cpus_for_isolate} 24 "
+# fi
+# rlPhaseEnd
+
+# rlPhaseStartTest "START NIC CERTIFICATION ALL TEST"
+# if [[ -f /tmp/sriov_dpdk_pft ]]
+# then
+# 	rlRun "cat /proc/cmdline"
+# 	rlRun init_python_env
+# 	. Perf-Verify.sh "${@}"
+
+# fi
+# rlPhaseEnd
+
+# rlJournalPrintText
+# rlJournalEnd
+
+
+# TEMP_FILE = "/tmp/FD_NIC_PARTITION_FOR_BOND"
+# if __name__ == "__main__":
+#     send_command("rlJournalStart")
+#     main()
+#     if not os.path.exists(TEMP_FILE):
+#         with enter_phase("Install package and init environment"):
+#             update_beaker_tasks_repo()
+#             add_epel_repo()
+#             add_yum_profiles()
+#             install_init_package()
+#             install_package()
+#             install_ovs()
+#             install_driverctl()
+#             install_dpdk()
+#         with enter_phase("Update temp file and reboot system"):
+#             config_hugepage()
+#             local.path(TEMP_FILE).touch()
+#             run("rhts-reboot")
+#     else:       
+#         init_test_env()
+#         with enter_phase("ovs linux bond functional test with mode active-backup"):
+#             ovs_linux_bond_functional_test("active-backup")
+
+#         with enter_phase("ovs linux bond functional test with mode balance-tcp"):
+#             ovs_linux_bond_functional_test("balance-tcp")
+
+#         with enter_phase("ovs bond functional test with mode  active-backup"):
+#             ovs_bond_functional_test("active-backup")
+
+#         with enter_phase("ovs bond functional test with mode  balance-tcp"):
+#             ovs_bond_functional_test("balance-tcp")
+
+#         with enter_phase("ovs dpdk bond function test with mode active-backup"):
+#             ovs_dpdk_bond_functional_test("active-backup")
+
+#         with enter_phase("ovs dpdk bond function test with mode balance-tcp"):
+#             ovs_dpdk_bond_functional_test("balance-tcp")
+        
+#         with enter_phase("QUIT TEST CASE"):
+#             send_command("fd-nic-partition-quit")
+
+#     send_command("rlJournalPrintText")
+#     send_command("rlJournalEnd")
+#     time.sleep(30)
+#     send_command("fd-nic-partition-quit")
