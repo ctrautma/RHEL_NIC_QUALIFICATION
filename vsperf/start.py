@@ -1571,7 +1571,6 @@ def conf_checks():
         return 1
     return 0
     pass
-    
 
 def hugepage_checks():
     log("*** Checking Hugepage Config ***")
@@ -1581,48 +1580,38 @@ def hugepage_checks():
         return 1
     return 0
 
-config_file_checks() 
-{
+def check_env_var(str_name):
+    if os.environ.get(str_name) != None:
+        return True
+    else:
+        return False
 
-    echo "*** Checking Config File ***"
-    sleep 1
-
-    pushd $CASE_PATH
-
-    if test -f ./Perf-Verify.conf
-    then
-        set -o allexport
-        source Perf-Verify.conf
-        set +o allexport
-        if [[ -z $NIC1 ]] || [[ -z $NIC2 ]]
-        then
-            fail "NIC Param" "NIC Params not set in Perf-Verify.conf file"
-        fi
-        if [ -z $PMD_CPU_1 ] || [ -z $PMD_CPU_2 ] || [ -z $PMD_CPU_3 ] || [ -z $PMD_CPU_4 ]
-        then
-            fail "Please set all PMD_CPU_X config in Perf-Verify.conf file"
-        fi
-        if [ -z $VCPU1 ] || [ -z $VCPU2 ] || [ -z $VCPU3 ] || [ -z $VCPU4 ] || [ -z $VCPU5 ]
-        then
-            fail "VCPU Params" "Guest VCPU Param not set in Perf-Verify.conf file"
-        fi
-        if [ -z $TRAFFICGEN_TREX_HOST_IP_ADDR ] || [ -z $TRAFFICGEN_TREX_PORT1 ] || [ -z $TRAFFICGEN_TREX_PORT2 ]
-        then
-            fail "TREX Params" "T-Rex settings not set in Perf-Verify.conf file"
-        fi
-        if [ -z $TREX_URL ]
-        then
-            fail "TREX_URL Trex package shoule be specified , please set in Perf-Verify.conf file"
-        fi
-
-    else
-        fail "Config File" "Cannot locate Perf-Verify.conf"
-    fi
-
-    popd
-
-    return 0
-}
+def config_file_checks():
+    log("*** Checking Config File ***")
+    run("sleep 1")
+    with enter(case_path):
+        str_all_name = """
+        NIC1
+        NIC2
+        PMD_CPU_1
+        PMD_CPU_2
+        PMD_CPU_3
+        PMD_CPU_4
+        VCPU1
+        VCPU2
+        VCPU3
+        VCPU4
+        VCPU5
+        TRAFFICGEN_TREX_HOST_IP_ADDR
+        TRAFFICGEN_TREX_PORT1
+        TRAFFICGEN_TREX_PORT2
+        TREX_URL
+        """.split()
+        for name in str_all_name:
+            if False == check_env_var(name):
+                log(f"Please set the config Var {name} in Perf-Verify.conf file")
+                return 1
+        return 0
 
 nic_card_check() 
 {
