@@ -28,6 +28,7 @@ set -a
 CASE_PATH="$(dirname $(readlink -f $0))"
 source /etc/os-release
 SYSTEM_VERSION_ID=`echo $VERSION_ID | tr -d '.'`
+source `pwd`/repo.sh
 
 if [ $VERSION_ID == "7.5" ]
 then

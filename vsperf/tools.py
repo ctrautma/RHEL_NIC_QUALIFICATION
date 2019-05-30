@@ -158,7 +158,7 @@ class Tools(object):
             pass
         pass
 
-    def run_cmd_get_output(self,pts,cmd):
+    def run_cmd_get_output(self,pts,cmd,end_flag="]#"):
         if not os.path.exists(pts):
             return "pts not found"
         sr = serial.Serial(pts,115200,timeout=0.1)
