@@ -23,8 +23,6 @@ def get_env(var_name):
 
 case_path = get_env("CASE_PATH")
 system_version_id = int(get_env("SYSTEM_VERSION_ID"))
-sys.path.append(case_path + "/common/")
-from lib_sriov import LIB_SRIOV as pysriov
 
 my_tool = tools.Tools()
 xml_tool = xmltool.XmlTool()
