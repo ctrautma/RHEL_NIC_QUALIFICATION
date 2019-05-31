@@ -122,6 +122,7 @@ install_python_and_init_env()
     pip install serial
     pip install pyserial
     pip install remote-pdb
+    pip install tee
 }
 
 check_python_process()
