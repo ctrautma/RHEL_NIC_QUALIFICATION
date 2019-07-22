@@ -58,9 +58,11 @@ source Perf-Verify.conf
 set +a
 
 trap ctrl_c INT
-function ctrl_c() {
+function ctrl_c() 
+{
     local my_pid=`ps -ef | grep python | grep ${python_file} | awk '{print $2}'`
     kill -n 9 $my_pid
+	kill -n 9 $process_PID
     exit
 }
 
@@ -123,32 +125,36 @@ install_python_and_init_env()
     pip install pyserial
     pip install remote-pdb
     pip install tee
+	#https://pypi.org/project/ripdb/
+	pip install ripdb
+	pip install scapy
 }
 
 check_python_process()
 {
-    while true
-    do
-        sleep 10
-        my_pid=`ps -ef | grep python | grep ${python_file} | awk '{print $2}'`
-        #this time read line timeout
-        if (( ${#my_pid} == 0 ))
-        then
-            echo "Shell Check that python process exit "
-            break
-        else
-            if kill -0 $$
-            then
-                continue
-            else
-                echo "parent process not exist"
-                exit 1
-            fi
-        fi
-    done
-    kill -9 $$
-    exit 1
+	while true
+	do
+		sleep 10
+		my_pid=`ps -ef | grep python | grep ${python_file} | awk '{print $2}'`
+		#this time read line timeout
+		if (( ${#my_pid} == 0 ))
+		then
+			echo "Shell Check that python process exit "
+			break
+		else
+			if kill -0 $$
+			then
+				continue
+			else
+				echo "parent process not exist"
+				exit 1
+			fi
+		fi
+	done
+	kill -9 $$
+	exit 1
 }
+
 
 install_beakerlib
 sleep 3
@@ -160,6 +166,7 @@ install_python_and_init_env
 python start.py &
 exec {fd}<>$fd_nic_pipe
 check_python_process & 
+process_PID=$!
 
 while true
 do
@@ -174,4 +181,3 @@ do
         eval $line
     fi
 done
-

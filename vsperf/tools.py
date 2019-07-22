@@ -134,7 +134,6 @@ class Tools(object):
             else:
                 ret_val |= 0x1 << int(str_cpulist)
                 return hex(ret_val)
-                pass
         pass
 
     def make_xena_config(self, template_file, module_index):

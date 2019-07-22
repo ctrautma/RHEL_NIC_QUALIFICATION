@@ -29,30 +29,28 @@ xml_tool = xmltool.XmlTool()
 work_pipe = get_env("work_pipe")
 notify_pipe = get_env("notify_pipe")
 
-
 def set_check(ret):
     def my_wrap(f):
         @wraps(f)
         def log_f_as_called(*args, **kwargs):
-            # cur_time = time.asctime()
+            #cur_time = time.asctime()
             my_command = f'{f.__name__} {args} {kwargs}'
             cmd = f""":: [  BEGIN   ] :: Running '{my_command}'"""
             log(cmd)
             value = f(*args, **kwargs)
-            # cur_time = time.asctime()
+            #cur_time = time.asctime()
             cmd = f""":: [  END   ] :: Running '{my_command}' RETURN {value}"""
             log(cmd)
             return value
         return log_f_as_called
-    return my_wrap
-
+    return my_wrap    
 
 def send_command(cmd):
     cmd = cmd + os.linesep
     try:
-        with open(notify_pipe, "r") as rfd:
+        with open(notify_pipe,"r") as rfd:
             rfd.read()
-            with open(work_pipe, "w") as fd:
+            with open(work_pipe,"w") as fd:
                 fd.write(cmd)
                 fd.flush()
     except IOError as e:
@@ -63,6 +61,11 @@ def send_command(cmd):
         print("*"*80)
     pass
 
+def send_all_command(cmds):
+    cmd_list = str(cmds).split(os.linesep)
+    for cmd in cmd_list:
+        send_command(cmd)
+    pass
 
 def log(str_log):
     logs = str(str_log).split(os.linesep)
@@ -76,30 +79,31 @@ def sh_run(cmd, str_ret_val="0"):
     send_command(cmd)
     pass
 
-
 def sh_run_log(cmd, str_ret_val="0"):
     cmd = """ rlRun -l "{}" "{}" """.format(cmd, str_ret_val)
     send_command(cmd)
     pass
 
-
 def run(cmd, str_ret_val="0"):
     cmds = cmd.split('\n')
-    cmds = [i.strip() for i in cmds]
+    cmds = [ i.strip() for i in cmds ]
     for cmd in cmds:
         if len(cmd) > 0:
             sh_run(cmd, str_ret_val)
     pass
 
-
 def runlog(cmd, str_ret_val="0"):
     cmds = cmd.split('\n')
-    cmds = [i.strip() for i in cmds]
+    cmds = [ i.strip() for i in cmds ]
     for cmd in cmds:
         if len(cmd) > 0:
             sh_run_log(cmd, str_ret_val)
     pass
-
+    
+def log_and_run(cmd, str_ret_val="0"):
+    log(cmd)
+    run(cmd,str_ret_val)
+    pass
 
 def shpushd(path):
     cmd = f"""rlRun "pushd {path}" """
@@ -112,7 +116,6 @@ def shpopd():
     send_command(cmd)
     pass
 
-
 @contextlib.contextmanager
 def pushd(path):
     shpushd(path)
@@ -120,7 +123,6 @@ def pushd(path):
         yield
     finally:
         shpopd()
-
 
 @contextlib.contextmanager
 def enter_phase(str):
@@ -240,20 +242,19 @@ def conf_checks():
     if not "intel_iommu=on" in proc_cmdline_info:
         log("Iommu Enablement" "Please enable IOMMU mode in your grub config")
         return 1
-    if bash.bash("tuned-adm active | grep cpu-partitioning").value() == '':
+    if bash("tuned-adm active | grep cpu-partitioning").value() == '':
         log("Tuned-adm" "cpu-partitioning profile must be active")
         return 1
-    if bash.bash(""" cat /proc/cmdline  | grep "nohz_full=[0-9]"  """).value() == '':
+    if bash(""" cat /proc/cmdline  | grep "nohz_full=[0-9]"  """).value() == '':
         log("Tuned Config" "Must set cores to isolate in tuned-adm profile")
         return 1
     return 0
-    pass
 
 
 def hugepage_checks():
     log("*** Checking Hugepage Config ***")
     run("sleep 1")
-    if bash.bash("""cat /proc/meminfo | awk /Hugepagesize/ | awk /1048576/""").value() == '':
+    if bash("""cat /proc/meminfo | awk /Hugepagesize/ | awk /1048576/""").value() == '':
         log("Hugepage Check" "Please enable 1G Hugepages")
         return 1
     return 0
@@ -502,7 +503,7 @@ def vcpupin_in_xml(numa_node, template_xml, new_xml, cpu_list):
         config_file_checks()
         local.path(template_xml).copy(new_xml)
         xml_tool.xml_add_vcpupin_item(new_xml, len(cpu_list))
-        xml_tool.update_numa(numa_node)
+        xml_tool.update_numa(new_xml,numa_node)
         for i in range(len(cpu_list)):
             xml_tool.update_vcpu(new_xml, i, cpu_list[i])
     pass
@@ -622,7 +623,7 @@ def guest_start_testpmd(queue_num, cpu_list, rxd_size, txd_size):
     --nb-cores={num_core} \
     --auto-start"
     """
-    my_tool.run_cmd_get_output(pts,cmd,"testpmd>")
+    my_tool.run_cmd_get_output(pts,cmd_test,"testpmd>")
     pass
 
 def clear_dpdk_interface():
@@ -718,11 +719,11 @@ def update_xml_sriov_vf_port(xml_file,vlan_id=0):
         xml_tool.add_item_from_xml(xml_file,"./devices" ,vf2_vlan_item)
     else:
         vf1_format_list = ['52:54:00:11:8f:ea' ,vf1_domain, vf1_bus, vf1_slot, vf1_func, '0x0000', '0x03', '0x0', '0x0'] 
-        vf1_vlan_item = vlan_item.format(*vf1_format_list)
+        vf1_vlan_item = item.format(*vf1_format_list)
         xml_tool.add_item_from_xml(xml_file,"./devices",vf1_vlan_item)
 
         vf2_format_list = ['52:54:00:11:8f:eb' ,vf2_domain ,vf2_bus, vf2_slot ,vf2_func, '0x0000', '0x04', '0x0', '0x0']
-        vf2_vlan_item = vlan_item.format(*vf2_format_list)
+        vf2_vlan_item = item.format(*vf2_format_list)
         xml_tool.add_item_from_xml(xml_file,"./devices", vf2_vlan_item)
     pass
 
@@ -757,7 +758,7 @@ def update_xml_vnet_port(xml_file):
 
     vnet_format_list_two = ['52:54:00:11:8f:eb' 'ovsbr0' '0x0000' '0x04' '0x0' '0x0' 'vnet1']
     vnet_format_item_two = item.format(*vnet_format_list_two)
-    xml_tool.add_item_from_xml(xml_file,vnet_format_item_two)
+    xml_tool.add_item_from_xml(xml_file,"./devices",vnet_format_item_two)
     pass
 
 
@@ -790,8 +791,8 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     enable_dpdk(nic1_mac,nic2_mac)
 
     numa_node = bash("cat /sys/class/net/{nic1_name}/device/numa_node").value()
-    vcpu1 = get_env("VCPU1")
-    vcpu2 = get_env("VCPU2")
+    # vcpu1 = get_env("VCPU1")
+    # vcpu2 = get_env("VCPU2")
 
     if q_num == 1:
         vcpu_list = [get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3")]
@@ -827,10 +828,10 @@ def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
 
     if q_num == 1:
         vcpu_list = [ get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3")]
-        ovs_bridge_with_kernel(nic1_mac,nic2_mac,pkt_size,get_env("PMD2MASK"))
+        ovs_bridge_with_kernel(nic1_mac,nic2_mac,get_env("PMD2MASK"))
     else:
         vcpu_list = [ get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3"),get_env("VCPU4"),get_env("VCPU5")]
-        ovs_bridge_with_kernel(nic1_mac,nic2_mac,pkt_size,get_env("PMD4MASK"))
+        ovs_bridge_with_kernel(nic1_mac,nic2_mac,get_env("PMD4MASK"))
         pass
     new_xml = "g1.xml"
     vcpupin_in_xml(numa_node,"guest.xml",new_xml,vcpu_list)
@@ -961,6 +962,7 @@ def usage():
     """
     print(data)
     pass
+
 
 def main(test_list="ALL"):
     # run all checks
