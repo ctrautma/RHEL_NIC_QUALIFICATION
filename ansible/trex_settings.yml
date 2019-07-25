@@ -1,0 +1,60 @@
+# Debug mode (Will print out extra debug information. Only enable if asked to by RedHat)
+redhat_debug_mode: True
+
+# subscription username, password, pool_id used for accessing Red Hat repositories
+rh_sub_username: NA
+rh_sub_pass: NA
+rh_sub_pool_id: NA
+
+# enable the below if internally testing for QE and use the command found at -> https://wiki.test.redhat.com/ctrautma and search for the section Subscription manager testing and enclose it with ""
+# DO NOT COMMIT THIS FILE TO GITHUB if this change is made!!!!!
+qe_subscription_mode: true
+qe_subscription_command: "subscription-manager register --serverurl=subscription.rhsm.stage.redhat.com:443/subscription --baseurl=https://cdn.redhat.com --username=qa@redhat.com --password=redhatqa --auto-attach"
+
+# T-Rex version to use (example v2.53 : Note please include the v)
+trex_version: v2.53
+
+# T-Rex server NIC names (example eth1, enp68s0f0, etc...)
+trex_interface_1: enp68s0f0
+trex_interface_2: enp68s0f1
+
+# Openvswitch package location
+ovs_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch2.11/2.11.0/9.el8fdp/x86_64/openvswitch2.11-2.11.0-9.el8fdp.x86_64.rpm"
+
+# Openvswitch selinux package location
+ovs_selinux_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch-selinux-extra-policy/1.0/11.el8fdp/noarch/openvswitch-selinux-extra-policy-1.0-11.el8fdp.noarch.rpm"
+
+# DUT server isolated core list
+dut_isolated_cpus: 1,3,5,7,9,11,13,15
+
+# DUT NIC Device names
+dut_interface_1: enp68s0f0
+dut_interface_2: enp68s0f1
+
+# DUT DPDK Driver
+dut_driver: vfio-pci
+
+# DUT DPDK PMD Mask
+dut_dpdk_pmd_mask: 8002
+
+# DUT DPDK L-Core Mask
+dut_dpdk_lcore_mask: 40
+
+# DUT PMD RXQ Affinity
+dut_pmd_rxq_affinity: 0:1,1:15
+
+# Path to RHEL guest image for PVP tests
+rhel_guest_image_path: /root/rhel-8.0-beta-1-x86_64-kvm.qcow2
+
+# CPU model info, probably does not need to be touched, if an error occurs with virt-install might need to modify
+# this line to a model present in  /usr/share/libvirt/cpu_map.xml
+dut_cpu_model: SandyBridge
+#dut_cpu_model: Haswell-noTSX
+
+# Virtual CPU list (Should be in isolated list), emulator vcpu can be non isolated
+vcpu_1: 3
+vcpu_2: 5
+vcpu_3: 7
+vcpu_4: 9
+vcpu_emulator: 2
+

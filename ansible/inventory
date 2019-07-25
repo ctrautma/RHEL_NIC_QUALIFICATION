@@ -1,0 +1,14 @@
+localhost-py3 ansible_host=localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
+
+[usa]
+10.19.15.11
+
+[canada]
+netqe2.knqe.lab.eng.bos.redhat.com
+
+[NorthAmerica:children]
+usa
+canada
+
+[usa:vars]
+ansible_python_interpreter=/usr/bin/python3
