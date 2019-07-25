@@ -1,0 +1,234 @@
+- name: T-Rex Setup 
+  hosts: usa
+  vars_files:
+    - ./trex_settings.yml
+  tasks:
+  - debug: 
+      msg: Debug mode is enabled
+    when: redhat_debug_mode == true
+########################################
+# Install repositories on T-Rex server #
+########################################
+
+  - name: Install FedoraProject Repo
+    yum:
+      name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+  - name: Install needed repos stage 1
+    yum:
+      name: bc,emacs,gcc,git,lshw,pciutils,python3-devel,python3-pip 
+  - name: Install needed repos stage 2
+    yum:
+      name: python3-setuptools,tmux,tuned-profiles-cpu-partitioning
+  - name: Install needed repos stage 3
+    yum:
+      name: tar,wget,zeromq-devel
+  - name: Create symbolic link for python3 
+    file:
+      src: "/usr/bin/python3"
+      dest: "/usr/bin/python"
+      state: link
+  - name: Create symbolic link for pip3
+    file:
+      src: "/usr/bin/pip3"
+      dest: "/usr/bin/pip"
+      state: link
+
+#####################################################
+# Modify startup parameters for hugepages and iommu #
+#####################################################
+
+  - name: Checking for hugepages in grub step 1 (Fatal errors are normal here)
+    shell: "cat /etc/default/grub | grep hugepages=32"
+    register: hugepages_found
+    ignore_errors: True
+  - debug:
+      var: hugepages_found
+    when: redhat_debug_mode == true
+  - name: Adding hugepages in grub if needed step 1
+    when: hugepages_found.rc != 0
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
+      line: '\1hugepages=32 \2'
+      backrefs: yes
+  - name: Checking for hugepages in grub step 2 (Fatal errors are normal here)
+    shell: "cat /etc/default/grub | grep hugepagesz=1G"
+    register: hugepages_found
+    ignore_errors: True
+  - debug:
+      var: hugepages_found
+    when: redhat_debug_mode == true
+  - name: Adding hugepages in grub if needed step 2
+    when: hugepages_found.rc != 0
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
+      line: '\1hugepagesz=1G \2'
+      backrefs: yes
+  - name: Checking for hugepages in grub step 3 (Fatal errors are normal here)
+    shell: "cat /etc/default/grub | grep default_hugepagesz=1G"
+    register: hugepages_found
+    ignore_errors: True
+  - debug:
+      var: hugepages_found
+    when: redhat_debug_mode == true
+  - name: Adding hugepages in grub if needed step 3
+    when: hugepages_found.rc != 0
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
+      line: '\1default_hugepagesz=1G \2'
+      backrefs: yes
+  - name: Checking for iommu in grub step 1 (Fatal errors are normal here)
+    shell: "cat /etc/default/grub | grep iommu=pt"
+    register: iommu_found
+    ignore_errors: True
+  - debug:
+      var: iommu_found
+    when: redhat_debug_mode == true
+  - name: Adding iommu in grub if needed step 1
+    when: iommu_found.rc != 0
+    lineinfile:
+      path: /etc/default/grub 
+      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
+      line: '\1iommu=pt \2'
+      backrefs: yes
+  - name: Checking for iommu in grub step 2 (Fatal errors are normal here)
+    shell: "cat /etc/default/grub | grep intel_iommu=on"
+    register: iommu_found
+    ignore_errors: True
+  - debug:
+      var: iommu_found
+    when: redhat_debug_mode == true
+  - name: Adding iommu in grub if needed step 2
+    when: iommu_found.rc != 0
+    lineinfile:
+      path: /etc/default/grub 
+      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
+      line: '\1intel_iommu=on \2'
+      backrefs: yes
+  - name: Tweak the kernel for hugepages and iommu step 1
+    command: "grub2-editenv - unset kernelopts"
+  - name: Tweak the kernel for hugepages and iommu step 2
+    command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
+
+#################
+# Install T-Rex #
+#################
+
+  - name: Creates t-rex directory
+    file:
+      path: /root/trex
+      state: directory
+  - name: Check that the t-rex is downloaded
+    stat:
+      path: /root/trex/{{ trex_version }}
+    register: stat_result
+  - name: Download t-rex {{ trex_version }}
+    when: stat_result.stat.exists == False
+    get_url:
+      url: http://trex-tgn.cisco.com/trex/release/{{ trex_version }}.tar.gz
+      dest: /root/trex/{{ trex_version }}.tar.gz
+  - name: unzip trex files
+    when: stat_result.stat.exists == False
+    unarchive:
+      src: /root/trex/{{ trex_version }}.tar.gz
+      dest: /root/trex
+      copy: no
+  - name: run t-rex setup script (use mac mode)
+    shell: python /root/trex/{{ trex_version }}/dpdk_setup_ports.py -c {{trex_interface_1}} {{trex_interface_2}} --force-mac -o /etc/trex_cfg.yaml
+  - name: debug actions for t-rex setup
+    block:
+      - shell: 
+          command: cat /etc/trex-cfg.yaml
+          register: output
+      - debug:
+          var: output.stdout
+    when: redhat_debug_mode == true
+    
+############################################
+# Tune isolated cpus based on t-rex config #
+############################################
+
+  - name: Enable tuned
+    shell: systemctl enable tuned
+  - name: Start tuned server
+    shell: systemctl start tuned
+  - name: Getting isolated core list
+    shell: cat /etc/trex-cfg.yaml | grep threads | awk '{ print $2 }' | tr -d "[]"
+    register: corelist
+  - debug:
+      var: corelist
+    when: redhat_debug_mode == true
+  - name: checking for corelist in cpu-partitioning
+    replace:
+      path: /etc/tuned/cpu-partitioning-variables.conf
+      regexp: 'isolated_cores=.*$\n'
+      replace: ''
+      backup: no
+  - name: Inserting core list to cpu-partitioning configuration file
+    shell: echo isolated_cores={{corelist.stdout}} >> /etc/tuned/cpu-partitioning-variables.conf
+  - name: Setting tuned to use cpu-partitioning
+    shell: tuned-adm profile cpu-partitioning
+  - name: debug actions for tuned setup
+    when: redhat_debug_mode == true
+    shell:
+      command: cat /etc/tuned/cpu-partitioning.yaml
+      register: output
+  - debug:
+      var: output.stdout
+    when: redhat_debug_mode == true
+
+###################################################
+# Reboot t-rex system for settings to take effect #
+###################################################
+
+#  - name: REBOOTING TREX SERVER NOW
+#    reboot:
+
+######################################
+# Setup T-Rex server for pvp scripts #
+######################################
+
+  - name: Git clone ovs_perf scripts
+    git:
+      repo: https://github.com/chaudron/ovs_perf.git
+      clone: yes
+      dest: /root/ovs_perf
+  - name: Install modules from pip
+    shell: pip install --upgrade enum34 natsort netaddr matplotlib scapy spur
+  - name: Git clone xena libraries
+    git:
+      repo: https://github.com/fleitner/XenaPythonLib
+      clone: yes
+      dest: /root/XenaPythonLib
+  - name: Run setup for xena libraries
+    shell: python setup.py install
+    args:
+      chdir: /root/XenaPythonLib
+  - name: Check that the t-rex_client is unzipped
+    stat:
+      path: /root/trex/{{ trex_version }}/trex_client_{{ trex_version }}
+    register: stat_result
+  - name: unzip trex_client files
+    when: stat_result.stat.exists == False
+    unarchive:
+      src: /root/trex/{{ trex_version }}/trex_client_{{ trex_version }}.tar.gz
+      dest: /root/trex/{{ trex_version }}
+      copy: no
+  - name: Copy trex client files step 1
+    shell: cp -r /root/trex/{{ trex_version}}/trex_client/interactive/trex /root/ovs_perf/
+#    file:
+#      dest: "/root/ovs_perf/trex/"
+#      directory_mode:
+#      state: directory
+#  - name: Copy trex client files step 2
+#    file:
+#      src: "/root/trex/{{ trex_version }}/trex_client/interactive/trex"
+#      dest: "/root/ovs_perf/trex" 
+#      directory_mode:
+#      state: hard
+  - name: Copy trex client files step 2
+    shell: cp -r /root/trex/{{ trex_version}}/trex_client/external_libs /root/ovs_perf/trex/
+
+    
