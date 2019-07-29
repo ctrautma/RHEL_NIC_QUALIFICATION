@@ -7,289 +7,289 @@
       msg: Debug mode is enabled
     when: redhat_debug_mode == true
 
-##################################################
-## Check for nic to make sure its seen by kernel #
-##################################################
-#
-#  - stat: path=/sys/class/net/{{ dut_interface_1 }}
-#    register: st
-#  - block:
-#    - name: "Checking nic to be seen by kernel"
-#      debug:
-#        msg: "exiting as nic {{ dut_interface_1 }} cannot be seen by the kernel.  Please check settings or unbind the nic from a dpdk driver using driverctl"
-#
-#    - meta: end_play
-#    when: not st.stat.exists
-#
-#######################################
-## Install repositories on DUT server #
-#######################################
-#
-#  - name: Install FedoraProject Repo
-#    yum:
-#      name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-#  - name: Install needed repos stage 1
-#    yum:
-#      name: aspell,aspell-en,autoconf,automake,bc,checkpolicy
-#  - name: Install needed repos stage 2
-#    yum:
-#      name: desktop-file-utils,dpdk-tools,driverctl,emacs,expect,gcc,gcc-c++,gdb
-#  - name: Install needed repos stage 3
-#    yum:
-#      name: git,graphviz,hwloc,intltool,kernel-devel,libcap-ng
-#  - name: Install needed repos stage 4
-#    yum:
-#      name: libcap-ng-devel,libguestfs,libguestfs-tools-c,libtool,libvirt
-#  - name: Install needed repos stage 5
-#    yum:
-#      name: lshw,openssl,openssl-devel,procps-ng,python3
-#  - name: Install needed repos stage 6
-#    yum:
-#      name: python3-six,rpm-build,selinux-policy-devel,sshpass,sysstat
-#  - name: Install needed repos stage 7
-#    yum:
-#      name: systemd-units,tcpdump,time,tmux,tuned-profiles-cpu-partitioning
-#  - name: Install needed repos stage 8
-#    yum:
-#      name: virt-install,virt-manager,wget
-#  - name: Installing openvswitch packages
-#    yum:
-#      name: "{{ ovs_selinux_rpm_path }}, {{ ovs_rpm_path }}"
-#  - name: Create symbolic link for python3
-#    file:
-#      src: "/usr/bin/python3"
-#      dest: "/usr/bin/python"
-#      state: link
-#  - name: Create symbolic link for pip3
-#    file:
-#      src: "/usr/bin/pip3"
-#      dest: "/usr/bin/pip"
-#      state: link
-#
-#####################################################
-## Tweak the system for QEMU and and OVS-DPDK usage #
-#####################################################
-#
-#  - name: Modifying selinux params step 1
-#    shell: sed -i -e 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
-#  - name: Modifying selinux params step 2
-#    shell: setenforce permissive
-#
-######################################################
-## Modify startup parameters for hugepages and iommu #
-######################################################
-#
-#  - name: Checking for hugepages in grub step 1 (Fatal errors are normal here)
-#    shell: "cat /etc/default/grub | grep hugepages=32"
-#    register: hugepages_found1
-#    ignore_errors: True
-#  - debug:
-#      var: hugepages_found
-#    when: redhat_debug_mode == true
-#  - name: Adding hugepages in grub if needed step 1
-#    when: hugepages_found1.rc != 0
-#    lineinfile:
-#      path: /etc/default/grub
-#      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
-#      line: '\1hugepages=32 \2'
-#      backrefs: yes
-#  - name: Checking for hugepages in grub step 2 (Fatal errors are normal here)
-#    shell: "cat /etc/default/grub | grep hugepagesz=1G"
-#    register: hugepages_found2
-#    ignore_errors: True
-#  - debug:
-#      var: hugepages_found
-#    when: redhat_debug_mode == true
-#  - name: Adding hugepages in grub if needed step 2
-#    when: hugepages_found2.rc != 0
-#    lineinfile:
-#      path: /etc/default/grub
-#      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
-#      line: '\1hugepagesz=1G \2'
-#      backrefs: yes
-#  - name: Checking for hugepages in grub step 3 (Fatal errors are normal here)
-#    shell: "cat /etc/default/grub | grep default_hugepagesz=1G"
-#    register: hugepages_found3
-#    ignore_errors: True
-#  - debug:
-#      var: hugepages_found
-#    when: redhat_debug_mode == true
-#  - name: Adding hugepages in grub if needed step 3
-#    when: hugepages_found3.rc != 0
-#    lineinfile:
-#      path: /etc/default/grub
-#      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
-#      line: '\1default_hugepagesz=1G \2'
-#      backrefs: yes
-#  - name: Checking for iommu in grub step 1 (Fatal errors are normal here)
-#    shell: "cat /etc/default/grub | grep iommu=pt"
-#    register: iommu_found1
-#    ignore_errors: True
-#  - debug:
-#      var: iommu_found
-#    when: redhat_debug_mode == true
-#  - name: Adding iommu in grub if needed step 1
-#    when: iommu_found1.rc != 0
-#    lineinfile:
-#      path: /etc/default/grub
-#      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
-#      line: '\1iommu=pt \2'
-#      backrefs: yes
-#  - name: Checking for iommu in grub step 2 (Fatal errors are normal here)
-#    shell: "cat /etc/default/grub | grep intel_iommu=on"
-#    register: iommu_found2
-#    ignore_errors: True
-#  - debug:
-#      var: iommu_found
-#    when: redhat_debug_mode == true
-#  - name: Adding iommu in grub if needed step 2
-#    when: iommu_found2.rc != 0
-#    lineinfile:
-#      path: /etc/default/grub
-#      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
-#      line: '\1intel_iommu=on \2'
-#      backrefs: yes
-#  - name: Tweak the kernel for hugepages and iommu step 1
-#    command: "grub2-editenv - unset kernelopts"
-#    when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0
-#  - name: Tweak the kernel for hugepages and iommu step 2
-#    command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
-#    when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0
-#    tags: ["grub"]
-#
-##########################
-## Setup libvirt service #
-##########################
-#
-#  - name: Set user for libvirt to hugetlbfs
-#    shell: sed -i -e 's/#group = "root"/group = "hugetlbfs"/' /etc/libvirt/qemu.conf
-#  - name: Enable service libvirtd.service
-#    service:
-#      name: libvirtd.service
-#      enabled: yes
-#  - name: Start service libvirtd.service, if not started
-#    service:
-#      name: libvirtd.service
-#      state: started
-#
-#############################################
-## Tune isolated cpus based on t-rex config #
-#############################################
-#
-#  - name: Enable service tuned
-#    service:
-#      name: tuned
-#      enabled: yes
-#  - name: Start service tuned, if not started
-#    service:
-#      name: tuned
-#      state: started
-#  - name: Checking for isolcpus in grub (Fatal errors are normal here)
-#    shell: cat /etc/tuned/cpu-partitioning-variables.conf | grep {{ dut_isolated_cpus }}
-#    ignore_errors: True
-#    register: isolcpus_needed
-#  - name: Adding isolated cpus to tuned
-#    shell: echo isolated_cores={{ dut_isolated_cpus }} >> /etc/tuned/cpu-partitioning-variables.conf
-#    when: isolcpus_needed.rc != 0
-#  - name: Starting cpu-partitioning tuned profile
-#    shell: tuned-adm profile cpu-partitioning
-#  - name: Checking for isolcpus in grub (Fatal errors are normal here)
-#    shell: cat /etc/default/grub | grep {{ dut_isolated_cpus }}
-#    ignore_errors: True
-#    register: isolcpus_needed
-#  - name: Adding isolated cpus to grub
-#    shell: sed -i -e 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="isolcpus={{ dut_isolated_cpus }} /'  /etc/default/grub
-#    when: isolcpus_needed.rc != 0
-#  - name: Tweak the kernel isolated list
-#    command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
-#    tags: ["grub2"]
-#    when: isolcpus_needed.rc != 0
-#
+#################################################
+# Check for nic to make sure its seen by kernel #
+#################################################
+
+  - stat: path=/sys/class/net/{{ dut_interface_1 }}
+    register: st
+  - block:
+    - name: "Checking nic to be seen by kernel"
+      debug:
+        msg: "exiting as nic {{ dut_interface_1 }} cannot be seen by the kernel.  Please check settings or unbind the nic from a dpdk driver using driverctl"
+
+    - meta: end_play
+    when: not st.stat.exists
+
+######################################
+# Install repositories on DUT server #
+######################################
+
+  - name: Install FedoraProject Repo
+    yum:
+      name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+  - name: Install needed repos stage 1
+    yum:
+      name: aspell,aspell-en,autoconf,automake,bc,checkpolicy
+  - name: Install needed repos stage 2
+    yum:
+      name: desktop-file-utils,dpdk-tools,driverctl,emacs,expect,gcc,gcc-c++,gdb
+  - name: Install needed repos stage 3
+    yum:
+      name: git,graphviz,hwloc,intltool,kernel-devel,libcap-ng
+  - name: Install needed repos stage 4
+    yum:
+      name: libcap-ng-devel,libguestfs,libguestfs-tools-c,libtool,libvirt
+  - name: Install needed repos stage 5
+    yum:
+      name: lshw,openssl,openssl-devel,procps-ng,python3
+  - name: Install needed repos stage 6
+    yum:
+      name: python3-six,rpm-build,selinux-policy-devel,sshpass,sysstat
+  - name: Install needed repos stage 7
+    yum:
+      name: systemd-units,tcpdump,time,tmux,tuned-profiles-cpu-partitioning
+  - name: Install needed repos stage 8
+    yum:
+      name: virt-install,virt-manager,wget
+  - name: Installing openvswitch packages
+    yum:
+      name: "{{ ovs_selinux_rpm_path }}, {{ ovs_rpm_path }}"
+  - name: Create symbolic link for python3
+    file:
+      src: "/usr/bin/python3"
+      dest: "/usr/bin/python"
+      state: link
+  - name: Create symbolic link for pip3
+    file:
+      src: "/usr/bin/pip3"
+      dest: "/usr/bin/pip"
+      state: link
+
 ####################################################
-## Reboot t-rex system for settings to take effect #
+# Tweak the system for QEMU and and OVS-DPDK usage #
 ####################################################
-#
-#  - name: REBOOTING DUT SERVER NOW
-#    reboot:
-#    when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0 or isolcpus_needed.rc !=0
-#
-#####################
-## Getting NIC info #
-#####################
-#
-#  - name: Getting pci address of NIC 1
-#    shell: "ethtool -i {{ dut_interface_1 }} | grep bus-info | awk '{print $2}'"
-#    register: dut_nic1_pci_address
-#  - name: finding numa node of nic
-#    shell: cat /sys/class/net/{{ dut_interface_1}}/device/numa_node
-#    register: nic1_numa
-#  - debug:
-#      var: dut_nic1_pci_address
-#    when: redhat_debug_mode == true
-#  - name: Binding nic {{ dut_interface_1 }} to driver {{ dut_driver }}
-#    shell: "driverctl -v set-override {{ dut_nic1_pci_address.stdout }} {{ dut_driver }}"
-#    ignore_errors: True
-#
-#################################
-## Starting openvswitch service #
-#################################
-#
-#  - name: Enable service openvswitch
-#    service:
-#      name: openvswitch
-#      enabled: yes
-#  - name: Start service openvswitch, if not started
-#    service:
-#      name: openvswitch
-#      state: started
-#
-#############################
-## Starting OVS-DPDK config #
-#############################
-#
-#  - name: Setting up OVS-DPDK config step 1
-#    shell: "ovs-vsctl set Open_vSwitch . other_config:dpdk-init=true"
-#  - name: Setting up OVS-DPDK config step 2
-#    shell: ovs-vsctl set Open_vSwitch . other_config:dpdk-socket-mem=4096
-#  - name: Setting up OVS-DPDK config step 3
-#    shell: ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask=0x{{ dut_dpdk_pmd_mask }}
-#  - name: Setting up OVS-DPDK config step 4
-#    shell: ovs-vsctl set Open_vSwitch . other_config:dpdk-lcore-mask=0x{{ dut_dpdk_lcore_mask }}
-#  - name: Restart service openvswitch
-#    service:
-#      name: openvswitch
-#      state: restarted
-#  - name: Setting up OVS-DPDK config step 5
-#    shell: ovs-vsctl --if-exists del-br ovs_pvp_br0
-#  - name: Setting up OVS-DPDK config step 6
-#    shell: ovs-vsctl add-br ovs_pvp_br0 -- set bridge ovs_pvp_br0 datapath_type=netdev
-#  - name: Setting up OVS-DPDK config step 7
-#    shell: ovs-vsctl add-port ovs_pvp_br0 dpdk0 -- set Interface dpdk0 type=dpdk -- set Interface dpdk0 options:dpdk-devargs="{{ dut_nic1_pci_address.stdout }}" -- set interface dpdk0 options:n_rxq=2 other_config:pmd-rxq-affinity="{{ dut_pmd_rxq_affinity }}" -- set Interface dpdk0 ofport_request=1
-#  - name: Setting up OVS-DPDK config step 8
-#    shell: ovs-vsctl add-port ovs_pvp_br0 vhost0 -- set Interface vhost0 type=dpdkvhostuserclient -- set Interface vhost0 options:vhost-server-path="/tmp/vhost-sock0" -- set interface vhost0 options:n_rxq=2 other_config:pmd-rxq-affinity="{{ dut_pmd_rxq_affinity }}" -- set Interface vhost0 ofport_request=2
-#
-###############################
-## Setting up Virtual machine #
-###############################
-#  - stat: path=/opt/images
-#    register: st
-#  - name: Creates directory for image storage
-#    file:
-#      path: /opt/images
-#      state: directory
-#    when: not st.stat.exists
-#  - stat: path=/opt/images/{{ rhel_guest_image_path }}
-#    register: st
-#  - name: Copy image to /opt/images
-#    copy:
-#      src: "{{ rhel_guest_image_path }}"
-#      dest: /opt/images/rhel_guest_image_pvp.qcow2
-#      remote_src: yes
-#    when: not st.stat.exists
-#  - name: Setting permissions on vhost socket folder
-#    file:
-#       path: /tmp/vhost-sock0
-#       mode: 777
+
+  - name: Modifying selinux params step 1
+    shell: sed -i -e 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
+  - name: Modifying selinux params step 2
+    shell: setenforce permissive
+
+#####################################################
+# Modify startup parameters for hugepages and iommu #
+#####################################################
+
+  - name: Checking for hugepages in grub step 1 (Fatal errors are normal here)
+    shell: "cat /etc/default/grub | grep hugepages=32"
+    register: hugepages_found1
+    ignore_errors: True
+  - debug:
+      var: hugepages_found
+    when: redhat_debug_mode == true
+  - name: Adding hugepages in grub if needed step 1
+    when: hugepages_found1.rc != 0
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
+      line: '\1hugepages=32 \2'
+      backrefs: yes
+  - name: Checking for hugepages in grub step 2 (Fatal errors are normal here)
+    shell: "cat /etc/default/grub | grep hugepagesz=1G"
+    register: hugepages_found2
+    ignore_errors: True
+  - debug:
+      var: hugepages_found
+    when: redhat_debug_mode == true
+  - name: Adding hugepages in grub if needed step 2
+    when: hugepages_found2.rc != 0
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
+      line: '\1hugepagesz=1G \2'
+      backrefs: yes
+  - name: Checking for hugepages in grub step 3 (Fatal errors are normal here)
+    shell: "cat /etc/default/grub | grep default_hugepagesz=1G"
+    register: hugepages_found3
+    ignore_errors: True
+  - debug:
+      var: hugepages_found
+    when: redhat_debug_mode == true
+  - name: Adding hugepages in grub if needed step 3
+    when: hugepages_found3.rc != 0
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
+      line: '\1default_hugepagesz=1G \2'
+      backrefs: yes
+  - name: Checking for iommu in grub step 1 (Fatal errors are normal here)
+    shell: "cat /etc/default/grub | grep iommu=pt"
+    register: iommu_found1
+    ignore_errors: True
+  - debug:
+      var: iommu_found
+    when: redhat_debug_mode == true
+  - name: Adding iommu in grub if needed step 1
+    when: iommu_found1.rc != 0
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
+      line: '\1iommu=pt \2'
+      backrefs: yes
+  - name: Checking for iommu in grub step 2 (Fatal errors are normal here)
+    shell: "cat /etc/default/grub | grep intel_iommu=on"
+    register: iommu_found2
+    ignore_errors: True
+  - debug:
+      var: iommu_found
+    when: redhat_debug_mode == true
+  - name: Adding iommu in grub if needed step 2
+    when: iommu_found2.rc != 0
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
+      line: '\1intel_iommu=on \2'
+      backrefs: yes
+  - name: Tweak the kernel for hugepages and iommu step 1
+    command: "grub2-editenv - unset kernelopts"
+    when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0
+  - name: Tweak the kernel for hugepages and iommu step 2
+    command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
+    when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0
+    tags: ["grub"]
+
+#########################
+# Setup libvirt service #
+#########################
+
+  - name: Set user for libvirt to hugetlbfs
+    shell: sed -i -e 's/#group = "root"/group = "hugetlbfs"/' /etc/libvirt/qemu.conf
+  - name: Enable service libvirtd.service
+    service:
+      name: libvirtd.service
+      enabled: yes
+  - name: Start service libvirtd.service, if not started
+    service:
+      name: libvirtd.service
+      state: started
+
+############################################
+# Tune isolated cpus based on t-rex config #
+############################################
+
+  - name: Enable service tuned
+    service:
+      name: tuned
+      enabled: yes
+  - name: Start service tuned, if not started
+    service:
+      name: tuned
+      state: started
+  - name: Checking for isolcpus in grub (Fatal errors are normal here)
+    shell: cat /etc/tuned/cpu-partitioning-variables.conf | grep {{ dut_isolated_cpus }}
+    ignore_errors: True
+    register: isolcpus_needed
+  - name: Adding isolated cpus to tuned
+    shell: echo isolated_cores={{ dut_isolated_cpus }} >> /etc/tuned/cpu-partitioning-variables.conf
+    when: isolcpus_needed.rc != 0
+  - name: Starting cpu-partitioning tuned profile
+    shell: tuned-adm profile cpu-partitioning
+  - name: Checking for isolcpus in grub (Fatal errors are normal here)
+    shell: cat /etc/default/grub | grep {{ dut_isolated_cpus }}
+    ignore_errors: True
+    register: isolcpus_needed
+  - name: Adding isolated cpus to grub
+    shell: sed -i -e 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="isolcpus={{ dut_isolated_cpus }} /'  /etc/default/grub
+    when: isolcpus_needed.rc != 0
+  - name: Tweak the kernel isolated list
+    command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
+    tags: ["grub2"]
+    when: isolcpus_needed.rc != 0
+
+###################################################
+# Reboot t-rex system for settings to take effect #
+###################################################
+
+  - name: REBOOTING DUT SERVER NOW
+    reboot:
+    when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0 or isolcpus_needed.rc !=0
+
+####################
+# Getting NIC info #
+####################
+
+  - name: Getting pci address of NIC 1
+    shell: "ethtool -i {{ dut_interface_1 }} | grep bus-info | awk '{print $2}'"
+    register: dut_nic1_pci_address
+  - name: finding numa node of nic
+    shell: cat /sys/class/net/{{ dut_interface_1}}/device/numa_node
+    register: nic1_numa
+  - debug:
+      var: dut_nic1_pci_address
+    when: redhat_debug_mode == true
+  - name: Binding nic {{ dut_interface_1 }} to driver {{ dut_driver }}
+    shell: "driverctl -v set-override {{ dut_nic1_pci_address.stdout }} {{ dut_driver }}"
+    ignore_errors: True
+
+################################
+# Starting openvswitch service #
+################################
+
+  - name: Enable service openvswitch
+    service:
+      name: openvswitch
+      enabled: yes
+  - name: Start service openvswitch, if not started
+    service:
+      name: openvswitch
+      state: started
+
+############################
+# Starting OVS-DPDK config #
+############################
+
+  - name: Setting up OVS-DPDK config step 1
+    shell: "ovs-vsctl set Open_vSwitch . other_config:dpdk-init=true"
+  - name: Setting up OVS-DPDK config step 2
+    shell: ovs-vsctl set Open_vSwitch . other_config:dpdk-socket-mem=4096
+  - name: Setting up OVS-DPDK config step 3
+    shell: ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask=0x{{ dut_dpdk_pmd_mask }}
+  - name: Setting up OVS-DPDK config step 4
+    shell: ovs-vsctl set Open_vSwitch . other_config:dpdk-lcore-mask=0x{{ dut_dpdk_lcore_mask }}
+  - name: Restart service openvswitch
+    service:
+      name: openvswitch
+      state: restarted
+  - name: Setting up OVS-DPDK config step 5
+    shell: ovs-vsctl --if-exists del-br ovs_pvp_br0
+  - name: Setting up OVS-DPDK config step 6
+    shell: ovs-vsctl add-br ovs_pvp_br0 -- set bridge ovs_pvp_br0 datapath_type=netdev
+  - name: Setting up OVS-DPDK config step 7
+    shell: ovs-vsctl add-port ovs_pvp_br0 dpdk0 -- set Interface dpdk0 type=dpdk -- set Interface dpdk0 options:dpdk-devargs="{{ dut_nic1_pci_address.stdout }}" -- set interface dpdk0 options:n_rxq=2 other_config:pmd-rxq-affinity="{{ dut_pmd_rxq_affinity }}" -- set Interface dpdk0 ofport_request=1
+  - name: Setting up OVS-DPDK config step 8
+    shell: ovs-vsctl add-port ovs_pvp_br0 vhost0 -- set Interface vhost0 type=dpdkvhostuserclient -- set Interface vhost0 options:vhost-server-path="/tmp/vhost-sock0" -- set interface vhost0 options:n_rxq=2 other_config:pmd-rxq-affinity="{{ dut_pmd_rxq_affinity }}" -- set Interface vhost0 ofport_request=2
+
+##############################
+# Setting up Virtual machine #
+##############################
+  - stat: path=/opt/images
+    register: st
+  - name: Creates directory for image storage
+    file:
+      path: /opt/images
+      state: directory
+    when: not st.stat.exists
+  - stat: path=/opt/images/{{ rhel_guest_image_path }}
+    register: st
+  - name: Copy image to /opt/images
+    copy:
+      src: "{{ rhel_guest_image_path }}"
+      dest: /opt/images/rhel_guest_image_pvp.qcow2
+      remote_src: yes
+    when: not st.stat.exists
+  - name: Setting permissions on vhost socket folder
+    file:
+       path: /tmp/vhost-sock0
+       mode: 777
   - name: Checking status of rhel_loopback image
     virt:
       command: list_vms
@@ -411,10 +411,4 @@
 #############
   #- name: Executing pvp_script for ovs-dpdk test
   #  shell: "~/ovs_perf/ovs_performance.py -d -l testrun_log.txt --tester-type trex --tester-address localhost --tester-interface 0 --ovs-address 10.19.17.133 --ovs-user root --ovs-password root --dut-vm-address 192.168.122.5 --dut-vm-user root --dut-vm-password root   --dut-vm-nic-queues=2 --physical-interface dpdk0 --physical-speed=10 --virtual-interface vhost0 --dut-vm-nic-pci=0000:00:02.0 --no-bridge-config --skip-pv-test"
-
-#########################
-# Kernel OVS Test Setup #
-#########################
-
-
 

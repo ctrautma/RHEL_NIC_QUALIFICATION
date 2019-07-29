@@ -1,15 +1,15 @@
 # Debug mode (Will print out extra debug information. Only enable if asked to by RedHat)
-redhat_debug_mode: True
+redhat_debug_mode: False
 
-# subscription username, password, pool_id used for accessing Red Hat repositories
+# subscription username, password, pool_id used for accessing Red Hat repositories.  If you do not have one please ask your Red Hat EPM to assist.
 rh_sub_username: NA
 rh_sub_pass: NA
 rh_sub_pool_id: NA
 
 # enable the below if internally testing for QE and use the command found at -> https://wiki.test.redhat.com/ctrautma and search for the section Subscription manager testing and enclose it with ""
 # DO NOT COMMIT THIS FILE TO GITHUB if this change is made!!!!!
-qe_subscription_mode: true
-qe_subscription_command: "subscription-manager register --serverurl=subscription.rhsm.stage.redhat.com:443/subscription --baseurl=https://cdn.redhat.com --username=qa@redhat.com --password=redhatqa --auto-attach"
+qe_subscription_mode: false
+qe_subscription_command:
 
 # T-Rex version to use (example v2.53 : Note please include the v)
 trex_version: v2.53
@@ -31,19 +31,19 @@ dut_isolated_cpus: 1,3,5,7,9,11,13,15
 dut_interface_1: enp68s0f0
 dut_interface_2: enp68s0f1
 
-# DUT DPDK Driver
+# DUT DPDK Driver,  for most devices this will be vfio-pci.  Changes for other cards such as Mellanox may be required.
 dut_driver: vfio-pci
 
-# DUT DPDK PMD Mask
+# DUT DPDK PMD Mask.  PMD mask to set for which cores will be used for PMD threads.
 dut_dpdk_pmd_mask: 8002
 
-# DUT DPDK L-Core Mask
+# DUT DPDK L-Core Mask.  Core mask for the logical core,  should not conflict with DPDK PMD mask.  Does not have to align with NUMA of NIC.
 dut_dpdk_lcore_mask: 40
 
-# DUT PMD RXQ Affinity
+# DUT PMD RXQ Affinity. The receive queue affinity which will be set on the PMD threads.
 dut_pmd_rxq_affinity: 0:1,1:15
 
-# Path to RHEL guest image for PVP tests
+# Path to RHEL guest image for PVP tests.  Please download the image from the red hat website.  See readme for more instructions.
 rhel_guest_image_path: /root/rhel-8.0-beta-1-x86_64-kvm.qcow2
 
 # CPU model info, probably does not need to be touched, if an error occurs with virt-install might need to modify
@@ -51,7 +51,7 @@ rhel_guest_image_path: /root/rhel-8.0-beta-1-x86_64-kvm.qcow2
 dut_cpu_model: SandyBridge
 #dut_cpu_model: Haswell-noTSX
 
-# Virtual CPU list (Should be in isolated list), emulator vcpu can be non isolated
+# Virtual CPU list (Should be in isolated list), emulator vcpu can be non isolated.  Use cores that will not clash with DPDK core mask.
 vcpu_1: 3
 vcpu_2: 5
 vcpu_3: 7
