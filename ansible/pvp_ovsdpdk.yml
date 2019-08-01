@@ -286,10 +286,6 @@
       dest: /opt/images/rhel_guest_image_pvp.qcow2
       remote_src: yes
     when: not st.stat.exists
-  - name: Setting permissions on vhost socket folder
-    file:
-       path: /tmp/vhost-sock0
-       mode: 777
   - name: Checking status of rhel_loopback image
     virt:
       command: list_vms
@@ -307,6 +303,10 @@
     when: '"rhel_loopback" in all_vms.list_vms'
   - name: Running virt-install
     shell: virt-install --connect=qemu:///system --network vhostuser,source_type=unix,source_path=/tmp/vhost-sock0,source_mode=server,model=virtio,driver_queues=2 --network network=default --name=rhel_loopback --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0 --vcpus=4,cpuset={{ vcpu_1 }},{{ vcpu_2 }},{{ vcpu_3 }},{{ vcpu_4 }} --check-cpu --cpu {{ dut_cpu_model }},+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
+  - name: Setting permissions on vhost socket folder
+    file:
+       path: /tmp/vhost-sock0
+       mode: 777
   - name: Setting cpu pin for vcpu 0
     shell: virsh vcpupin rhel_loopback 0 {{ vcpu_1 }}
   - name: Setting cpu pin for vcpu 1
@@ -347,6 +347,7 @@
     copy:
       src: ./vm.sh
       dest: ~/vm.sh
+      mode: "777"
   - name: Logging into vm rhel_loopback
     shell: ~/vm.sh login_vm rhel_loopback
   - name: Setting up subscription manager step 1 on rhel_loopback
@@ -402,10 +403,10 @@
       path: "~/pvp_results"
   - name: Creating new pvp_results folder
     file:
-      state: present
+      state: directory
       path: "~/pvp_results"
-  - name: Go to the folder
-    command: chdir=~/pvpresults
+#  - name: Go to the folder
+#    command: chdir=~/pvpresults
 #############
 # TEST THIS #
 #############
