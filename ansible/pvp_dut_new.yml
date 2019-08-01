@@ -1,0 +1,128 @@
+- name: pvp ovs-kernel DUT setup
+  hosts: usa
+  vars_files:
+    - ./trex_settings.yml
+  tasks:
+  - debug:
+      msg: Debug mode is enabled
+    when: redhat_debug_mode == true
+
+
+#############################
+# Return back isolated CPUs #
+# ###########################
+
+  - name: Checking isolcpus in tuned
+    shell: "cat /etc/tuned/cpu-partitioning-variables.conf | grep isolated_cores={{ vcpu_1 }},{{ vcpu_2 }},{{ vcpu_3 }},{{ vcpu_4 }}"
+    register: tuned_found
+    ignore_errors: True
+  - name: Change isolcpus in tuned
+    when: tuned_found.rc != 0
+    replace:
+      dest: /etc/tuned/cpu-partitioning-variables.conf
+      regexp: 'isolated_cores={{ dut_isolated_cpus }}'
+      replace: 'isolated_cores={{ vcpu_1 }},{{ vcpu_2 }},{{ vcpu_3 }},{{ vcpu_4 }}'
+
+  - name: Starting cpu-partitioning tuned profile
+    shell: tuned-adm profile cpu-partitioning
+
+  - name: Checking isolcpus in grub
+    shell: "cat /etc/default/grub | grep isolcpus={{ vcpu_1 }},{{ vcpu_2 }},{{ vcpu_3 }},{{ vcpu_4 }}"
+    register: grub_found
+    ignore_errors: True
+  - name: Change isolcpus in grub
+    when: grub_found.rc != 0
+    replace:
+      dest: /etc/default/grub
+      regexp: 'isolcpus={{ dut_isolated_cpus }}'
+      replace: 'isolcpus={{ vcpu_1 }},{{ vcpu_2 }},{{ vcpu_3 }},{{ vcpu_4 }}'
+
+  - name: Tweak the kernel isolated list
+    command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
+    when: grub_found.rc != 0
+
+###################################################
+# Reboot dut system for settings to take effect #
+###################################################
+
+  - name: REBOOTING DUT SERVER NOW
+    reboot:
+    when: grub_found.rc != 0
+
+#######################################
+# Release the DPCK NIC back to kernel #
+# #####################################
+
+
+  - name: Delete ovs bridge
+    shell: ovs-vsctl --if-exists del-br ovs_pvp_br0
+  - name: Disable dpdk
+    shell: ovs-vsctl set Open_vSwitch . other_config:dpdk-init=false
+  - name: Stop openvswitch
+    service:
+      name: openvswitch
+      state: stopped
+  - name: Unbind nic from dpdk
+    shell: driverctl -v unset-override {{ dut_interface_1_pciid }}
+  - name: Start openvswitch
+    service:
+      name: openvswitch
+      state: started
+
+#################
+# Re-config OVS #
+#################
+
+  - name: Delete ovs_pvp_br0 if exist
+    shell: ovs-vsctl --if-exists del-br ovs_pvp_br0
+  - name: Recreate ovs
+    shell: ovs-vsctl add-br ovs_pvp_br0
+  - name: Add nic into ovs
+    shell: ovs-vsctl add-port ovs_pvp_br0 {{ dut_interface_1 }} -- set Interface {{ dut_interface_1 }} ofport_request=1
+  - name: Restart openvswitch
+    service:
+      name: openvswitch
+      state: restarted
+
+###################
+# Create  VM #
+# #################
+
+
+  - name: Shut down rhel_loopback vm
+    virt:
+      name: rhel_loopback
+      state: shutdown
+  - name: Clone vm
+    shell: virt-clone --connect=qemu:///system -o rhel_loopback -n rhel_loopback_kerneldp --auto-clone
+  - name: dump xml
+    shell: "virsh dumpxml rhel_loopback_kerneldp > /tmp/rhel_loopback_kerneldp.xml"
+  - name: Change vhostuser to bridge
+    replace:
+      dest: /tmp/rhel_loopback_kerneldp.xml
+      regexp: "<interface type='vhostuser'>"
+      replace: "<interface type='bridge'>"
+  - name: Change vhost-sock to ovs_pvp_br0
+    replace:
+      dest: /tmp/rhel_loopback_kerneldp.xml
+      regexp: "<source type='unix' path='/tmp/vhost-sock0' mode='server'/>"
+      replace: "<source bridge='ovs_pvp_br0'/>"
+  - name: Add virtualport
+    replace:
+      dest: /tmp/rhel_loopback_kerneldp.xml
+      regexp: "<driver queues='2'/>"
+      replace: "<virtualport type='openvswitch'/>"
+  - name: Shut down rhel_loopback_kerneldp vm
+    virt:
+      name: rhel_loopback_kerneldp
+      state: destroyed
+    ignore_errors: True
+  - name: Undefine rhel_loopback_kerneldp
+    shell: virsh undefine rhel_loopback_kerneldp
+    ignore_errors: True
+  - name: Define rhel_loopback_kerneldp vm
+    shell: virsh define /tmp/rhel_loopback_kerneldp.xml
+  - name: Start VM rhel_loopback_kerneldp
+    virt:
+      name: rhel_loopback_kerneldp
+      state: running

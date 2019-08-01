@@ -31,6 +31,8 @@ dut_isolated_cpus: 1,3,5,7,9,11,13,15
 dut_interface_1: enp68s0f0
 dut_interface_2: enp68s0f1
 
+dut_interface_1_pciid: "0000:44:00.0"
+
 # DUT DPDK Driver,  for most devices this will be vfio-pci.  Changes for other cards such as Mellanox may be required.
 dut_driver: vfio-pci
 
