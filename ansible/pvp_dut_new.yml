@@ -73,8 +73,6 @@
 # Re-config OVS #
 #################
 
-  - name: Delete ovs_pvp_br0 if exist
-    shell: ovs-vsctl --if-exists del-br ovs_pvp_br0
   - name: Recreate ovs
     shell: ovs-vsctl add-br ovs_pvp_br0
   - name: Add nic into ovs
