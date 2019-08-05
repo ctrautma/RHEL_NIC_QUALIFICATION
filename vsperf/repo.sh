@@ -28,8 +28,8 @@ centos_install_epel(){
 
 rhel_install_epel(){
 	case ${RELEASE} in
-		6*) yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm;;
-		7*) yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm;;
+		6*) rpm -q epel-release || yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm;;
+		7*) rpm -q epel-release || yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm;;
 	esac
 	import_epel_key
 }
@@ -51,14 +51,15 @@ centos_install_ius(){
 
 rhel_install_ius(){
 	case ${RELEASE} in
-		6*) yum -y install https://rhel6.iuscommunity.org/ius-release.rpm;;
-		7*) yum -y install https://rhel7.iuscommunity.org/ius-release.rpm;;
+		6*) rpm -q ius-release || yum -y install https://rhel6.iuscommunity.org/ius-release.rpm;;
+		7*) rpm -q ius-release || yum -y install https://rhel7.iuscommunity.org/ius-release.rpm;;
 	esac
 	import_ius_key
 }
 
 import_ius_key(){
-	rpm --import /etc/pki/rpm-gpg/IUS-COMMUNITY-GPG-KEY
+	rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-IUS-7
+	#rpm --import /etc/pki/rpm-gpg/IUS-COMMUNITY-GPG-KEY
 }
 
 if [[ -e /etc/redhat-release ]]; then
