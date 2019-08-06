@@ -972,7 +972,9 @@ def usage():
 
 def exit_with_error(str):
     print(f"Exit with {str}")
-    sys.exit(1)
+    log(f"""Exit with {str}""")
+    send_command("sriov-github-vsperf")
+    pass
 
 def main(test_list="ALL"):
     # run all checks
