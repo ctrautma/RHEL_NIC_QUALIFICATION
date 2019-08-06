@@ -952,8 +952,7 @@ def run_tests(test_list):
             sys.stdout.write(data)
             ovs_kernel_datapath_test(1,64,30)
             ovs_kernel_datapath_test(2,1500,30)
-
-    pass
+    return 0
 
 
 
@@ -978,47 +977,47 @@ def exit_with_error(str):
 def main(test_list="ALL"):
     # run all checks
     ret = os_check()
-    if not ret:
+    if ret != 0:
         exit_with_error("OS CHECK FAILED")
 
     ret = log_folder_check()
-    if not ret:
+    if ret != 0:
         exit_with_error("LOG FOLDER CREATE FAILED")
     
     ret = hugepage_checks()
-    if not ret:
+    if ret != 0:
         exit_with_error("HUGEPAGE INVALID")
 
     ret = conf_checks()
-    if not ret:
+    if ret != 0:
         exit_with_error("/proc/commandline check FAILED")
 
     ret = config_file_checks()
-    if not ret:
+    if ret != 0:
         exit_with_error("CONFIG FAILE INVALIDE")
 
     ret = nic_card_check()
-    if not ret:
+    if ret != 0:
         exit_with_error("NIC CARDS CONFIG INVALID")
 
     ret = rpm_check()
-    if not ret:
+    if ret != 0:
         exit_with_error("RPM CHECK FAILED")
 
     ret = network_connection_check()
-    if not ret:
+    if ret != 0:
         exit_with_error("NETWORK CONNECTION CHECK FAILED")
 
     ret = ovs_running_check()
-    if not ret:
+    if ret != 0:
         exit_with_error("Openvswitch running check FAILED ")
     #finished running checks
     ret = run_tests(test_list)
-    if not ret:
+    if ret != 0:
         exit_with_error("VSPERF REPLACEMENT RUN TESTS FAILED")
     
     ret = copy_config_files_to_log_folder()
-    if not ret:
+    if ret != 0:
         exit_with_error("COPY CONFIG FILE TO LOG FOLDER FAILED")
     pass
 
