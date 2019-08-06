@@ -1,0 +1,33 @@
+- name: Tc flow insertion
+  hosts: usa
+  vars_files:
+    - ./trex_settings.yml
+  tasks:
+  - debug:
+      msg: Debug mode is enabled
+    when: redhat_debug_mode == true
+
+
+##########################
+# Start to set up #
+##########################
+
+
+
+  - name: stop openvswitch
+    service:
+      name: openvswitch
+      state: stopped
+  - name: Shutdown vm rhel_loopback
+    virt:
+      name: rhel_loopback
+      state: shutdown
+#  - name: Clone repo RHEL_NIC_QUALIFICATION
+#    git:
+#      repo: https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
+#      dest: ~/RHEL_NIC_QUALIFICATION
+#      track_submodules: yes
+#      force: yes
+  - name: Install needed modules
+    yum:
+      name: perf,gnuplot,kernel-debuginfo
