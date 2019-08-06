@@ -28,7 +28,7 @@ set -a
 CASE_PATH="$(dirname $(readlink -f $0))"
 source /etc/os-release
 SYSTEM_VERSION_ID=`echo $VERSION_ID | tr -d '.'`
-source `pwd`/repo.sh
+/bin/bash $CASE_PATH/repo.sh || exit 1
 
 if [ $VERSION_ID == "7.5" ]
 then
@@ -46,15 +46,15 @@ then
     two_queue_zip="RHEL76-2Q.qcow2.lrz"
 fi
 
-work_pipe="sriov-github-work"
-notify_pipe="sriov-notfiy-work"
-unlink $work_pipe
-unlink $notify_pipe
+work_pipe=/tmp/sriov-github-work
+notify_pipe=/tmp/sriov-notfiy-work
+test -p $work_pipe && unlink $work_pipe
+test -p $notify_pipe && unlink $notify_pipe
 mkfifo $work_pipe
 mkfifo $notify_pipe
 python_file="start.py"
 bash_exit_str="sriov-github-vsperf"
-source Perf-Verify.conf
+source $CASE_PATH/Perf-Verify.conf
 set +a
 
 trap ctrl_c INT
@@ -72,10 +72,14 @@ install_beakerlib()
     rpm -q git  || yum -y install git
     rpm -q gcc  || yum -y install gcc
     rpm -q make || yum -y install make
+    test -f /usr/share/beakerlib/beakerlib.sh && return 0
+    test -d beakerlib && return 0
     git clone https://github.com/beakerlib/beakerlib.git
+    pushd beakerlib
     git checkout beakerlib-1.18
     make 
     make install
+    popd
     popd
     return 0
 }
@@ -132,6 +136,7 @@ install_python_and_init_env()
 
 check_python_process()
 {
+    local ppid=$1
 	while true
 	do
 		sleep 10
@@ -139,35 +144,32 @@ check_python_process()
 		#this time read line timeout
 		if (( ${#my_pid} == 0 ))
 		then
-			echo "Shell Check that python process exit "
+			echo "python process not exists , exit check process now !!!"
 			break
 		else
 			if kill -0 $$
 			then
 				continue
 			else
-				echo "parent process not exist"
-				exit 1
+				echo "can not find the ppid process ,exit python process now"
+                kill -9 $my_pid
+				exit 0
 			fi
 		fi
 	done
-	kill -9 $$
-	exit 1
+	exit 0
 }
 
 
 install_beakerlib
+exec {fd}<>$work_pipe
+install_python_and_init_env
 sleep 3
 source lib/lib_nc_sync.sh || exit 1
 source lib/lib_utils.sh || exit 1
-source /usr/share/beakerlib/beakerlib.sh || exit 1
-
-install_python_and_init_env
+source /usr/share/beakerlib/beakerlib.sh || exit 1 
 python start.py &
-exec {fd}<>$fd_nic_pipe
-check_python_process & 
-process_PID=$!
-
+check_python_process $$ &
 while true
 do
     echo -n "OK" > $notify_pipe

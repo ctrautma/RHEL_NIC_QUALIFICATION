@@ -23,11 +23,12 @@ def get_env(var_name):
 
 case_path = get_env("CASE_PATH")
 system_version_id = int(get_env("SYSTEM_VERSION_ID"))
-
 my_tool = tools.Tools()
 xml_tool = xmltool.XmlTool()
 work_pipe = get_env("work_pipe")
 notify_pipe = get_env("notify_pipe")
+# print(work_pipe)
+# print(notify_pipe)
 
 def set_check(ret):
     def my_wrap(f):
@@ -47,6 +48,8 @@ def set_check(ret):
 
 def send_command(cmd):
     cmd = cmd + os.linesep
+    # import ripdb
+    # ripdb.set_trace()
     try:
         with open(notify_pipe,"r") as rfd:
             rfd.read()
@@ -143,12 +146,11 @@ def enter_phase(str):
 
 def check_install(pkg_name):
     run("rpm -q {} || yum -y install {}".format(pkg_name, pkg_name))
-
+    pass
 
 @set_check(1)
 def get_nic_name_from_mac(mac_addr):
     return my_tool.get_nic_name_from_mac(mac_addr)
-
 
 @set_check(1)
 def get_pmd_masks(str_cpus):
@@ -171,7 +173,7 @@ def enable_dpdk(nic1_mac, nic2_mac):
     modprobe vfio-pci
     modprobe vfio
     """
-    run(cmd,"0,1")
+    log_and_run(cmd,"0,1")
     import ethtool
     driver_name = ethtool.get_module(nic1_name)
     if driver_name == "mlx5_core":
@@ -184,7 +186,7 @@ def enable_dpdk(nic1_mac, nic2_mac):
         /usr/share/dpdk/usertools/dpdk-devbind.py -b vfio-pci {nic2_businfo}
         /usr/share/dpdk/usertools/dpdk-devbind.py --status
         """
-        run(cmd)
+        log_and_run(cmd)
     else:
         log("using driverctl set the vfio-pci driver to nic")
         cmd = f"""
@@ -194,13 +196,13 @@ def enable_dpdk(nic1_mac, nic2_mac):
         sleep 3
         driverctl -v list-devices | grep vfio-pci
         """
-        run(cmd)
-    pass
+        log_and_run(cmd)
+    return 0
 
 @set_check(0)
 def clear_hugepage():
     hugepage_dir = bash("mount -l | grep hugetlbfs | awk '{print $3}'").value()
-    run(f"rm -rf {hugepage_dir}/*")
+    log_and_run(f"rm -rf {hugepage_dir}/*")
     return 0
 
 #################################################################################
@@ -210,6 +212,7 @@ def clear_hugepage():
 
 
 def os_check():
+    log("Begin OS Check Now")
     if get_env("ID") != 'rhel':
         log("system distro not correct")
         return 1
@@ -217,8 +220,8 @@ def os_check():
     if getpass.getuser() != "root":
         log("User check ,must be logged in as root")
         return 1
-    run("""rpm -ivh lrzip-0.616-5.el7.x86_64.rpm || echo "lrzip install" "Failed to install lrzip"  """)
-    pass
+    check_install("lrzip")
+    return 0
 
 
 def log_folder_check():
@@ -233,8 +236,9 @@ def log_folder_check():
     else:
         os.mkdir(nic_log_folder)
     local.path(nic_log_folder + "/vsperf_log_folder.txt").write(nic_log_folder)
-    os.environ.putenv("NIC_LOG_FOLDER",nic_log_folder)
-    pass
+    os.environ["NIC_LOG_FOLDER"] = nic_log_folder
+    print(os.environ)
+    return 0
 
 
 def conf_checks():
@@ -253,7 +257,7 @@ def conf_checks():
 
 def hugepage_checks():
     log("*** Checking Hugepage Config ***")
-    run("sleep 1")
+    log_and_run("sleep 1")
     if bash("""cat /proc/meminfo | awk /Hugepagesize/ | awk /1048576/""").value() == '':
         log("Hugepage Check" "Please enable 1G Hugepages")
         return 1
@@ -336,8 +340,9 @@ def rpm_check():
 
 def network_connection_check():
     log("*** Checking connection to people.redhat.com ***")
-    if bash("ping -c 1 people.redhat.com &> /dev/null"):
+    if bash("ping -c 10 people.redhat.com &> /dev/null").code == 0:
         log("*** Connection to server succesful ***")
+        return 0
     else:
         log("People.redhat.com connection fail" "!!! Cannot connect to people.redhat.com, please verify internet connection !!!")
         return 1
@@ -393,7 +398,7 @@ def download_VNF_image():
         f"virt-copy-in -a {case_path}/{one_queue_image} {udev_file} /etc/udev/rules.d/")
     bash(
         f"virt-copy-in -a {case_path}/{two_queue_image} {udev_file} /etc/udev/rules.d/")
-    pass
+    return 0
 
 
 def install_rpms():
@@ -427,8 +432,7 @@ def install_rpms():
         for pack in all_package:
             check_install(pack)
         bash("systemctl restart libvirtd")
-    pass
-
+    return 0
 
 def ovs_bridge_with_kernel(nic1_mac, nic2_mac, pmd_cpu_mask):
     cmd = f"""
@@ -462,6 +466,7 @@ def ovs_bridge_with_kernel(nic1_mac, nic2_mac, pmd_cpu_mask):
 	ovs-vsctl show
     """
     run(cmd)
+    return 0
 
 
 def ovs_bridge_with_dpdk(nic1_mac, nic2_mac, mtu_val, pmd_cpu_mask):
@@ -496,6 +501,7 @@ def ovs_bridge_with_dpdk(nic1_mac, nic2_mac, mtu_val, pmd_cpu_mask):
 	ovs-vsctl show
     """
     run(cmd)
+    return 0
 
 
 def vcpupin_in_xml(numa_node, template_xml, new_xml, cpu_list):
@@ -506,7 +512,7 @@ def vcpupin_in_xml(numa_node, template_xml, new_xml, cpu_list):
         xml_tool.update_numa(new_xml,numa_node)
         for i in range(len(cpu_list)):
             xml_tool.update_vcpu(new_xml, i, cpu_list[i])
-    pass
+    return 0
 
 
 def start_guest(guest_xml):
@@ -518,6 +524,7 @@ def start_guest(guest_xml):
         virsh start gg
         """
         run(cmd)
+    return 0
 
 
 def destroy_guest():
@@ -526,7 +533,7 @@ def destroy_guest():
     virsh undefine gg
     """
     run(cmd)
-    pass
+    return 0
 
 
 def configure_guest():
@@ -575,7 +582,7 @@ def configure_guest():
     """
     pts = bash("virsh ttyconsole gg").value()
     my_tool.run_cmd_get_output(pts, cmd)
-    pass
+    return 0
 
 
 # {modprobe  vfio enable_unsafe_noiommu_mode=1}
@@ -624,14 +631,14 @@ def guest_start_testpmd(queue_num, cpu_list, rxd_size, txd_size):
     --auto-start"
     """
     my_tool.run_cmd_get_output(pts,cmd_test,"testpmd>")
-    pass
+    return 0
 
 def clear_dpdk_interface():
     bus_list = bash(r"dpdk-devbind - s | grep - E drv = vfio-pci\| drv = igb | awk '{print $1}'").value()
     for bus in list(bus_list):
         kernel_driver = bash(f"lspci - s {bus} - v | grep Kernel | grep modules | awk '{{print $NF}}'").value()
         bash(f"dpdk-devbind - b {kernel_driver} {bus}")
-    pass
+    return 0
 
 def clear_env():
     cmd = """
@@ -661,7 +668,7 @@ def bonding_test_trex(t_time,pkt_size):
             run(f"tar -xvf {trex_name} > /dev/null 2>&1")
         log(f"python ./trex_sport.py -c {trex_server_ip} -t {t_time} --pkt_size={pkt_size} -m 10")
         run(f"python ./trex_sport.py - c {trex_server_ip} - t {t_time} - -pkt_size={pkt_size} -m 10")
-    pass
+    return 0
 
 def update_xml_sriov_vf_port(xml_file,vlan_id=0):
     
@@ -725,7 +732,7 @@ def update_xml_sriov_vf_port(xml_file,vlan_id=0):
         vf2_format_list = ['52:54:00:11:8f:eb' ,vf2_domain ,vf2_bus, vf2_slot ,vf2_func, '0x0000', '0x04', '0x0', '0x0']
         vf2_vlan_item = item.format(*vf2_format_list)
         xml_tool.add_item_from_xml(xml_file,"./devices", vf2_vlan_item)
-    pass
+    return 0
 
 
 def update_xml_vnet_port(xml_file):
@@ -759,7 +766,7 @@ def update_xml_vnet_port(xml_file):
     vnet_format_list_two = ['52:54:00:11:8f:eb' 'ovsbr0' '0x0000' '0x04' '0x0' '0x0' 'vnet1']
     vnet_format_item_two = item.format(*vnet_format_list_two)
     xml_tool.add_item_from_xml(xml_file,"./devices",vnet_format_item_two)
-    pass
+    return 0
 
 
 def update_xml_vhostuser(xml_file):
@@ -780,7 +787,7 @@ def update_xml_vhostuser(xml_file):
     f_list_two = ['52:54:00:11:8f:eb' '/tmp/vhost1' '0x0000' '0x04' '0x0' '0x0']
     f_item_two = item.format(*f_list_two)
     xml_tool.add_item_from_xml(xml_file,"./devices",f_item_two)
-    pass
+    return 0
 
 def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     clear_env()
@@ -813,7 +820,7 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     configure_guest()
     guest_start_testpmd(q_num,vcpu_list,get_env("RXD_SIZE"),get_env("TXD_SIZE"))
     bonding_test_trex(cont_time,pkt_size)
-    pass
+    return 0
 
 def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
     clear_env()
@@ -846,7 +853,7 @@ def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
     configure_guest()
     guest_start_testpmd(q_num,vcpu_list,get_env("RXD_SIZE"),get_env("TXD_SIZE"))
     bonding_test_trex(cont_time,pkt_size)
-    pass
+    return 0
 
 def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
     clear_env()
@@ -866,11 +873,11 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
     configure_guest
     guest_start_testpmd(q_num,vcpu_list,get_env("SRIOV_RXD_SIZE"),get_env("SRIOV_TXD_SIZE"))
     bonding_test_trex(cont_time,pkt_size)
-    pass
+    return 0
 
 
 def run_tests(test_list):
-
+    print(os.environ)
     if test_list == "pvp_cont":
         log_file = get_env("NIC_LOG_FOLDER") + "/" + "pvp_cont.log"
         with outtee(log_file,buff=1),errtee(log_file,buff=1):
@@ -885,6 +892,7 @@ def run_tests(test_list):
 
     if test_list == "ALL" or test_list == "1Q":
         log_file = get_env("NIC_LOG_FOLDER") + "/" + "pvp_1Q.log"
+        print(log_file)
         with outtee(log_file,buff=1),errtee(log_file,buff=1):
             data = """
             *************************************************************
@@ -952,7 +960,7 @@ def run_tests(test_list):
 def copy_config_files_to_log_folder():
     log_folder = get_env("NIC_LOG_FOLDER")
     bash("cp /root/RHEL_NIC_QUALIFICATION/Perf-Verify.conf {}".format(log_folder))
-    pass
+    return 0
 
 def usage():
     data = """
@@ -963,26 +971,63 @@ def usage():
     print(data)
     pass
 
+def exit_with_error(str):
+    print(f"Exit with {str}")
+    sys.exit(1)
 
 def main(test_list="ALL"):
     # run all checks
-    os_check()
-    log_folder_check()
-    hugepage_checks()
-    conf_checks()
-    config_file_checks()
-    nic_card_check()
-    rpm_check()
-    network_connection_check()
-    ovs_running_check()
-    # finished running checks
-    run_tests(test_list)
-    copy_config_files_to_log_folder()
+    ret = os_check()
+    if not ret:
+        exit_with_error("OS CHECK FAILED")
+
+    ret = log_folder_check()
+    if not ret:
+        exit_with_error("LOG FOLDER CREATE FAILED")
+    
+    ret = hugepage_checks()
+    if not ret:
+        exit_with_error("HUGEPAGE INVALID")
+
+    ret = conf_checks()
+    if not ret:
+        exit_with_error("/proc/commandline check FAILED")
+
+    ret = config_file_checks()
+    if not ret:
+        exit_with_error("CONFIG FAILE INVALIDE")
+
+    ret = nic_card_check()
+    if not ret:
+        exit_with_error("NIC CARDS CONFIG INVALID")
+
+    ret = rpm_check()
+    if not ret:
+        exit_with_error("RPM CHECK FAILED")
+
+    ret = network_connection_check()
+    if not ret:
+        exit_with_error("NETWORK CONNECTION CHECK FAILED")
+
+    ret = ovs_running_check()
+    if not ret:
+        exit_with_error("Openvswitch running check FAILED ")
+    #finished running checks
+    ret = run_tests(test_list)
+    if not ret:
+        exit_with_error("VSPERF REPLACEMENT RUN TESTS FAILED")
+    
+    ret = copy_config_files_to_log_folder()
+    if not ret:
+        exit_with_error("COPY CONFIG FILE TO LOG FOLDER FAILED")
     pass
 
 if __name__ == "__main__":
     send_command("rlJournalStart")
-    main()
+    with enter_phase("test phase"):
+        main()
+        pass
     send_command("rlJournalPrintText")
     send_command("rlJournalEnd")
+    send_command("sriov-github-vsperf")
     pass
