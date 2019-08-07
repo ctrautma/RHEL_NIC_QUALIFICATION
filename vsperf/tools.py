@@ -195,7 +195,7 @@ class Tools(object):
                     sio.flush()
                 else:
                     # print(data)
-                    if "]#" in data:
+                    if "]#" in data or end_flag in data:
                         sio.write(cmd + os.linesep)
                         sio.flush()
                         break
@@ -208,7 +208,7 @@ class Tools(object):
                     sio.flush()
                 else:
                     # print(data)
-                    if "]#" in data:
+                    if "]#" in data or end_flag in data:
                         break
                     else:
                         if len(data.strip(os.linesep)):

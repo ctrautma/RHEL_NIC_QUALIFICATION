@@ -69,17 +69,20 @@ function ctrl_c()
 install_beakerlib()
 {
     pushd $CASE_PATH
+
     rpm -q git  || yum -y install git
     rpm -q gcc  || yum -y install gcc
     rpm -q make || yum -y install make
     test -f /usr/share/beakerlib/beakerlib.sh && return 0
     test -d beakerlib && return 0
     git clone https://github.com/beakerlib/beakerlib.git
+
     pushd beakerlib
     git checkout beakerlib-1.18
     make 
     make install
     popd
+
     popd
     return 0
 }
@@ -132,6 +135,8 @@ install_python_and_init_env()
 	#https://pypi.org/project/ripdb/
 	pip install ripdb
 	pip install scapy
+
+    popd
 }
 
 check_python_process()
@@ -170,6 +175,10 @@ source lib/lib_utils.sh || exit 1
 source /usr/share/beakerlib/beakerlib.sh || exit 1 
 python start.py &
 check_python_process $$ &
+
+dirs -c
+pushd $CASE_PATH
+
 while true
 do
     echo -n "OK" > $notify_pipe
@@ -183,3 +192,4 @@ do
         eval $line
     fi
 done
+popd

@@ -110,14 +110,15 @@ def log_and_run(cmd, str_ret_val="0"):
 
 def shpushd(path):
     #cmd = f"""rlRun "pushd {path}" """
-    cmd = f"""pushd {path} """
+    log(f"Enter dir: {path}")
+    cmd = f"""pushd {path} > /dev/null"""
     send_command(cmd)
     pass
 
 
 def shpopd():
     #cmd = "rlRun popd"
-    cmd = "popd"
+    cmd = "popd > /dev/null"
     send_command(cmd)
     pass
 
@@ -637,12 +638,14 @@ def configure_guest():
 
 
 # {modprobe  vfio enable_unsafe_noiommu_mode=1}
-def guest_start_testpmd(queue_num, cpu_list, rxd_size, txd_size):
+def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size):
     dpdk_ver = get_env("dpdk_ver")
     cmd = f"""
     /root/one_gig_hugepages.sh 1
-    rpm -ivh  /root/{dpdk_ver}/dpdk*.rpm
+    rpm -ivh /root/dpdkrpms/{dpdk_ver}/dpdk*.rpm
+    echo "options vfio enable_unsafe_noiommu_mode=1" > /etc/modprobe.d/vfio.conf
     modprobe -r vfio_iommu_type1
+    modprobe -r vfio-pci
     modprobe -r vfio
     modprobe  vfio
     modprobe vfio-pci
@@ -653,7 +656,10 @@ def guest_start_testpmd(queue_num, cpu_list, rxd_size, txd_size):
     dpdk-devbind --status
     """
     pts = bash("virsh ttyconsole gg").value()
-    my_tool.run_cmd_get_output(pts, cmd)
+    ret = my_tool.run_cmd_get_output(pts, cmd)
+    log(ret)
+    # from remote_pdb import set_trace
+    # set_trace() 
 
     num_core = 2
     if queue_num == 1:
@@ -664,13 +670,13 @@ def guest_start_testpmd(queue_num, cpu_list, rxd_size, txd_size):
     hw_vlan_flag = "--disable-hw-vlan"
     legacy_mem = ""
 
-    cmd_test = f"""testpmd -l {cpu_list}  \
+    cmd_test = f"""testpmd -l {guest_cpu_list}  \
     --socket-mem 1024 \
     {legacy_mem} \
     -n 4 \
     -- \
     --forward-mode=io \
-    --port-topology=pair \
+    --port-topology=paired \
     {hw_vlan_flag} \
     --disable-rss \
     -i \
@@ -679,16 +685,24 @@ def guest_start_testpmd(queue_num, cpu_list, rxd_size, txd_size):
     --rxd={rxd_size} \
     --txd={txd_size} \
     --nb-cores={num_core} \
-    --auto-start"
+    --auto-start
     """
-    my_tool.run_cmd_get_output(pts,cmd_test,"testpmd>")
+    ret = my_tool.run_cmd_get_output(pts,cmd_test,"testpmd>")
+    log(ret)
     return 0
 
+@set_check(0)
 def clear_dpdk_interface():
-    bus_list = bash(r"dpdk-devbind - s | grep - E drv = vfio-pci\| drv = igb | awk '{print $1}'").value()
-    for bus in list(bus_list):
-        kernel_driver = bash(f"lspci - s {bus} - v | grep Kernel | grep modules | awk '{{print $NF}}'").value()
-        bash(f"dpdk-devbind - b {kernel_driver} {bus}")
+    if bash("rpm -qa | grep dpdk-tools").value():
+        bus_list = bash(r"dpdk-devbind -s | grep  -E drv=vfio-pci\|drv=igb | awk '{print $1}'").value()
+        print(bus_list)
+        for i in str(bus_list).split(os.linesep):
+            print("*************************************************************")
+            print(i)
+            print("*********************************************************")
+            if len(i.strip()) > 0:
+                kernel_driver = bash(f"lspci -s {i} -v | grep Kernel  | grep modules  | awk '{{print $NF}}'").value()
+                log_and_run(f"dpdk-devbind -b {kernel_driver} {i}")
     return 0
 
 def clear_env():
@@ -715,10 +729,14 @@ def bonding_test_trex(t_time,pkt_size):
         trex_dir = os.path.basename(trex_url).replace(".tar.gz","")
         trex_name = os.path.basename(trex_url)
         if not os.path.exists(trex_dir):
-            run(f"wget {trex_url} > /dev/null 2>&1")
-            run(f"tar -xvf {trex_name} > /dev/null 2>&1")
-        log(f"python ./trex_sport.py -c {trex_server_ip} -t {t_time} --pkt_size={pkt_size} -m 10")
-        run(f"python ./trex_sport.py - c {trex_server_ip} - t {t_time} - -pkt_size={pkt_size} -m 10")
+            cmd = f"""
+            wget {trex_url} > /dev/null 2>&1
+            tar -xvf {trex_name} > /dev/null 2>&1
+            """
+            log_and_run(cmd)
+        import time
+        time.sleep(3)
+        log_and_run(f"python ./trex_sport.py -c {trex_server_ip} -t {t_time} --pkt_size={pkt_size} -m 10")
     return 0
 
 def update_xml_sriov_vf_port(xml_file,vlan_id=0):
@@ -846,7 +864,7 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     nic2_name = get_env("NIC2")
     nic1_mac = my_tool.get_mac_from_name(nic1_name)
     nic2_mac = my_tool.get_mac_from_name(nic2_name)
-    numa_node = bash("cat /sys/class/net/{nic1_name}/device/numa_node").value()
+    numa_node = bash(f"cat /sys/class/net/{nic1_name}/device/numa_node").value()
 
     log("enable dpdk now")
     enable_dpdk(nic1_mac,nic2_mac)
@@ -874,7 +892,11 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     configure_guest()
 
     log("guest start testpmd test Now")
-    guest_start_testpmd(q_num,vcpu_list,get_env("RXD_SIZE"),get_env("TXD_SIZE"))
+    if q_num == 1:
+        guest_cpu_list="0,1,2"
+    else:
+        guest_cpu_list="0,1,2,3,4"
+    guest_start_testpmd(q_num,guest_cpu_list,get_env("RXD_SIZE"),get_env("TXD_SIZE"))
 
     log("PVP performance test Begin Now")
     bonding_test_trex(cont_time,pkt_size)
@@ -948,6 +970,9 @@ def run_tests(test_list):
             """
             sys.stdout.write(data)
             ovs_dpdk_pvp_test(1,1500,1500,30)
+            log("Now sleep 1000")
+            log_and_run("sleep 1000")
+            pass
 
     if test_list == "ALL" or test_list == "1Q":
         log_file = get_env("NIC_LOG_FOLDER") + "/" + "pvp_1Q.log"
@@ -962,6 +987,10 @@ def run_tests(test_list):
             sys.stdout.write(data)
             ovs_dpdk_pvp_test(1,64,64,30)
             ovs_dpdk_pvp_test(1,1500,1500,30)
+            log("Now sleep 1000")
+            log_and_run("sleep 1000")
+            pass
+
 
     if test_list == "ALL" or test_list == "2Q":
         log_file = get_env("NIC_LOG_FOLDER") + "/" + "pvp_2Q.log"
