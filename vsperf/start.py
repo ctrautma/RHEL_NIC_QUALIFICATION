@@ -375,7 +375,7 @@ def rpm_check():
 
 def network_connection_check():
     log("*** Checking connection to people.redhat.com ***")
-    ret = bash("ping -c 10 people.redhat.com &> /dev/null")
+    ret = bash("ping -c 10 people.redhat.com")
     log(ret)
     if ret.code == 0:
         log("*** Connection to server succesful ***")
