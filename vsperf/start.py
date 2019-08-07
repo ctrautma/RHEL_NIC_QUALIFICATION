@@ -237,8 +237,6 @@ def log_folder_check():
         os.mkdir(nic_log_folder)
     local.path(nic_log_folder + "/vsperf_log_folder.txt").write(nic_log_folder)
     os.environ["NIC_LOG_FOLDER"] = nic_log_folder
-    import json
-    json.dumps(os.environ,indent=4, sort_keys=False)
     return 0
 
 
@@ -878,8 +876,7 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
 
 
 def run_tests(test_list):
-    import json
-    json.dumps(os.environ,indent=4, sort_keys=False)
+    print(os.environ)
     if test_list == "pvp_cont":
         log_file = get_env("NIC_LOG_FOLDER") + "/" + "pvp_cont.log"
         with outtee(log_file,buff=1),errtee(log_file,buff=1):
