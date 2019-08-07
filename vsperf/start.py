@@ -393,10 +393,8 @@ def download_VNF_image():
         """
         local.path(udev_file).write(data)
 
-    bash(
-        f"virt-copy-in -a {case_path}/{one_queue_image} {udev_file} /etc/udev/rules.d/")
-    bash(
-        f"virt-copy-in -a {case_path}/{two_queue_image} {udev_file} /etc/udev/rules.d/")
+    bash(f"virt-copy-in -a {case_path}/{one_queue_image} {udev_file} /etc/udev/rules.d/")
+    bash(f"virt-copy-in -a {case_path}/{two_queue_image} {udev_file} /etc/udev/rules.d/")
     return 0
 
 
@@ -688,28 +686,28 @@ def update_xml_sriov_vf_port(xml_file,vlan_id=0):
 
     vlan_item = """
     <interface type='hostdev' managed='yes'>
-        <mac address={}/>
+        <mac address='{}'/>
         <vlan >
             <tag id='{}'/>
         </vlan>
         <driver name='vfio'/>
         <source >
-            <address type='pci' domain={} bus={} slot={} function={}/>
+            <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
         </source >
-        <address type='pci' domain={} bus={} slot={} function={}/>
+        <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
     </interface >
     """
     item = """
     <interface type='hostdev' managed='yes'>
-        <mac address={}/>
+        <mac address='{}'/>
         <vlan >
             <tag id='{}'/>
         </vlan >
         <driver name='vfio'/>
         <source >
-            <address type='pci' domain={} bus={} slot={} function={}/>
+            <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
         </source >
-        <address type='pci' domain={} bus={} slot={} function={}/>
+        <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
     </interface >
     """
 
@@ -746,11 +744,11 @@ def update_xml_vnet_port(xml_file):
 
     item = """
         <interface type='bridge'>
-            <mac address={}/>
-            <source bridge={}/>
+            <mac address='{}'/>
+            <source bridge='{}'/>
             <virtualport type='openvswitch'/>
-            <address type='pci' domain={} bus={} slot={} function={}/>
-            <target dev={}/>
+            <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
+            <target dev='{}'/>
             <model type='virtio'/>
         </interface>
     """
@@ -772,11 +770,11 @@ def update_xml_vhostuser(xml_file):
     xml_tool.remove_item_from_xml(xml_file,"./devices/interface[@type='vhostuser']")
     item = """
         <interface type='vhostuser'>
-            <mac address={}/>
-            <source type='unix' path={} mode='server'/>
+            <mac address='{}'/>
+            <source type='unix' path='{}' mode='server'/>
             <model type='virtio'/>
             <driver name='vhost' iommu='on' ats='on'/>
-            <address type='pci' domain={} bus={} slot={} function={}/>
+            <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
         </interface>
     """
     f_list_one = ['52:54:00:11:8f:ea','/tmp/vhost0','0x0000','0x03','0x0','0x0']
