@@ -213,10 +213,10 @@ def clear_hugepage():
 
 def os_check():
     log("Begin OS Check Now")
+    import getpass
     if get_env("ID") != 'rhel':
         log("system distro not correct")
         return 1
-    import getpass
     if getpass.getuser() != "root":
         log("User check ,must be logged in as root")
         return 1
@@ -225,40 +225,62 @@ def os_check():
 
 
 def log_folder_check():
+    log("Create log folder Now")
+
     log_folder = "/root/RHEL_NIC_QUAL_LOGS"
+
     if not os.path.exists(log_folder):
         os.mkdir(log_folder)
+
     time_stamp = time.strftime("%Y-%m-%d-%H-%M-%S")
+
     nic_log_folder = log_folder + "/" + time_stamp
+
     if os.path.exists(nic_log_folder):
         os.rmdir(nic_log_folder)
         os.mkdir(nic_log_folder)
     else:
         os.mkdir(nic_log_folder)
+
     local.path(nic_log_folder + "/vsperf_log_folder.txt").write(nic_log_folder)
+
     os.environ["NIC_LOG_FOLDER"] = nic_log_folder
+
+    log(f"log folder is {nic_log_folder}")
+
     return 0
 
 
 def conf_checks():
     proc_cmdline_info = local.path("/proc/cmdline").read()
+    log(proc_cmdline_info)
     if not "intel_iommu=on" in proc_cmdline_info:
         log("Iommu Enablement" "Please enable IOMMU mode in your grub config")
         return 1
+    else:
+        log("Check intel_iommu=on SUCCESS")
+
     if bash("tuned-adm active | grep cpu-partitioning").value() == '':
         log("Tuned-adm" "cpu-partitioning profile must be active")
         return 1
+    else:
+        log("tuned-adm active OK")
+
     if bash(""" cat /proc/cmdline  | grep "nohz_full=[0-9]"  """).value() == '':
         log("Tuned Config" "Must set cores to isolate in tuned-adm profile")
         return 1
+    else:
+        log("nohz_full flag check is OK")
     return 0
 
 
 def hugepage_checks():
     log("*** Checking Hugepage Config ***")
-    log_and_run("sleep 1")
-    if bash("""cat /proc/meminfo | awk /Hugepagesize/ | awk /1048576/""").value() == '':
-        log("Hugepage Check" "Please enable 1G Hugepages")
+    ret = bash("""cat /proc/meminfo | awk /Hugepagesize/ | awk /1048576/""").value()
+    if ret:
+        log("Hugepage Check OK")
+    else:
+        log("Hugepage Check Failed" "Please enable 1G Hugepages")
         return 1
     return 0
 
@@ -272,7 +294,6 @@ def check_env_var(str_name):
 
 def config_file_checks():
     log("*** Checking Config File ***")
-    run("sleep 1")
     with pushd(case_path):
         str_all_name = """
         NIC1
@@ -310,40 +331,56 @@ def nic_card_check():
 
 def rpm_check():
     log("*** Checking for installed RPMS ***")
+
     if bash("rpm -qa | grep ^openvswitch-[0-9]").value() == "":
         log("Openvswitch rpm" "Please install Openvswitch rpm")
         return 1
+    else:
+        log("Openvswitch rpm check OK")
+
     if bash("rpm -qa | grep dpdk-tools").value() == "":
         log("Please install dpdk tools rpm ")
         return 1
+    else:
+        log("dpdk tools check OK ")
+
     if bash("rpm -qa | grep dpdk-[0-9]").value() == "":
         log("Please install dpdk package rpm ")
         return 1
-    if bash("rpm -qa | grep qemu-kvm-rhev").value() == "":
-        log("Please install qemu-img-rhev rpm")
+    else:
+        log("dpdk package check OK")
+
+    if bash("rpm -qa | grep qemu-kvm-tools").value() == "":
+        log("Please install qemu-kvm-tools rpm ")
         return 1
-    if bash("rpm -qa | grep qemu-kvm-tools-rhev").value() == "":
-        log("Please install qemu-kvm-tools-rhev rpm ")
-        return 1
-    if bash("rpm -qa | grep qemu-kvm-tools-rhev").value() == "":
-        log("Please install qemu-kvm-tools-rhev rpm ")
-        return 1
+    else:
+        log("qemu-kvm-tools check OK")
+
     if bash("rpm -qa | grep qemu-img").value() == "":
         log("Please install qemu-img rpm ")
         return 1
+    else:
+        log("qemu-img package check OK")
+
     if bash("rpm -qa | grep qemu-kvm").value() == "":
         log("Please install qemu-kmv rpm ")
         return 1
+    else:
+        log("qemu-kvm package check OK")
+
     return 0
 
 
 def network_connection_check():
     log("*** Checking connection to people.redhat.com ***")
-    if bash("ping -c 10 people.redhat.com &> /dev/null").code == 0:
+    ret = bash("ping -c 10 people.redhat.com &> /dev/null")
+    log(ret)
+    if ret.code == 0:
         log("*** Connection to server succesful ***")
         return 0
     else:
-        log("People.redhat.com connection fail" "!!! Cannot connect to people.redhat.com, please verify internet connection !!!")
+        log("People.redhat.com connection fail !!!!")  
+        log("Cannot connect to people.redhat.com, please verify internet connection !!!")
         return 1
     return 0
 
@@ -352,6 +389,8 @@ def ovs_running_check():
     log("*** Checking for running instance of Openvswitch ***")
     if bash("pgrep ovs-vswitchd || pgrep ovsdb-server").value():
         log("It appears Openvswitch may be running, please stop all services and processes")
+    else:
+        log("ovs-vswitchd and ovsdb-server check OK")
     return 0
 
 
@@ -792,18 +831,20 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     nic2_name = get_env("NIC2")
     nic1_mac = my_tool.get_mac_from_name(nic1_name)
     nic2_mac = my_tool.get_mac_from_name(nic2_name)
+    numa_node = bash("cat /sys/class/net/{nic1_name}/device/numa_node").value()
+
+    log("enable dpdk now")
     enable_dpdk(nic1_mac,nic2_mac)
 
-    numa_node = bash("cat /sys/class/net/{nic1_name}/device/numa_node").value()
-    # vcpu1 = get_env("VCPU1")
-    # vcpu2 = get_env("VCPU2")
-
+    log("config openvswitch with dpdk ")
     if q_num == 1:
         vcpu_list = [get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3")]
         ovs_bridge_with_dpdk(nic1_mac,nic2_mac,mtu_val,get_env("PMD2MASK"))
     else:
         vcpu_list = [get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3"),get_env("VCPU4"),get_env("VCPU5")]
         ovs_bridge_with_dpdk(nic1_mac,nic2_mac,mtu_val,get_env("PMD4MASK"))
+    
+    log("update guest xml config file")
     new_xml = "g1.xml"
     vcpupin_in_xml(numa_node,"guest.xml",new_xml,vcpu_list)
     update_xml_vhostuser(new_xml)
@@ -813,10 +854,16 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     else:
         xml_tool.update_image_source(new_xml,case_path + "/" + get_env("two_queue_image"))
     
+    log("start and config guest Now")
     start_guest(new_xml)
     configure_guest()
+
+    log("guest start testpmd test Now")
     guest_start_testpmd(q_num,vcpu_list,get_env("RXD_SIZE"),get_env("TXD_SIZE"))
+
+    log("PVP performance test Begin Now")
     bonding_test_trex(cont_time,pkt_size)
+
     return 0
 
 def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
