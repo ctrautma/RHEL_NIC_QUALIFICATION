@@ -237,7 +237,8 @@ def log_folder_check():
         os.mkdir(nic_log_folder)
     local.path(nic_log_folder + "/vsperf_log_folder.txt").write(nic_log_folder)
     os.environ["NIC_LOG_FOLDER"] = nic_log_folder
-    print(os.environ)
+    import json
+    json.dumps(os.environ,indent=4, sort_keys=False)
     return 0
 
 
@@ -311,28 +312,28 @@ def nic_card_check():
 
 def rpm_check():
     log("*** Checking for installed RPMS ***")
-    if bash("rpm -qa | grep ^openvswitch-[0-9]") == '':
+    if bash("rpm -qa | grep ^openvswitch-[0-9]").value() == "":
         log("Openvswitch rpm" "Please install Openvswitch rpm")
         return 1
-    if bash("rpm -qa | grep dpdk-tools") == "":
+    if bash("rpm -qa | grep dpdk-tools").value() == "":
         log("Please install dpdk tools rpm ")
         return 1
-    if bash("rpm -qa | grep dpdk-[0-9]") == "":
+    if bash("rpm -qa | grep dpdk-[0-9]").value() == "":
         log("Please install dpdk package rpm ")
         return 1
-    if bash("rpm -qa | grep qemu-kvm-rhev") == "":
+    if bash("rpm -qa | grep qemu-kvm-rhev").value() == "":
         log("Please install qemu-img-rhev rpm")
         return 1
-    if bash("rpm -qa | grep qemu-kvm-tools-rhev") == "":
+    if bash("rpm -qa | grep qemu-kvm-tools-rhev").value() == "":
         log("Please install qemu-kvm-tools-rhev rpm ")
         return 1
-    if bash("rpm -qa | grep qemu-kvm-tools-rhev") == "":
+    if bash("rpm -qa | grep qemu-kvm-tools-rhev").value() == "":
         log("Please install qemu-kvm-tools-rhev rpm ")
         return 1
-    if bash("rpm -qa | grep qemu-img") == "":
+    if bash("rpm -qa | grep qemu-img").value() == "":
         log("Please install qemu-img rpm ")
         return 1
-    if bash("rpm -qa | grep qemu-kvm") == "":
+    if bash("rpm -qa | grep qemu-kvm").value() == "":
         log("Please install qemu-kmv rpm ")
         return 1
     return 0
@@ -351,7 +352,7 @@ def network_connection_check():
 
 def ovs_running_check():
     log("*** Checking for running instance of Openvswitch ***")
-    if bash("pgrep ovs-vswitchd || pgrep ovsdb-server"):
+    if bash("pgrep ovs-vswitchd || pgrep ovsdb-server").value():
         log("It appears Openvswitch may be running, please stop all services and processes")
     return 0
 
@@ -643,12 +644,12 @@ def clear_dpdk_interface():
 def clear_env():
     cmd = """
     systemctl start openvswitch
-    ovs-vsctl - -if-exists del-br ovsbr0
+    ovs-vsctl --if-exists del-br ovsbr0
     virsh destroy gg
     virsh undefine gg
     systemctl stop openvswitch
     """
-    run(cmd)
+    log_and_run(cmd,"0,1")
     clear_dpdk_interface()
     clear_hugepage()
     return 0
@@ -759,11 +760,11 @@ def update_xml_vnet_port(xml_file):
     xml_tool.add_item_from_xml(xml_file,"./devices", append_item)
 
     
-    vnet_format_list_one = ['52:54:00:11:8f:ea' 'ovsbr0' '0x0000' '0x03' '0x0' '0x0' 'vnet0']
+    vnet_format_list_one = ['52:54:00:11:8f:ea','ovsbr0','0x0000','0x03','0x0','0x0','vnet0']
     vnet_format_item_one = item.format(*vnet_format_list_one)
     xml_tool.add_item_from_xml(xml_file,"./devices" ,vnet_format_item_one)
 
-    vnet_format_list_two = ['52:54:00:11:8f:eb' 'ovsbr0' '0x0000' '0x04' '0x0' '0x0' 'vnet1']
+    vnet_format_list_two = ['52:54:00:11:8f:eb','ovsbr0','0x0000','0x04','0x0','0x0','vnet1']
     vnet_format_item_two = item.format(*vnet_format_list_two)
     xml_tool.add_item_from_xml(xml_file,"./devices",vnet_format_item_two)
     return 0
@@ -773,18 +774,18 @@ def update_xml_vhostuser(xml_file):
     xml_tool.remove_item_from_xml(xml_file,"./devices/interface[@type='vhostuser']")
     item = """
         <interface type='vhostuser'>
-            <mac address={}'/>
+            <mac address={}/>
             <source type='unix' path={} mode='server'/>
             <model type='virtio'/>
             <driver name='vhost' iommu='on' ats='on'/>
             <address type='pci' domain={} bus={} slot={} function={}/>
         </interface>
     """
-    f_list_one = ['52:54:00:11:8f:ea' '/tmp/vhost0' '0x0000' '0x03' '0x0' '0x0']
+    f_list_one = ['52:54:00:11:8f:ea','/tmp/vhost0','0x0000','0x03','0x0','0x0']
     f_item_one = item.format(*f_list_one)
     xml_tool.add_item_from_xml(xml_file,"./devices",f_item_one)
 
-    f_list_two = ['52:54:00:11:8f:eb' '/tmp/vhost1' '0x0000' '0x04' '0x0' '0x0']
+    f_list_two = ['52:54:00:11:8f:eb','/tmp/vhost1','0x0000','0x04','0x0','0x0']
     f_item_two = item.format(*f_list_two)
     xml_tool.add_item_from_xml(xml_file,"./devices",f_item_two)
     return 0
@@ -877,7 +878,8 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
 
 
 def run_tests(test_list):
-    print(os.environ)
+    import json
+    json.dumps(os.environ,indent=4, sort_keys=False)
     if test_list == "pvp_cont":
         log_file = get_env("NIC_LOG_FOLDER") + "/" + "pvp_cont.log"
         with outtee(log_file,buff=1),errtee(log_file,buff=1):

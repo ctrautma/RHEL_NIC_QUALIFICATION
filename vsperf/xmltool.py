@@ -90,16 +90,17 @@ class XmlTool(object):
         if None != vcpu_item:
             current_num = int(vcpu_item.text)
             vcpu_item.text = str(num)
+
         item = ET.ElementPath.find(root, "./cputune")
         sub_item = ET.ElementPath.find(root, "./cputune/vcpupin")
         if num > current_num:
-            for i in range(num-current_num):
+            for i in range(num - current_num):
                 item.append(sub_item)
+
         sub_item_list = list(item)
         for i in range(sub_item_list.__len__()):
             sub_item_list[i].set(str("vcpu"), str(i))
             sub_item_list[i].set(str("cpuset"), str(i))
-        sub_item_list.sort()
 
         print(ET.tostringlist(item))
         tree.write(xml_file)
