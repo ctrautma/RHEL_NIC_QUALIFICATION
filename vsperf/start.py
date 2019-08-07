@@ -109,13 +109,15 @@ def log_and_run(cmd, str_ret_val="0"):
     pass
 
 def shpushd(path):
-    cmd = f"""rlRun "pushd {path}" """
+    #cmd = f"""rlRun "pushd {path}" """
+    cmd = f"""pushd {path} """
     send_command(cmd)
     pass
 
 
 def shpopd():
-    cmd = "rlRun popd"
+    #cmd = "rlRun popd"
+    cmd = "popd"
     send_command(cmd)
     pass
 
@@ -398,7 +400,7 @@ def download_VNF_image():
     with pushd(case_path):
         one_queue_image = get_env("one_queue_image")
         two_queue_image = get_env("two_queue_image")
-        if os.path.exists(f"./{one_queue_image}"):
+        if os.path.exists(f"{case_path}/{one_queue_image}"):
             pass
         else:
             log_info = """
@@ -408,10 +410,13 @@ def download_VNF_image():
             """
             log(log_info)
             one_queue_zip = get_env("one_queue_zip")
-            bash(f"wget people.redhat.com/ctrautma/{one_queue_zip}")
-            bash(f"lrzip -d {one_queue_zip}")
-            bash(f"rm -f {one_queue_zip}")
-        if os.path.exists(f"./{two_queue_image}"):
+            cmd = f"""
+            wget people.redhat.com/ctrautma/{one_queue_zip} > /dev/null 2>&1
+            lrzip -d {one_queue_zip}
+            rm -f {one_queue_zip}
+            """
+            log_and_run(cmd)
+        if os.path.exists(f"{case_path}/{two_queue_image}"):
             pass
         else:
             log_info = """
@@ -421,19 +426,29 @@ def download_VNF_image():
             """
             log(log_info)
             two_queue_zip = get_env("two_queue_zip")
-            bash(f"wget people.redhat.com/ctrautma/{two_queue_zip}")
-            bash(f"lrzip -d {two_queue_zip}")
-            bash(f"rm -f {two_queue_zip}")
+            cmd = f"""
+            wget people.redhat.com/ctrautma/{two_queue_zip} > /dev/null 2>&1
+            lrzip -d {two_queue_zip}
+            rm -f {two_queue_zip}
+            """
+            log_and_run(cmd)
+            pass
 
         udev_file = "60-persistent-net.rules"
         data = """
         ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:03:00.0", NAME:="eth1"
         ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:04:00.0", NAME:="eth2"
         """
+        log("add net rules to guest image")
+        log(data)
         local.path(udev_file).write(data)
 
-    bash(f"virt-copy-in -a {case_path}/{one_queue_image} {udev_file} /etc/udev/rules.d/")
-    bash(f"virt-copy-in -a {case_path}/{two_queue_image} {udev_file} /etc/udev/rules.d/")
+
+    cmd = f"""
+    virt-copy-in -a {case_path}/{one_queue_image} {udev_file} /etc/udev/rules.d/
+    virt-copy-in -a {case_path}/{two_queue_image} {udev_file} /etc/udev/rules.d/
+    """
+    log_and_run(cmd)
     return 0
 
 
