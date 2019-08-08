@@ -406,7 +406,7 @@ def download_VNF_image():
         else:
             log_info = """
             ***********************************************************************
-            *** Downloading and decompressing VNF image. This may take a while! ***
+            Downloading and decompressing VNF image. This may take a while!
             ***********************************************************************
             """
             log(log_info)
@@ -422,7 +422,7 @@ def download_VNF_image():
         else:
             log_info = """
             ***********************************************************************
-            *** Downloading and decompressing VNF image. This may take a while! ***
+            Downloading and decompressing VNF image. This may take a while!
             ***********************************************************************
             """
             log(log_info)
@@ -725,7 +725,7 @@ def bonding_test_trex(t_time,pkt_size):
         if ret.code != 0:
             log("Trex server {} not up please check ".format(trex_server_ip))
         
-        trex_url = "http://netqe-bj.usersys.redhat.com/share/wanghekai/v2.49.tar.gz"
+        trex_url = "http://netqe-bj.usersys.redhat.com/share/wanghekai/v2.59.tar.gz"
         trex_dir = os.path.basename(trex_url).replace(".tar.gz","")
         trex_name = os.path.basename(trex_url)
         if not os.path.exists(trex_dir):
@@ -736,7 +736,7 @@ def bonding_test_trex(t_time,pkt_size):
             log_and_run(cmd)
         import time
         time.sleep(3)
-        log_and_run(f"python ./trex_sport.py -c {trex_server_ip} -t {t_time} --pkt_size={pkt_size} -m 10")
+        log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '90:e2:ba:29:bf:15 90:e2:ba:29:bf:14' -t {t_time} --pkt_size={pkt_size} -m 10 """)
     return 0
 
 def update_xml_sriov_vf_port(xml_file,vlan_id=0):
@@ -962,8 +962,8 @@ def run_tests(test_list):
     if test_list == "pvp_cont":
         data = """
         *************************************************************
-        *** Running 1500 Byte PVP verify check ***
-        *** For 1Q 2PMD Test
+        Running 1500 Byte PVP verify check
+        For 1Q 2PMD Test
         *************************************************************
         """
         log(data)
@@ -973,12 +973,15 @@ def run_tests(test_list):
     if test_list == "ALL" or test_list == "1Q":
         data = """
         *************************************************************
-        *** Running 1500 Byte PVP verify check ***
-        *** For 1Q 2PMD Test
+        Running 1500 Byte PVP verify check
+        For 1Q 2PMD Test
         *************************************************************
         """
         log(data)
         ovs_dpdk_pvp_test(1,64,64,30)
+        log("***************************************************************************************")
+        import time
+        time.sleep(10000)
         ovs_dpdk_pvp_test(1,1500,1500,30)
         pass
 
@@ -986,8 +989,8 @@ def run_tests(test_list):
     if test_list == "ALL" or test_list == "2Q":
         data = """
         *************************************************************
-        *** Running 1500 Byte PVP verify check ***
-        *** For 2Q 4PMD Test ***
+        Running 1500 Byte PVP verify check
+        For 2Q 4PMD Test
         *************************************************************
         """
         log(data)
@@ -998,7 +1001,7 @@ def run_tests(test_list):
     if test_list == "ALL" or test_list == "Jumbo":
         data = """
         *************************************************************
-        *** Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST ***
+        Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST
         *************************************************************
         """
         log(data)
@@ -1010,7 +1013,7 @@ def run_tests(test_list):
     if test_list == "ALL" or test_list == "Kernel":
         data = """
         ************************************************************
-        *** Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST ***
+        Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST
         ************************************************************
         """
         log(data)
@@ -1021,7 +1024,7 @@ def run_tests(test_list):
     if test_list == "ALL" or test_list == "SRIOV":
         data = """
         ************************************************
-        *** Running 64/1500 Bytes SR-IOV VSPerf TEST ***
+        Running 64/1500 Bytes SR-IOV VSPerf TEST
         ************************************************
         """
         log(data)

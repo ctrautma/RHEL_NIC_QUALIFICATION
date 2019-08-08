@@ -194,8 +194,7 @@ check_python_process()
 all_env_init()
 {
     env
-    install_beakerlib
-    exec {fd}<>$work_pipe
+    install_beakerlib    
     install_python_and_init_env
     sleep 3
     source lib/lib_nc_sync.sh || exit 1
@@ -207,20 +206,27 @@ all_env_init()
     pushd $CASE_PATH
 }
 
-create_log_folder
-all_env_init | tee -a ${nic_log_folder}/vsperf_log_folder.txt
-
-while true
-do
-    echo -n "OK" > $notify_pipe
-    #Here read ctrl + D as the end of one each command
-    if read -r line  <& $fd; then
-        if [[ "$line" == "${bash_exit_str}" ]]; then
-            my_pid=`ps -ef | grep python | grep ${python_file} | awk '{print $2}'`
-            kill -n 9 $my_pid
-            break
+run_forever()
+{
+    create_log_folder
+    all_env_init
+    exec {fd}<>$work_pipe
+    while true
+    do
+        echo -n "OK" > $notify_pipe
+        #Here read ctrl + D as the end of one each command
+        if read -r line  <& $fd; then
+            if [[ "$line" == "${bash_exit_str}" ]]; then
+                my_pid=`ps -ef | grep python | grep ${python_file} | awk '{print $2}'`
+                kill -n 9 $my_pid
+                break
+            fi
+            eval $line
         fi
-        eval $line
-    fi
-done | tee -a ${nic_log_folder}/vsperf_pvp_all_performance.txt
+    done
+}
+
+touch ${nic_log_folder}/vsperf_pvp_all_performance.txt
+run_forever |& tee -a ${nic_log_folder}/vsperf_pvp_all_performance.txt
+
 popd
