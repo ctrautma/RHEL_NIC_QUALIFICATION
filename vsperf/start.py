@@ -960,88 +960,76 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
 def run_tests(test_list):
     print(os.environ)
     if test_list == "pvp_cont":
-        log_file = get_env("NIC_LOG_FOLDER") + "/" + "pvp_cont.log"
-        with outtee(log_file,buff=1),errtee(log_file,buff=1):
-            data = """
-            *************************************************************
-            *** Running 1500 Byte PVP verify check ***
-            *** For 1Q 2PMD Test
-            *************************************************************
-            """
-            sys.stdout.write(data)
-            ovs_dpdk_pvp_test(1,1500,1500,30)
-            log("Now sleep 1000")
-            log_and_run("sleep 1000")
-            pass
+        data = """
+        *************************************************************
+        *** Running 1500 Byte PVP verify check ***
+        *** For 1Q 2PMD Test
+        *************************************************************
+        """
+        log(data)
+        ovs_dpdk_pvp_test(1,1500,1500,30)
+        pass
 
     if test_list == "ALL" or test_list == "1Q":
-        log_file = get_env("NIC_LOG_FOLDER") + "/" + "pvp_1Q.log"
-        print(log_file)
-        with outtee(log_file,buff=1),errtee(log_file,buff=1):
-            data = """
-            *************************************************************
-            *** Running 1500 Byte PVP verify check ***
-            *** For 1Q 2PMD Test
-            *************************************************************
-            """
-            sys.stdout.write(data)
-            ovs_dpdk_pvp_test(1,64,64,30)
-            ovs_dpdk_pvp_test(1,1500,1500,30)
-            log("Now sleep 1000")
-            log_and_run("sleep 1000")
-            pass
+        data = """
+        *************************************************************
+        *** Running 1500 Byte PVP verify check ***
+        *** For 1Q 2PMD Test
+        *************************************************************
+        """
+        log(data)
+        ovs_dpdk_pvp_test(1,64,64,30)
+        ovs_dpdk_pvp_test(1,1500,1500,30)
+        pass
 
 
     if test_list == "ALL" or test_list == "2Q":
-        log_file = get_env("NIC_LOG_FOLDER") + "/" + "pvp_2Q.log"
-        with outtee(log_file,buff=1),errtee(log_file,buff=1):
-            data = """
-            *************************************************************
-            *** Running 1500 Byte PVP verify check ***
-            *** For 2Q 4PMD Test ***
-            *************************************************************
-            """
-            sys.stdout.write(data)
-            ovs_dpdk_pvp_test(2,64,64,30)
-            ovs_dpdk_pvp_test(2,1500,1500,30)
+        data = """
+        *************************************************************
+        *** Running 1500 Byte PVP verify check ***
+        *** For 2Q 4PMD Test ***
+        *************************************************************
+        """
+        log(data)
+        ovs_dpdk_pvp_test(2,64,64,30)
+        ovs_dpdk_pvp_test(2,1500,1500,30)
+        pass
 
     if test_list == "ALL" or test_list == "Jumbo":
-        log_file = get_env("NIC_LOG_FOLDER") + "/" + "pvp_Jumbo.log"
-        with outtee(log_file,buff=1),errtee(log_file,buff=1):
-            data = """
-            *************************************************************
-            *** Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST ***
-            *************************************************************
-            """
-            sys.stdout.write(data)
-            ovs_dpdk_pvp_test(1,2000,2000,30)
-            ovs_dpdk_pvp_test(2,9000,9000,30)
+        data = """
+        *************************************************************
+        *** Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST ***
+        *************************************************************
+        """
+        log(data)
+        ovs_dpdk_pvp_test(1,2000,2000,30)
+        ovs_dpdk_pvp_test(2,9000,9000,30)
+        pass
+
 
     if test_list == "ALL" or test_list == "Kernel":
-        log_file = get_env("NIC_LOG_FOLDER") + "/" + "pvp_kernel.log"
-        with outtee(log_file,buff=1),errtee(log_file,buff=1):
-            data = """
-            ************************************************************
-            *** Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST ***
-            ************************************************************
-            """
-            sys.stdout.write(data)
-            ovs_kernel_datapath_test(1,64,30)
-            ovs_kernel_datapath_test(2,1500,30)
+        data = """
+        ************************************************************
+        *** Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST ***
+        ************************************************************
+        """
+        log(data)
+        ovs_kernel_datapath_test(1,64,30)
+        ovs_kernel_datapath_test(2,1500,30)
+        pass
     
     if test_list == "ALL" or test_list == "SRIOV":
-        log_file = get_env("NIC_LOG_FOLDER") + "/" + "pvp_sriov.log"
-        with outtee(log_file,buff=1),errtee(log_file,buff=1):
-            data = """
-            ************************************************
-            *** Running 64/1500 Bytes SR-IOV VSPerf TEST ***
-            ************************************************
-            """
-            sys.stdout.write(data)
-            ovs_kernel_datapath_test(1,64,30)
-            ovs_kernel_datapath_test(2,1500,30)
-    return 0
+        data = """
+        ************************************************
+        *** Running 64/1500 Bytes SR-IOV VSPerf TEST ***
+        ************************************************
+        """
+        log(data)
+        ovs_kernel_datapath_test(1,64,30)
+        ovs_kernel_datapath_test(2,1500,30)
+        pass
 
+    return 0
 
 
 def copy_config_files_to_log_folder():
@@ -1066,56 +1054,70 @@ def exit_with_error(str):
 
 def main(test_list="ALL"):
     # run all checks
-    ret = os_check()
-    if ret != 0:
-        exit_with_error("OS CHECK FAILED")
-
-    ret = log_folder_check()
-    if ret != 0:
-        exit_with_error("LOG FOLDER CREATE FAILED")
+    with enter_phase("OS DISTRO CHECK"):
+        ret = os_check()
+        if ret != 0:
+            exit_with_error("OS CHECK FAILED")
+        pass
     
-    ret = hugepage_checks()
-    if ret != 0:
-        exit_with_error("HUGEPAGE INVALID")
+    with enter_phase("HUGEPAGE CHECK"):
+        ret = hugepage_checks()
+        if ret != 0:
+            exit_with_error("HUGEPAGE INVALID")
+        pass
 
-    ret = conf_checks()
-    if ret != 0:
-        exit_with_error("/proc/commandline check FAILED")
+    with enter_phase("CONFIG CHECK"):
+        ret = conf_checks()
+        if ret != 0:
+            exit_with_error("/proc/commandline check FAILED")
+        pass
 
-    ret = config_file_checks()
-    if ret != 0:
-        exit_with_error("CONFIG FAILE INVALIDE")
+    with enter_phase("CONFIG FILE CHECK"):
+        ret = config_file_checks()
+        if ret != 0:
+            exit_with_error("CONFIG FAILE INVALIDE")
+        pass
 
-    ret = nic_card_check()
-    if ret != 0:
-        exit_with_error("NIC CARDS CONFIG INVALID")
+    with enter_phase("NIC CARD CHECK"):
+        ret = nic_card_check()
+        if ret != 0:
+            exit_with_error("NIC CARDS CONFIG INVALID")
+        pass
 
-    ret = rpm_check()
-    if ret != 0:
-        exit_with_error("RPM CHECK FAILED")
+    with enter_phase("RPM PACKAGES CHECK"):
+        ret = rpm_check()
+        if ret != 0:
+            exit_with_error("RPM CHECK FAILED")
+        pass
 
-    ret = network_connection_check()
-    if ret != 0:
-        exit_with_error("NETWORK CONNECTION CHECK FAILED")
+    with enter_phase("NETWORK CONNECTION CHECK"):
+        ret = network_connection_check()
+        if ret != 0:
+            exit_with_error("NETWORK CONNECTION CHECK FAILED")
+        pass
 
-    ret = ovs_running_check()
-    if ret != 0:
-        exit_with_error("Openvswitch running check FAILED ")
+    with enter_phase("OVS RUNNING CHECK"):
+        ret = ovs_running_check()
+        if ret != 0:
+            exit_with_error("Openvswitch running check FAILED ")
+        pass
+
     #finished running checks
-    ret = run_tests(test_list)
-    if ret != 0:
-        exit_with_error("VSPERF REPLACEMENT RUN TESTS FAILED")
-    
-    ret = copy_config_files_to_log_folder()
-    if ret != 0:
-        exit_with_error("COPY CONFIG FILE TO LOG FOLDER FAILED")
-    pass
+    with enter_phase("VSPERF RUN TEST LIST"):
+        ret = run_tests(test_list)
+        if ret != 0:
+            exit_with_error("VSPERF REPLACEMENT RUN TESTS FAILED")
+        pass
+
+    with enter_phase("COPY CONFIG FILES TO LOG FOLDER"):
+        ret = copy_config_files_to_log_folder()
+        if ret != 0:
+            exit_with_error("COPY CONFIG FILE TO LOG FOLDER FAILED")
+        pass
 
 if __name__ == "__main__":
     send_command("rlJournalStart")
-    with enter_phase("test phase"):
-        main()
-        pass
+    main()
     send_command("rlJournalPrintText")
     send_command("rlJournalEnd")
     send_command("sriov-github-vsperf")

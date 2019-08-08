@@ -57,6 +57,31 @@ bash_exit_str="sriov-github-vsperf"
 source $CASE_PATH/Perf-Verify.conf
 set +a
 
+create_log_folder()
+{
+    echo "Create Log Folder Begin Now"
+    log_folder="/root/RHEL_NIC_QUAL_LOGS"
+    if ! test -d $log_folder
+    then
+        echo "Create new log folder"
+        mkdir -p $log_folder
+    fi
+
+    time_stamp=`date +%Y-%m-%d-%H-%M-%S`
+    nic_log_folder=${log_folder}"/"${time_stamp}
+    if test -d $nic_log_folder
+    then
+        rm -rf $nic_log_folder
+        mkdir -p $nic_log_folder
+    else
+        mkdir -p $nic_log_folder
+    fi
+
+    touch ${nic_log_folder}"/vsperf_log_folder.txt"
+    export NIC_LOG_FOLDER=$nic_log_folder
+    return 0
+}
+
 trap ctrl_c INT
 function ctrl_c() 
 {
@@ -166,18 +191,24 @@ check_python_process()
 }
 
 
-install_beakerlib
-exec {fd}<>$work_pipe
-install_python_and_init_env
-sleep 3
-source lib/lib_nc_sync.sh || exit 1
-source lib/lib_utils.sh || exit 1
-source /usr/share/beakerlib/beakerlib.sh || exit 1 
-python start.py &
-check_python_process $$ &
+all_env_init()
+{
+    env
+    install_beakerlib
+    exec {fd}<>$work_pipe
+    install_python_and_init_env
+    sleep 3
+    source lib/lib_nc_sync.sh || exit 1
+    source lib/lib_utils.sh || exit 1
+    source /usr/share/beakerlib/beakerlib.sh || exit 1 
+    python start.py &
+    check_python_process $$ &
+    dirs -c
+    pushd $CASE_PATH
+}
 
-dirs -c
-pushd $CASE_PATH
+create_log_folder
+all_env_init | tee -a ${nic_log_folder}/vsperf_log_folder.txt
 
 while true
 do
@@ -191,5 +222,5 @@ do
         fi
         eval $line
     fi
-done
+done | tee -a ${nic_log_folder}/vsperf_pvp_all_performance.txt
 popd
