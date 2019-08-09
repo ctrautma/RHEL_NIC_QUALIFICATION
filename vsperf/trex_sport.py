@@ -94,24 +94,65 @@ class TrexTest(object):
                 flow_stats=None,
                 mode=STLTXCont(percentage=100)
                 )
+    
+    def create_stream_for_pvp(self,dst_mac):
+        l2 = Ether(dst=dst_mac)
+        pad = max(0, self.pkt_size - len(l2)) * 'x'
+        return STLStream(isg=10.0,
+                packet=STLPktBuilder(pkt=l2 / pad),
+                #flow_stats=STLFlowStats(pg_id=1),
+                flow_stats=None,
+                mode=STLTXCont(percentage=100)
+                )
+
+
 
     def test_conn_ok(self):
         if self.client:
             all_ports = self.client.get_all_ports()
             self.client.reset(all_ports)
             self.port_stream_map = {}
-            import pdb
-            pdb.set_trace()
+            # import pdb
+            # pdb.set_trace()
             self.dst_mac_list = str(self.dst_mac).split(" ")
             all_stream = []
-            all_stream.append(self.test_stream_create(
-                self.dst_mac_list[0], self.dst_mac_list[1]))
-            all_stream.append(self.test_stream_create(
-                self.dst_mac_list[1], self.dst_mac_list[0]))
+
+            # all_stream.append(self.test_stream_create(
+            #     self.dst_mac_list[0], self.dst_mac_list[1]))
+            # all_stream.append(self.test_stream_create(
+            #     self.dst_mac_list[1], self.dst_mac_list[0]))
+
+            # all_stream.append(self.test_stream_create('90:e2:ba:29:bf:15',self.dst_mac_list[0]),)
+            # all_stream.append(self.test_stream_create('90:e2:ba:29:bf:14',self.dst_mac_list[1]))
+
+            all_stream.append(self.create_stream_for_pvp(self.dst_mac_list[0]))
+            all_stream.append(self.create_stream_for_pvp(self.dst_mac_list[1]))
+
+            """
+            2019-07-23T05:22:37Z|00116|connmgr|INFO|br0<->unix#1: 1 flow_mods in the last 0 s (1 deletes)
+            [DEBUG]  2019-07-23 01:22:37,720 : (src.ovs.ofctl) - key : idle_timeout=0,in_port=1,action=output:3
+            [INFO ]  2019-07-23 01:22:37,720 : (src.ovs.ofctl) - Running ovs-ofctl...
+            [DEBUG]  2019-07-23 01:22:37,720 : (src.ovs.ofctl) - cmd : sudo /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow br0 idle_timeout=0,in_port=1,action=output:3
+            2019-07-23T05:22:37Z|00117|connmgr|INFO|br0<->unix#3: 1 flow_mods in the last 0 s (1 adds)
+            [DEBUG]  2019-07-23 01:22:37,745 : (src.ovs.ofctl) - key : idle_timeout=0,in_port=3,action=output:1
+            [INFO ]  2019-07-23 01:22:37,746 : (src.ovs.ofctl) - Running ovs-ofctl...
+            [DEBUG]  2019-07-23 01:22:37,746 : (src.ovs.ofctl) - cmd : sudo /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow br0 idle_timeout=0,in_port=3,action=output:1
+            2019-07-23T05:22:37Z|00118|connmgr|INFO|br0<->unix#5: 1 flow_m[DEBUG]  2019-07-23 01:22:37,770 : (src.ovs.ofctl) - key : idle_timeout=0,in_port=4,action=output:2
+            o[INFO ]  2019-07-23 01:22:37,770 : (src.ovs.ofctl) - Running ovs-ofctl...
+            [DEBUG]  2019-07-23 01:22:37,770 : (src.ovs.ofctl) - cmd : sudo /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow br0 idle_timeout=0,in_port=4,action=output:2
+            ds in the last 0 s (1 adds)
+            2019-07-23T05:22:37Z|00119|connmgr|INFO|br0<->unix#7: 1 flow_mods i[DEBUG]  2019-07-23 01:22:37,794 : (src.ovs.ofctl) - key : idle_timeout=0,in_port=2,action=output:4
+            n[INFO ]  2019-07-23 01:22:37,795 : (src.ovs.ofctl) - Running ovs-ofctl...
+            [DEBUG]  2019-07-23 01:22:37,795 : (src.ovs.ofctl) - cmd : sudo /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow br0 idle_timeout=0,in_port=2,action=output:4
+            the last 0 s (1 adds)
+            """
+
+            print(self.client.get_port_attr(0))
+            print(self.client.get_port_attr(1))
             for port in all_ports:
                 for stream in all_stream:
                     self.client.reset(all_ports)
-                    self.client.set_port_attr(ports=all_ports, promiscuous=True)
+                    self.client.set_port_attr(ports=all_ports, promiscuous=False)
                     self.client.acquire(ports=all_ports, force=True)
                     self.client.add_streams(stream, ports=port)
                     print("start test conn test with 1pps duration 10s ")
@@ -139,11 +180,14 @@ class TrexTest(object):
                     'tx_pps': 0.9904077472165227,
                     'tx_util': 6.9724695280194286e-06}}
                     """
-                    if ret_stat["total"]["ipackets"] == ret_stat["total"]["opackets"]:
+                    print(ret_stat["total"])
+                    if ret_stat["total"]["ipackets"] >= ret_stat["total"]["opackets"]:
+                        print("***********************************************************************")
                         print("Port info {}".format(port))
                         print(self.client.get_port_attr(port))
                         print("Below Stream Info")
                         stream.to_pkt_dump()
+                        print("***********************************************************************")
                         self.port_stream_map[port] = stream
             if len(self.port_stream_map) > 0 :
                 return True
@@ -157,6 +201,7 @@ class TrexTest(object):
         self.client.reset(all_ports)
         self.client.set_port_attr(ports=all_ports, promiscuous=True)
         self.client.acquire(ports=all_ports,force=True)
+        #self.client.add_streams(self.port_stream_map[0],ports=all_ports)
         for key in self.port_stream_map.keys():
             self.client.add_streams(self.port_stream_map[key],ports=key)
         #self.client.add_streams(self.streams,ports=all_ports)
@@ -169,6 +214,9 @@ class TrexTest(object):
     def start_test(self):
         self.client.connect()
         self.test_conn_ok()
+        print("Begin performance now")
+        import time
+        time.sleep(10000)
         max_value = 100
         min_value = 0
         cur_value = 100
@@ -336,5 +384,7 @@ if __name__ == "__main__":
         parser.print_help()
         import sys
         sys.exit(1)
+
+
 
 
