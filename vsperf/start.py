@@ -546,8 +546,17 @@ def ovs_bridge_with_dpdk(nic1_mac, nic2_mac, mtu_val, pmd_cpu_mask):
     ovs-vsctl add-port ovsbr0 vhost0 -- set interface vhost0 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost0
     ovs-vsctl add-port ovsbr0 vhost1 -- set interface vhost1 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost1
 
-	ovs-ofctl del-flows ovsbr0
-	ovs-ofctl add-flow ovsbr0 actions=NORMAL
+    ovs-vsctl set Interface dpdk0  ofport_request=1
+    ovs-vsctl set Interface dpdk1  ofport_request=2
+    ovs-vsctl set Interface vhost0 ofport_request=3
+    ovs-vsctl set Interface vhost1 ofport_request=4
+
+    ovs-ofctl del-flows ovsbr0
+    /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 idle_timeout=0,in_port=1,action=output:3
+    /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 idle_timeout=0,in_port=3,action=output:1
+    /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 idle_timeout=0,in_port=2,action=output:4
+    /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 idle_timeout=0,in_port=4,action=output:2
+	#ovs-ofctl add-flow ovsbr0 actions=NORMAL
 
 	sleep 2
 	ovs-vsctl show
