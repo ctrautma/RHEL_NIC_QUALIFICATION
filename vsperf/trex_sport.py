@@ -96,7 +96,7 @@ class TrexTest(object):
                 )
     
     def create_stream_for_pvp(self,dst_mac):
-        l2 = Ether(dst=dst_mac)
+        l2 = Ether(dst=dst_mac)/IP(src="192.168.100.10", dst="192.168.100.20")/UDP(dport=12, sport=1025)
         pad = max(0, self.pkt_size - len(l2)) * 'x'
         return STLStream(isg=10.0,
                 packet=STLPktBuilder(pkt=l2 / pad),
@@ -106,46 +106,16 @@ class TrexTest(object):
                 )
 
 
-
     def test_conn_ok(self):
         if self.client:
             all_ports = self.client.get_all_ports()
             self.client.reset(all_ports)
             self.port_stream_map = {}
-            # import pdb
-            # pdb.set_trace()
             self.dst_mac_list = str(self.dst_mac).split(" ")
             all_stream = []
 
-            # all_stream.append(self.test_stream_create(
-            #     self.dst_mac_list[0], self.dst_mac_list[1]))
-            # all_stream.append(self.test_stream_create(
-            #     self.dst_mac_list[1], self.dst_mac_list[0]))
-
-            # all_stream.append(self.test_stream_create('90:e2:ba:29:bf:15',self.dst_mac_list[0]),)
-            # all_stream.append(self.test_stream_create('90:e2:ba:29:bf:14',self.dst_mac_list[1]))
-
             all_stream.append(self.create_stream_for_pvp(self.dst_mac_list[0]))
             all_stream.append(self.create_stream_for_pvp(self.dst_mac_list[1]))
-
-            """
-            2019-07-23T05:22:37Z|00116|connmgr|INFO|br0<->unix#1: 1 flow_mods in the last 0 s (1 deletes)
-            [DEBUG]  2019-07-23 01:22:37,720 : (src.ovs.ofctl) - key : idle_timeout=0,in_port=1,action=output:3
-            [INFO ]  2019-07-23 01:22:37,720 : (src.ovs.ofctl) - Running ovs-ofctl...
-            [DEBUG]  2019-07-23 01:22:37,720 : (src.ovs.ofctl) - cmd : sudo /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow br0 idle_timeout=0,in_port=1,action=output:3
-            2019-07-23T05:22:37Z|00117|connmgr|INFO|br0<->unix#3: 1 flow_mods in the last 0 s (1 adds)
-            [DEBUG]  2019-07-23 01:22:37,745 : (src.ovs.ofctl) - key : idle_timeout=0,in_port=3,action=output:1
-            [INFO ]  2019-07-23 01:22:37,746 : (src.ovs.ofctl) - Running ovs-ofctl...
-            [DEBUG]  2019-07-23 01:22:37,746 : (src.ovs.ofctl) - cmd : sudo /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow br0 idle_timeout=0,in_port=3,action=output:1
-            2019-07-23T05:22:37Z|00118|connmgr|INFO|br0<->unix#5: 1 flow_m[DEBUG]  2019-07-23 01:22:37,770 : (src.ovs.ofctl) - key : idle_timeout=0,in_port=4,action=output:2
-            o[INFO ]  2019-07-23 01:22:37,770 : (src.ovs.ofctl) - Running ovs-ofctl...
-            [DEBUG]  2019-07-23 01:22:37,770 : (src.ovs.ofctl) - cmd : sudo /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow br0 idle_timeout=0,in_port=4,action=output:2
-            ds in the last 0 s (1 adds)
-            2019-07-23T05:22:37Z|00119|connmgr|INFO|br0<->unix#7: 1 flow_mods i[DEBUG]  2019-07-23 01:22:37,794 : (src.ovs.ofctl) - key : idle_timeout=0,in_port=2,action=output:4
-            n[INFO ]  2019-07-23 01:22:37,795 : (src.ovs.ofctl) - Running ovs-ofctl...
-            [DEBUG]  2019-07-23 01:22:37,795 : (src.ovs.ofctl) - cmd : sudo /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow br0 idle_timeout=0,in_port=2,action=output:4
-            the last 0 s (1 adds)
-            """
 
             print(self.client.get_port_attr(0))
             print(self.client.get_port_attr(1))
@@ -159,7 +129,7 @@ class TrexTest(object):
                     #print(stream)
                     print("port:{} ".format(port))
                     stream.to_pkt_dump()
-                    self.client.start(ports=port,mult="1pps", duration=5)
+                    self.client.start(ports=port,mult="1pps", duration=30)
                     self.client.wait_on_traffic(ports=all_ports)
                     ret_stat=self.client.get_stats(ports = all_ports)
                     # from pprint import pprint
@@ -189,6 +159,8 @@ class TrexTest(object):
                         stream.to_pkt_dump()
                         print("***********************************************************************")
                         self.port_stream_map[port] = stream
+                    # import pdb
+                    # pdb.set_trace()
             if len(self.port_stream_map) > 0 :
                 return True
             else:
@@ -384,7 +356,6 @@ if __name__ == "__main__":
         parser.print_help()
         import sys
         sys.exit(1)
-
 
 
 

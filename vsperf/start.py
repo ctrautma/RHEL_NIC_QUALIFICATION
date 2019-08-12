@@ -745,7 +745,9 @@ def bonding_test_trex(t_time,pkt_size):
             log_and_run(cmd)
         import time
         time.sleep(3)
-        log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '90:e2:ba:29:bf:15 90:e2:ba:29:bf:14' -t {t_time} --pkt_size={pkt_size} -m 10 """)
+        trex_port_1 = get_env("TRAFFICGEN_TREX_PORT1")
+        trex_port_2 = get_env("TRAFFICGEN_TREX_PORT2")
+        log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{trex_port_1} {trex_port_2}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
     return 0
 
 def update_xml_sriov_vf_port(xml_file,vlan_id=0):
