@@ -89,7 +89,7 @@ The configuration files are as follows
 
 ansible.cfg
 inventory
-trex_settings.yml
+test_settings.yml
 
 The changes required to make the scripts work is as follows.
 
