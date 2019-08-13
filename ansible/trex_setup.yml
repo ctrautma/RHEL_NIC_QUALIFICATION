@@ -1,7 +1,7 @@
 - name: T-Rex Setup 
-  hosts: usa
+  hosts: trex
   vars_files:
-    - /etc/ansible/trex_settings.yml
+    - /etc/ansible/test_settings.yml
   tasks:
   - debug: 
       msg: Debug mode is enabled
@@ -111,8 +111,9 @@
     command: "grub2-editenv - unset kernelopts"
   - name: Tweak the kernel for hugepages and iommu step 2
     command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
-    when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0
     tags: ["grub"]
+    when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0
+
 
 #################
 # Install T-Rex #
@@ -187,7 +188,7 @@
 
   - name: REBOOTING TREX SERVER NOW
     reboot:
-    when: grub.changed
+    when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0
 
 ######################################
 # Setup T-Rex server for pvp scripts #

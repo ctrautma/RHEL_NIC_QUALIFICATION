@@ -46,11 +46,11 @@ dut_dpdk_lcore_mask: 40
 # DUT PMD RXQ Affinity. The receive queue affinity which will be set on the PMD threads.
 dut_pmd_rxq_affinity: 0:1,1:15
 
-# Path to RHEL guest image for PVP tests.  Please download the image from the red hat website.  See readme for more instructions.
+# Path to RHEL guest image for PVP tests.  Please download the image from the red hat website.  See README for more info.
 rhel_guest_image_path: /root/rhel-8.0-beta-1-x86_64-kvm.qcow2
 
-# CPU model info, probably does not need to be touched, if an error occurs with virt-install might need to modify
-# this line to a model present in  /usr/share/libvirt/cpu_map.xml
+# CPU model info, needs to be modified to match your DUT cpu type. If an error occurs with virt-install might need to
+# modify this line to a model present in  /usr/share/libvirt/cpu_map.xml
 dut_cpu_model: SandyBridge
 #dut_cpu_model: Haswell-noTSX
 

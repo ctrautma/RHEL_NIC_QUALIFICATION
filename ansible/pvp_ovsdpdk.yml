@@ -1,7 +1,7 @@
 - name: T-Rex Setup
-  hosts: usa
+  hosts: dut
   vars_files:
-    - ./trex_settings.yml
+    - ./test_settings.yml
   tasks:
   - debug:
       msg: Debug mode is enabled
@@ -405,11 +405,10 @@
     file:
       state: directory
       path: "~/pvp_results"
-#  - name: Go to the folder
-#    command: chdir=~/pvpresults
-#############
-# TEST THIS #
-#############
-  #- name: Executing pvp_script for ovs-dpdk test
-  #  shell: "~/ovs_perf/ovs_performance.py -d -l testrun_log.txt --tester-type trex --tester-address localhost --tester-interface 0 --ovs-address 10.19.17.133 --ovs-user root --ovs-password root --dut-vm-address 192.168.122.5 --dut-vm-user root --dut-vm-password root   --dut-vm-nic-queues=2 --physical-interface dpdk0 --physical-speed=10 --virtual-interface vhost0 --dut-vm-nic-pci=0000:00:02.0 --no-bridge-config --skip-pv-test"
-
+  - name: Logging into vm rhel_loopback
+    shell: ~/vm.sh login_vm rhel_loopback
+  - name: Getting IP address from VM
+    shell: ~/vm.sh run_cmd rhel_loopback "ip a | grep inet | grep brd | awk '{ print $2 }'"
+    register: vm_ip
+  - debug:
+      msg: Please note the ip address of the VM as it will be needed when executing the pvp test scripts {{ vm_ip.stdout }}

@@ -1,7 +1,7 @@
 - name: Tc flower offload setup
   hosts: usa
   vars_files:
-    - ./trex_settings.yml
+    - ./test_settings.yml
   tasks:
   - debug:
       msg: Debug mode is enabled

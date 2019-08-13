@@ -1,5 +1,7 @@
 # Red Hat NIC NFV Qualification
 
+# Ansible branch for RHEL 8.0 only.
+
 The goal of this document is to guide you step by step through the process of
 qualifying a NIC driver for NFV usage. This includes both the Linux Kernel
 driver and the DPDK PMD driver.
@@ -77,77 +79,139 @@ All traffic on these tests are bi-directional and the results are calculated as 
 sum of both ports in frames per second.
 
 
+## Setting up for Ansible script execution
 
+The Ansible scripts are located in ansible folder of this github project. Each of the PVP setups below can be
+automated using the Ansible scripts so the manual steps can be ignored.  To properly run the Ansible scripts
+the configuration files must be completed.
+
+The configuration files are as follows
+
+ansible.cfg
+inventory
+trex_settings.yml
+
+The changes required to make the scripts work is as follows.
+
+# inventory file
+
+Modify the trex and dut sections to reflect the system hostnames or ip addresses that are to be used for the test.
+
+# test_settings.yml
+
+In this file go through each setting and modify them as noted by the notes in the file.  It is imperative these are
+done correctly for the scripts to work correctly in the setup.
+
+Once the settings are complete you will need to use a remote system to execute the scripts on the DUT and trex server.
+You will need to setup keyless ssh login from your remote system to those test servers.  In a usual case this is done
+from another Linux server which can talk to the other servers. The reason is the scripts will usually have to perform a
+reboot which means the script would be interrupted and have to be executed again after to complete.  Using a remote
+system allows for the script to run from start to finish in one pass.
+
+In my case I use my work laptop which would go something like this.
+
+    ctrautma@ctrautma ~/Downloads :( $ sudo ssh-keygen -b 2048 -t rsa
+    [sudo] password for ctrautma:
+    Generating public/private rsa key pair.
+    Enter file in which to save the key (/root/.ssh/id_rsa):
+    /root/.ssh/id_rsa already exists.
+    Overwrite (y/n)? y
+    Enter passphrase (empty for no passphrase):
+    Enter same passphrase again:
+    Your identification has been saved in /root/.ssh/id_rsa.
+    Your public key has been saved in /root/.ssh/id_rsa.pub.
+    The key fingerprint is:
+    SHA256:wCsxim7WqvxAazIL4J2bl7Y1YuA7Qxul61+nw9Krnw8 root@ctrautma.bos.csb
+    The key's randomart image is:
+    +---[RSA 2048]----+
+    |                 |
+    |     .           |
+    |    o o          |
+    | . . + o         |
+    |o...+ . S        |
+    |= =+o.           |
+    |+O.=+o+E .       |
+    |Boo===++*        |
+    |+oo**+==+.       |
+    +----[SHA256]-----+
+
+
+Now that I have generated a key I need to setup the access to the remote systems
+
+    ctrautma@ctrautma ~/Downloads $ sudo ssh-copy-id root@10.19.15.11
+    /bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/root/.ssh/id_rsa.pub"
+    The authenticity of host '10.19.15.11 (10.19.15.11)' can't be established.
+    ECDSA key fingerprint is SHA256:g1nCqteynH4G8bG1JPbKDlWHzBvqtHk10i+pZKgZChk.
+    ECDSA key fingerprint is MD5:d7:62:ae:e5:dd:42:97:db:a6:37:1e:f4:37:8e:83:48.
+    Are you sure you want to continue connecting (yes/no)? yes
+    /bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+    /bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+    root@10.19.15.11's password:
+
+    Number of key(s) added: 1
+
+    Now try logging into the machine, with:   "ssh 'root@10.19.15.11'"
+    and check to make sure that only the key(s) you wanted were added.
+
+    ctrautma@ctrautma ~/Downloads $
+
+If you get an error when trying to copy the file you will have to remove your entry from the /root/.ssh/known_hosts
+file that corresponds to the remote system on your system you are running the commands from.
+
+You must install Ansible on your system that will run the Ansible scripts.  Unfortunately the linux distros may not
+automatically pull a high enough version for the scripts to work so follow the steps below to install a later version
+of Ansible.
+
+    sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    sudo yum update https://releases.ansible.com/ansible/rpm/release/epel-7-x86_64/ansible-2.8.0-1.el7.ans.noarch.rpm
+
+Version 2.8.0.1 or above should work with all of the Ansible scripts.
+
+After all of these things are complete login into each system to make sure your access works, then proceed to each
+section below and use the corresponding script.  The scripts only do the setup of the environments.  You will still
+be required to run the PVP test script to start the test after.
+
+If errors are seen and the Ansible script fails,  please check the config file.  If everything looks OK and you think
+its a script issue please contact Red Hat PFT team at redhat-pft@redhat.com
+
+Please be aware that the scripts must be run in order.  You cannot run the kernel script without running the ovs-dpdk
+script first.  They are designed to be executed in order.  If you want to run just the kernel setup,  you must run
+the ovs-dpdk script,  then move on to the kernel script.  Then you can run the test for Kernel PVP.
+
+Also if the ovs-dpdk script fails at any point, you will have to stop the openvswitch server and unbind the nic to
+restart the script if it completed a few steps.
+
+## Download the guest image
+
+Please visit https://access.redhat.com/downloads/content/69/ver=/rhel---7/7.0/x86_64/product-software and use the
+combo boxes to select the correct guest image for use with the tests.  For example for 7.7 you would select 7.7 in the
+version and then select Red Hat Enterprise Linux Fast Datapath from the Product Variant.  Save this to the DUT
+as the Ansible script will use it for the test setup.  You will need to modify the trex_settings.yml file to specify
+where this was saved.
+
+For other streams such as 8.0 you just need to change the link to find 8.0 images
+
+https://access.redhat.com/downloads/content/479/ver=/rhel---8/8.0/x86_64/product-software
 
 ## Setup the TRex traffic generator
 
-See the main [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#setup-the-trex-traffic-generator) on how to configure the TRex traffic generator.
+Use the Ansible script trex_setup.yml to setup the trex server system.
 
+    sudo ansible-playbook trex_setup.yml
 
-
-## Installing the qualification scripts
-
-As our TRex machine has enough resources to also run the qualification script
-we decided to run it there. However, in theory, you can run the scripts on a
-third machine or even the DUT. But make sure to keep the machine close to the
-traffic generator, as it needs to communicate with it to capture statistics.
-
-The exception to this are the _OVS functional qualification_ scripts they need
-to be run on two machines. More details on this in the respective chapter.
-
-
-### Install the scripts
-First, we need to install the script on the machine:
-
-```
-cd ~
-git clone https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
-cd RHEL_NIC_QUALIFICATION
-git submodule update --init --recursive
-ln -s ~/RHEL_NIC_QUALIFICATION/ovs_perf/ ~/ovs_perf
-```
-
-### Install additional packages needed by the PVP script
-We need to install a bunch of Python libraries we need for the PVP script.
-
-```
-yum install python3
-```
-
-We will use pip to do this:
-
-```
-pip3 install --upgrade enum34 natsort netaddr matplotlib scapy spur
-```
-
-
-We also need the Xena Networks traffic generator libraries:
-
-```
-cd ~
-git clone https://github.com/fleitner/XenaPythonLib
-cd XenaPythonLib/
-python3 setup.py install
-```
-
-
-Finally we need to install the TRex stateless libraries:
-
-```
-cd ~/trex/v2.29
-tar -xzf trex_client_v2.29.tar.gz
-cp -r trex_client/stl/trex_stl_lib/ ~/ovs_perf
-cp -r trex_client/external_libs/ ~/ovs_perf/trex_stl_lib/
-
-```
-
-
-
+For manual instructions please refer to [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#setup-the-trex-traffic-generator) on how to configure the TRex traffic generator.
 
 ## Setup the Device Under Test (DUT), Open vSwitch
 <a name="DUTsetup"/>
 
-See the main [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#setup-the-device-under-test-dut-open-vswitch) on how to configure the DUT for OVS. Follow the above-linked chapter and stop at the [Running the PVP script](https://github.com/chaudron/ovs_perf/tree/RHEL8#running-the-pvp-script) chapter, and continue below.
+Use the Ansible script pvp_ovsdpdk.yml to setup the DUT for the OVS-dpdk PVP test
+
+    sudo ansible-playbook pvp_ovsdpdk.yml
+
+Please note the last step will display the VM IP address in a long message that you will need to read through to find
+the IP.  This is to be cleaned up and will be fixed later.  The VM IP is needed to run the test script below.
+
+For manual instructions please refer to  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#setup-the-device-under-test-dut-open-vswitch) on how to configure the DUT for OVS. Follow the above-linked chapter and stop at the [Running the PVP script](https://github.com/chaudron/ovs_perf/tree/RHEL8#running-the-pvp-script) chapter, and continue below.
 
 ### Running the PVP script
 
@@ -286,8 +350,11 @@ the steps to convert it to a Linux datapath setup.
 
 ### Configuring the Linux Kernel datapath
 
-See the main  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#open-vswitch-with-linux-kernel-datapath)
-on how to configure the Kernel datapath.
+Run the Ansible script pvp_kernel.yml
+
+    sudo ansible-playbook pvp_kernel.yml
+
+For manual steps refer to  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#open-vswitch-with-linux-kernel-datapath)
 
 
 ### Run the PVP performance script
