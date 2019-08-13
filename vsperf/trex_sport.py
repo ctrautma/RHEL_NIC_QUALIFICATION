@@ -324,7 +324,7 @@ class TrexTest(object):
         return self.trex
 
     def start_all_test(self):
-        #self.start_trex_server()
+        self.start_trex_server()
         #import time
         #time.sleep(60)
         self.create_stl_client()
