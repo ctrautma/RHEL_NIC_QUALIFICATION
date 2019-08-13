@@ -32,18 +32,26 @@ SYSTEM_VERSION_ID=`echo $VERSION_ID | tr -d '.'`
 
 if [ $VERSION_ID == "7.5" ]
 then
-    dpdk_ver="1711-9"
-    one_queue_image="RHEL7-5VNF-1Q.qcow2"
-    two_queue_image="RHEL7-5VNF-2Q.qcow2"
+    dpdk_ver="18112-1"
+    #one_queue_image="RHEL7-5VNF-1Q.qcow2"
+    #two_queue_image="RHEL7-5VNF-2Q.qcow2"
+    one_queue_image="rhel7.6-vsperf-1Q-viommu.qcow2"
+    two_queue_image="rhel7.6-vsperf-2Q-viommu.qcow2"
     one_queue_zip="RHEL7-5VNF-1Q.qcow2.lrz"
     two_queue_zip="RHEL7-5VNF-2Q.qcow2.lrz"
+    dpdk_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7/x86_64/dpdk-18.11.2-1.el7.x86_64.rpm"
+    dpdk_tool_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7/x86_64/dpdk-tools-18.11.2-1.el7.x86_64.rpm"
 elif [ $VERSION_ID == "7.6" ]
 then
-    dpdk_ver="1711-9"
-    one_queue_image="RHEL76-1Q.qcow2"
-    two_queue_image="RHEL76-2Q.qcow2"
+    dpdk_ver="18112-1"
+    #one_queue_image="RHEL76-1Q.qcow2"
+    #two_queue_image="RHEL76-2Q.qcow2"
+    one_queue_image="rhel7.6-vsperf-1Q-viommu.qcow2"
+    two_queue_image="rhel7.6-vsperf-2Q-viommu.qcow2"
     one_queue_zip="RHEL76-1Q.qcow2.lrz"
     two_queue_zip="RHEL76-2Q.qcow2.lrz"
+    dpdk_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7_6/x86_64/dpdk-18.11.2-1.el7_6.x86_64.rpm"
+    dpdk_tool_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7_6/x86_64/dpdk-tools-18.11.2-1.el7_6.x86_64.rpm"
 fi
 
 work_pipe=/tmp/sriov-github-work

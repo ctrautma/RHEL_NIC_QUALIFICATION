@@ -412,11 +412,14 @@ def download_VNF_image():
             log(log_info)
             one_queue_zip = get_env("one_queue_zip")
             cmd = f"""
-            wget people.redhat.com/ctrautma/{one_queue_zip} > /dev/null 2>&1
-            lrzip -d {one_queue_zip}
-            rm -f {one_queue_zip}
+            wget http://netqe-bj.usersys.redhat.com/share/tli/vsperf_img/{one_queue_image} > /dev/null 2>&1
+            #wget people.redhat.com/ctrautma/{one_queue_zip} > /dev/null 2>&1
+            #lrzip -d {one_queue_zip}
+            #rm -f {one_queue_zip}
             """
             log_and_run(cmd)
+            pass
+
         if os.path.exists(f"{case_path}/{two_queue_image}"):
             pass
         else:
@@ -428,9 +431,10 @@ def download_VNF_image():
             log(log_info)
             two_queue_zip = get_env("two_queue_zip")
             cmd = f"""
-            wget people.redhat.com/ctrautma/{two_queue_zip} > /dev/null 2>&1
-            lrzip -d {two_queue_zip}
-            rm -f {two_queue_zip}
+            wget http://netqe-bj.usersys.redhat.com/share/tli/vsperf_img/{two_queue_image} > /dev/null 2>&1
+            # wget people.redhat.com/ctrautma/{two_queue_zip} > /dev/null 2>&1
+            # lrzip -d {two_queue_zip}
+            # rm -f {two_queue_zip}
             """
             log_and_run(cmd)
             pass
@@ -450,6 +454,22 @@ def download_VNF_image():
     virt-copy-in -a {case_path}/{two_queue_image} {udev_file} /etc/udev/rules.d/
     """
     log_and_run(cmd)
+
+    dpdk_url = get_env("dpdk_url")
+    dpdk_tool_url = get_env("dpdk_tool_url")
+    dpdk_ver = get_env("dpdk_ver")
+
+    cmd =  f"""
+    rm -rf /root/{dpdk_ver}
+    mkdir -p /root/{dpdk_ver}
+    wget -P /root/{dpdk_ver}/ {dpdk_url} > /dev/null 2>&1
+    wget -P /root/{dpdk_ver}/ {dpdk_tool_url} > /dev/null 2>&1
+    virt-copy-in -a {case_path}/{one_queue_image} /root/{dpdk_ver} /root/
+    virt-copy-in -a {case_path}/{two_queue_image} /root/{dpdk_ver} /root/
+    sleep 5
+    """
+    log_and_run(cmd)
+    
     return 0
 
 
@@ -652,6 +672,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size):
     cmd = f"""
     /root/one_gig_hugepages.sh 1
     rpm -ivh /root/dpdkrpms/{dpdk_ver}/dpdk*.rpm
+    rpm -ivh /root//{dpdk_ver}/dpdk*.rpm
     echo "options vfio enable_unsafe_noiommu_mode=1" > /etc/modprobe.d/vfio.conf
     modprobe -r vfio_iommu_type1
     modprobe -r vfio-pci
@@ -676,8 +697,16 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size):
     else:
         num_core = 4
 
-    hw_vlan_flag = "--disable-hw-vlan"
+    hw_vlan_flag = ""
     legacy_mem = ""
+
+    dpdk_version = int(get_env("dpdk_ver").split('-')[1])
+    if dpdk_version >= 1811:
+        legacy_mem = " --legacy-mem "
+        hw_vlan_flag = ""
+    else:
+        legacy_mem = ""
+        hw_vlan_flag = "--disable-hw-vlan"
 
     cmd_test = f"""testpmd -l {guest_cpu_list}  \
     --socket-mem 1024 \
@@ -881,12 +910,14 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     enable_dpdk(nic1_mac,nic2_mac)
 
     log("config openvswitch with dpdk ")
+    pmd_cpu_list = [get_env("PMD_CPU_1"),get_env("PMD_CPU_2"),get_env("PMD_CPU_3"),get_env("PMD_CPU_4")]
+    cpu_mask = my_tool.get_pmd_masks(" ".join(pmd_cpu_list))
     if q_num == 1:
         vcpu_list = [get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3")]
-        ovs_bridge_with_dpdk(nic1_mac,nic2_mac,mtu_val,get_env("PMD2MASK"))
+        ovs_bridge_with_dpdk(nic1_mac,nic2_mac,mtu_val,cpu_mask)
     else:
         vcpu_list = [get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3"),get_env("VCPU4"),get_env("VCPU5")]
-        ovs_bridge_with_dpdk(nic1_mac,nic2_mac,mtu_val,get_env("PMD4MASK"))
+        ovs_bridge_with_dpdk(nic1_mac,nic2_mac,mtu_val,cpu_mask)
     
     log("update guest xml config file")
     new_xml = "g1.xml"
