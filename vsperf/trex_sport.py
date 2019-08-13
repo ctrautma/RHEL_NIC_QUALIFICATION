@@ -129,7 +129,7 @@ class TrexTest(object):
                     #print(stream)
                     print("port:{} ".format(port))
                     stream.to_pkt_dump()
-                    self.client.start(ports=port,mult="1pps", duration=30)
+                    self.client.start(ports=port,mult="1pps", duration=10)
                     self.client.wait_on_traffic(ports=all_ports)
                     ret_stat=self.client.get_stats(ports = all_ports)
                     # from pprint import pprint
@@ -187,8 +187,8 @@ class TrexTest(object):
         self.client.connect()
         self.test_conn_ok()
         print("Begin performance now")
-        import time
-        time.sleep(10000)
+        #import time
+        #time.sleep(10000)
         max_value = 100
         min_value = 0
         cur_value = 100
