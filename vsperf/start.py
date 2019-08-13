@@ -1022,8 +1022,8 @@ def run_tests(test_list):
         log(data)
         ovs_dpdk_pvp_test(1,64,64,30)
         log("***************************************************************************************")
-        import time
-        time.sleep(10000)
+        # import time
+        # time.sleep(10000)
         ovs_dpdk_pvp_test(1,1500,1500,30)
         pass
 
@@ -1070,8 +1070,8 @@ def run_tests(test_list):
         ************************************************
         """
         log(data)
-        ovs_kernel_datapath_test(1,64,30)
-        ovs_kernel_datapath_test(2,1500,30)
+        sriov_pci_passthrough_test(1,64,30)
+        sriov_pci_passthrough_test(2,1500,30)
         pass
 
     return 0
