@@ -700,7 +700,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size):
     hw_vlan_flag = ""
     legacy_mem = ""
 
-    dpdk_version = int(get_env("dpdk_ver").split('-')[1])
+    dpdk_version = int(get_env("dpdk_ver").split('-')[0])
     if dpdk_version >= 1811:
         legacy_mem = " --legacy-mem "
         hw_vlan_flag = ""
