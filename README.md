@@ -466,8 +466,11 @@ offload using TC flower.
 
 ### Configuring the Linux Kernel datapath with TC Flower offload
 
-See the main  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#open-vswitch-with-linux-kernel-datapath-and-tc-flower-offload)
-on how to configure the Kernel datapath with TC Flower offload.
+Run the Ansible script pvp_tcflower_offload.yml
+
+    sudo ansible-playbook pvp_tcflower_offload.yml
+
+For manual steps refer to  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#open-vswitch-with-linux-kernel-datapath-and-tc-flower-offload)
 
 
 ### Run the PVP performance script

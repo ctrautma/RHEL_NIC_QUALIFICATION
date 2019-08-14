@@ -28,6 +28,39 @@
 #      dest: ~/RHEL_NIC_QUALIFICATION
 #      track_submodules: yes
 #      force: yes
-  - name: Install needed modules
+  - name: Install needed modules step 1
     yum:
       name: perf,gnuplot,kernel-debuginfo
+  - name: Install needed modules step 2
+    yum:
+      name: git,make,gcc,flex,bison,libdwarf-devel
+  - name: Install needed modules step 3
+    yum:
+      name: python36-devel,elfutils-devel,ncurses-devel,xz-devel
+  - name: Install needed modules step 4
+    yum:
+      name: elfutils-libelf-devel,pcre2-devel,binutils-devel,numactl-devel
+  - name: Install needed modules step 5
+    yum:
+      name: slang-devel,zlib-devel,audit-libs-devel,asciidoc
+  - name: Install needed modules step 6
+    yum:
+      name: xmlto,openssl-devel,perl-ExtUtils-Embed
+  - name: Git clone perf from upstream
+    git:
+      repo: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+      clone: yes
+      dest: linux/tools/perf
+      depth: 1
+  - name: Build perf package
+    make:
+      chdir: linux/tools/perf
+      target: install
+      params:
+        PYTHON: /usr/bin/python3.6
+#  - name: Install latest perf
+#    shell: make PYTHON=/usr/bin/python3.6 install
+  - name: Uncompress cls_flower folder
+    shell: unxz /lib/modules/<kernel version>/kernel/net/sched/cls_flower.ko.xz
+  - name: Running depmod to complete install
+    shell: depmod -a
