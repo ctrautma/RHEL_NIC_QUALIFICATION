@@ -86,24 +86,17 @@ class XmlTool(object):
         tree = ET.parse(xml_file)
         root = tree.getroot()
         vcpu_item = ET.ElementPath.find(root, "./vcpu")
-        current_num = 0
         if None != vcpu_item:
-            current_num = int(vcpu_item.text)
             vcpu_item.text = str(num)
-
-        item = ET.ElementPath.find(root, "./cputune")
-        sub_item = ET.ElementPath.find(root, "./cputune/vcpupin")
-        if num > current_num:
-            for i in range(num - current_num):
-                item.append(sub_item)
-
-        sub_item_list = list(item)
-        for i in range(sub_item_list.__len__()):
-            sub_item_list[i].set(str("vcpu"), str(i))
-            sub_item_list[i].set(str("cpuset"), str(i))
-
-        print(ET.tostringlist(item))
         tree.write(xml_file)
+
+        self.remove_item_from_xml(xml_file,"./cputune/vcpupin")
+        info = """
+        <vcpupin cpuset="{}" vcpu="{}"/>
+        """
+        for i in range(num):
+            temp_info = info.format(str(i),str(i))
+            self.add_item_from_xml(xml_file,"./cputune",temp_info)
         pass
 
     def update_vcpu(self, xml_file, index, value):
@@ -158,19 +151,22 @@ class XmlTool(object):
         item = ET.fromstring(xml_info)
         root = tree.getroot()
         parent_item = ET.ElementPath.find(root, parent_path)
-        if parent_item:
+        #Here if use if parent_item, this will false when parent_item have no child
+        if None != parent_item:
             parent_item.append(item)
         tree.write(xml_file)
     
     def remove_item_from_xml(self,xml_file,path,index=None):
         tree = ET.parse(xml_file)
-        root = tree.getroot()
+        root = tree.getroot() 
+        parent_path = path + "/.."
+        parent_item = ET.ElementPath.find(root,parent_path)       
         item_list = ET.ElementPath.findall(root,path)
         if None == index:
             for item in item_list:
-                root.remove(item)
+                parent_item.remove(item)
         else:
-            root.remove(item_list[int(index)])
+            parent_item.remove(item_list[int(index)])
         tree.write(xml_file)
     
 

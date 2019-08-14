@@ -662,7 +662,8 @@ def configure_guest():
         ip -d addr show
     """
     pts = bash("virsh ttyconsole gg").value()
-    my_tool.run_cmd_get_output(pts, cmd)
+    ret = my_tool.run_cmd_get_output(pts, cmd)
+    log(ret)
     return 0
 
 
@@ -754,6 +755,9 @@ def clear_env():
     log_and_run(cmd,"0,1")
     clear_dpdk_interface()
     clear_hugepage()
+    log_and_run("ip link show")
+    log_and_run("sleep 10")
+    log_and_run("ip link show")
     return 0
 
 def bonding_test_trex(t_time,pkt_size):
@@ -910,12 +914,14 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     enable_dpdk(nic1_mac,nic2_mac)
 
     log("config openvswitch with dpdk ")
-    pmd_cpu_list = [get_env("PMD_CPU_1"),get_env("PMD_CPU_2"),get_env("PMD_CPU_3"),get_env("PMD_CPU_4")]
-    cpu_mask = my_tool.get_pmd_masks(" ".join(pmd_cpu_list))
+    pmd_cpu_2_list = [get_env("PMD_CPU_1"),get_env("PMD_CPU_2")]
+    pmd_cpu_4_list = [get_env("PMD_CPU_1"),get_env("PMD_CPU_2"),get_env("PMD_CPU_3"),get_env("PMD_CPU_4")]
     if q_num == 1:
+        cpu_mask = my_tool.get_pmd_masks(" ".join(pmd_cpu_2_list))
         vcpu_list = [get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3")]
         ovs_bridge_with_dpdk(nic1_mac,nic2_mac,mtu_val,cpu_mask)
     else:
+        cpu_mask = my_tool.get_pmd_masks(" ".join(pmd_cpu_4_list))
         vcpu_list = [get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3"),get_env("VCPU4"),get_env("VCPU5")]
         ovs_bridge_with_dpdk(nic1_mac,nic2_mac,mtu_val,cpu_mask)
     
