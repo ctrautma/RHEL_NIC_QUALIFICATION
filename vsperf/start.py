@@ -264,13 +264,13 @@ def conf_checks():
         log("Check intel_iommu=on SUCCESS")
 
     if bash("tuned-adm active | grep cpu-partitioning").value() == '':
-        log("Tuned-adm" "cpu-partitioning profile must be active")
+        log("Tuned-adm cpu-partitioning profile must be active")
         return 1
     else:
         log("tuned-adm active OK")
 
     if bash(""" cat /proc/cmdline  | grep "nohz_full=[0-9]"  """).value() == '':
-        log("Tuned Config" "Must set cores to isolate in tuned-adm profile")
+        log("Tuned Config Must set cores to isolate in tuned-adm profile")
         return 1
     else:
         log("nohz_full flag check is OK")
@@ -1114,7 +1114,7 @@ def main(test_list="ALL"):
     with enter_phase("CONFIG CHECK"):
         ret = conf_checks()
         if ret != 0:
-            exit_with_error("/proc/commandline check FAILED")
+            exit_with_error("/proc/cmdline check FAILED")
         pass
 
     with enter_phase("CONFIG FILE CHECK"):
