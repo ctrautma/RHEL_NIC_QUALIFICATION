@@ -567,8 +567,8 @@ def ovs_bridge_with_dpdk(nic1_mac, nic2_mac, mtu_val, pmd_cpu_mask):
     ovs-vsctl add-port ovsbr0 dpdk0 -- set Interface dpdk0 type=dpdk options:dpdk-devargs="class=eth,mac={nic1_mac}" mtu_request={mtu_val}
     ovs-vsctl add-port ovsbr0 dpdk1 -- set Interface dpdk1 type=dpdk options:dpdk-devargs="class=eth,mac={nic2_mac}" mtu_request={mtu_val}
 
-    ovs-vsctl add-port ovsbr0 vhost0 -- set interface vhost0 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost0
-    ovs-vsctl add-port ovsbr0 vhost1 -- set interface vhost1 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost1
+    ovs-vsctl add-port ovsbr0 vhost0 -- set interface vhost0 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost0 mtu_request={mtu_val}
+    ovs-vsctl add-port ovsbr0 vhost1 -- set interface vhost1 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost1 mtu_request={mtu_val}
 
     ovs-vsctl set Interface dpdk0  ofport_request=1
     ovs-vsctl set Interface dpdk1  ofport_request=2
@@ -672,7 +672,7 @@ def configure_guest():
 
 
 # {modprobe  vfio enable_unsafe_noiommu_mode=1}
-def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size):
+def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_len):
     dpdk_ver = get_env("dpdk_ver")
     cmd = f"""
     /root/one_gig_hugepages.sh 1
@@ -686,6 +686,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size):
     modprobe vfio-pci
     ip link set eth1 down
     ip link set eth2 down
+    ip link show
     dpdk-devbind -b vfio-pci 0000:03:00.0
     dpdk-devbind -b vfio-pci 0000:04:00.0
     dpdk-devbind --status
@@ -728,6 +729,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size):
     --rxd={rxd_size} \
     --txd={txd_size} \
     --nb-cores={num_core} \
+    --max-pkt-len={max_pkt_len} \
     --auto-start
     """
     ret = my_tool.run_cmd_get_output(pts,cmd_test,"testpmd>")
@@ -948,7 +950,7 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
         guest_cpu_list="0,1,2"
     else:
         guest_cpu_list="0,1,2,3,4"
-    guest_start_testpmd(q_num,guest_cpu_list,get_env("RXD_SIZE"),get_env("TXD_SIZE"))
+    guest_start_testpmd(q_num,guest_cpu_list,get_env("RXD_SIZE"),get_env("TXD_SIZE"),mtu_val)
 
     log("PVP performance test Begin Now")
     bonding_test_trex(cont_time,pkt_size)
@@ -984,7 +986,7 @@ def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
         xml_tool.update_image_source(new_xml,case_path + "/" + get_env("two_queue_image"))
     start_guest(new_xml)
     configure_guest()
-    guest_start_testpmd(q_num,vcpu_list,get_env("RXD_SIZE"),get_env("TXD_SIZE"))
+    guest_start_testpmd(q_num,vcpu_list,get_env("RXD_SIZE"),get_env("TXD_SIZE"),pkt_size)
     bonding_test_trex(cont_time,pkt_size)
     return 0
 
@@ -1004,7 +1006,7 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
         xml_tool.update_image_source(new_xml,case_path + "/" + get_env("two_queue_image"))
     start_guest(new_xml)
     configure_guest
-    guest_start_testpmd(q_num,vcpu_list,get_env("SRIOV_RXD_SIZE"),get_env("SRIOV_TXD_SIZE"))
+    guest_start_testpmd(q_num,vcpu_list,get_env("SRIOV_RXD_SIZE"),get_env("SRIOV_TXD_SIZE"),pkt_size)
     bonding_test_trex(cont_time,pkt_size)
     return 0
 
