@@ -127,8 +127,8 @@ class TrexTest(object):
                     self.client.add_streams(stream, ports=port)
                     print("start test conn test with 1pps duration 10s ")
                     #print(stream)
-                    print("port:{} ".format(port))
-                    stream.to_pkt_dump()
+                    #print("port:{} ".format(port))
+                    #stream.to_pkt_dump()
                     self.client.start(ports=port,mult="1pps", duration=10)
                     self.client.wait_on_traffic(ports=all_ports)
                     ret_stat=self.client.get_stats(ports = all_ports)
@@ -150,11 +150,11 @@ class TrexTest(object):
                     'tx_pps': 0.9904077472165227,
                     'tx_util': 6.9724695280194286e-06}}
                     """
-                    print(ret_stat["total"])
                     if ret_stat["total"]["ipackets"] >= ret_stat["total"]["opackets"]:
                         print("***********************************************************************")
                         print("Port info {}".format(port))
                         print(self.client.get_port_attr(port))
+                        print(ret_stat["total"])
                         print("Below Stream Info")
                         stream.to_pkt_dump()
                         print("***********************************************************************")

@@ -88,19 +88,23 @@ def sh_run_log(cmd, str_ret_val="0"):
     pass
 
 def run(cmd, str_ret_val="0"):
-    cmds = cmd.split('\n')
+    cmds = cmd.split(os.linesep)
     cmds = [ i.strip() for i in cmds ]
     for cmd in cmds:
         if len(cmd) > 0:
             sh_run(cmd, str_ret_val)
+        else:
+            sh_run("echo 'run Find command that length is 0 !'")
     pass
 
 def runlog(cmd, str_ret_val="0"):
-    cmds = cmd.split('\n')
+    cmds = cmd.split(os.linesep)
     cmds = [ i.strip() for i in cmds ]
     for cmd in cmds:
         if len(cmd) > 0:
             sh_run_log(cmd, str_ret_val)
+        else:
+            sh_run("echo 'runlog Find command that length is 0 !'")
     pass
     
 def log_and_run(cmd, str_ret_val="0"):

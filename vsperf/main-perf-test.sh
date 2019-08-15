@@ -221,15 +221,16 @@ run_forever()
     exec {fd}<>$work_pipe
     while true
     do
-        echo -n "OK" > $notify_pipe
         #Here read ctrl + D as the end of one each command
-        if read -r line  <& $fd; then
+        if read t 60 -r line  <& $fd; then
             if [[ "$line" == "${bash_exit_str}" ]]; then
                 my_pid=`ps -ef | grep python | grep ${python_file} | awk '{print $2}'`
                 kill -n 9 $my_pid
                 break
             fi
             eval $line
+        else
+            echo -n "OK" > $notify_pipe
         fi
     done
 }
