@@ -882,22 +882,22 @@ def update_xml_vnet_port(xml_file):
     return 0
 
 
-def update_xml_vhostuser(xml_file):
+def update_xml_vhostuser(xml_file,q_num):
     xml_tool.remove_item_from_xml(xml_file,"./devices/interface[@type='vhostuser']")
     item = """
         <interface type='vhostuser'>
             <mac address='{}'/>
             <source type='unix' path='{}' mode='server'/>
             <model type='virtio'/>
-            <driver name='vhost' iommu='on' ats='on'/>
+            <driver name='vhost' iommu='on' ats='on' queues="{}"/>
             <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
         </interface>
     """
-    f_list_one = ['52:54:00:11:8f:ea','/tmp/vhost0','0x0000','0x03','0x0','0x0']
+    f_list_one = ['52:54:00:11:8f:ea','/tmp/vhost0',q_num,'0x0000','0x03','0x0','0x0']
     f_item_one = item.format(*f_list_one)
     xml_tool.add_item_from_xml(xml_file,"./devices",f_item_one)
 
-    f_list_two = ['52:54:00:11:8f:eb','/tmp/vhost1','0x0000','0x04','0x0','0x0']
+    f_list_two = ['52:54:00:11:8f:eb','/tmp/vhost1',q_num,'0x0000','0x04','0x0','0x0']
     f_item_two = item.format(*f_list_two)
     xml_tool.add_item_from_xml(xml_file,"./devices",f_item_two)
     return 0
@@ -928,7 +928,7 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     log("update guest xml config file")
     new_xml = "g1.xml"
     vcpupin_in_xml(numa_node,"guest.xml",new_xml,vcpu_list)
-    update_xml_vhostuser(new_xml)
+    update_xml_vhostuser(new_xml,q_num)
 
     if q_num == 1:
         xml_tool.update_image_source(new_xml,case_path + "/" + get_env("one_queue_image"))
