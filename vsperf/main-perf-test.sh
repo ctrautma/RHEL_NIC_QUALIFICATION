@@ -235,7 +235,7 @@ run_forever()
     done
 }
 
-touch ${nic_log_folder}/vsperf_pvp_all_performance.txt
-run_forever |& tee -a ${nic_log_folder}/vsperf_pvp_all_performance.txt
+touch ${NIC_LOG_FOLDER}/vsperf_pvp_all_performance.txt
+run_forever |& tee -a ${NIC_LOG_FOLDER}/vsperf_pvp_all_performance.txt
 
 popd
