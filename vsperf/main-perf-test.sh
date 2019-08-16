@@ -222,7 +222,7 @@ run_forever()
     while true
     do
         #Here read ctrl + D as the end of one each command
-        if read t 60 -r line  <& $fd; then
+        if read -t 60 -r line  <& $fd; then
             if [[ "$line" == "${bash_exit_str}" ]]; then
                 my_pid=`ps -ef | grep python | grep ${python_file} | awk '{print $2}'`
                 kill -n 9 $my_pid
