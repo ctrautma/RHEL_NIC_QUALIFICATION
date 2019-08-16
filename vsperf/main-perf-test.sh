@@ -24,46 +24,49 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Detect OS name and version from systemd based os-release file
-set -a
-CASE_PATH="$(dirname $(readlink -f $0))"
-source /etc/os-release
-SYSTEM_VERSION_ID=`echo $VERSION_ID | tr -d '.'`
-/bin/bash $CASE_PATH/repo.sh || exit 1
+init_main_perf_env()
+{
+    set -a
+    CASE_PATH="$(dirname $(readlink -f $0))"
+    source /etc/os-release
+    SYSTEM_VERSION_ID=`echo $VERSION_ID | tr -d '.'`
+    /bin/bash $CASE_PATH/repo.sh || exit 1
 
-if [ $VERSION_ID == "7.5" ]
-then
-    dpdk_ver="18112-1"
-    #one_queue_image="RHEL7-5VNF-1Q.qcow2"
-    #two_queue_image="RHEL7-5VNF-2Q.qcow2"
-    one_queue_image="rhel7.6-vsperf-1Q-viommu.qcow2"
-    two_queue_image="rhel7.6-vsperf-2Q-viommu.qcow2"
-    one_queue_zip="RHEL7-5VNF-1Q.qcow2.lrz"
-    two_queue_zip="RHEL7-5VNF-2Q.qcow2.lrz"
-    dpdk_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7/x86_64/dpdk-18.11.2-1.el7.x86_64.rpm"
-    dpdk_tool_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7/x86_64/dpdk-tools-18.11.2-1.el7.x86_64.rpm"
-elif [ $VERSION_ID == "7.6" ]
-then
-    dpdk_ver="18112-1"
-    #one_queue_image="RHEL76-1Q.qcow2"
-    #two_queue_image="RHEL76-2Q.qcow2"
-    one_queue_image="rhel7.6-vsperf-1Q-viommu.qcow2"
-    two_queue_image="rhel7.6-vsperf-2Q-viommu.qcow2"
-    one_queue_zip="RHEL76-1Q.qcow2.lrz"
-    two_queue_zip="RHEL76-2Q.qcow2.lrz"
-    dpdk_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7_6/x86_64/dpdk-18.11.2-1.el7_6.x86_64.rpm"
-    dpdk_tool_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7_6/x86_64/dpdk-tools-18.11.2-1.el7_6.x86_64.rpm"
-fi
+    if [ $VERSION_ID == "7.5" ]
+    then
+        dpdk_ver="18112-1"
+        #one_queue_image="RHEL7-5VNF-1Q.qcow2"
+        #two_queue_image="RHEL7-5VNF-2Q.qcow2"
+        one_queue_image="rhel7.6-vsperf-1Q-viommu.qcow2"
+        two_queue_image="rhel7.6-vsperf-2Q-viommu.qcow2"
+        one_queue_zip="RHEL7-5VNF-1Q.qcow2.lrz"
+        two_queue_zip="RHEL7-5VNF-2Q.qcow2.lrz"
+        dpdk_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7/x86_64/dpdk-18.11.2-1.el7.x86_64.rpm"
+        dpdk_tool_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7/x86_64/dpdk-tools-18.11.2-1.el7.x86_64.rpm"
+    elif [ $VERSION_ID == "7.6" ]
+    then
+        dpdk_ver="18112-1"
+        #one_queue_image="RHEL76-1Q.qcow2"
+        #two_queue_image="RHEL76-2Q.qcow2"
+        one_queue_image="rhel7.6-vsperf-1Q-viommu.qcow2"
+        two_queue_image="rhel7.6-vsperf-2Q-viommu.qcow2"
+        one_queue_zip="RHEL76-1Q.qcow2.lrz"
+        two_queue_zip="RHEL76-2Q.qcow2.lrz"
+        dpdk_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7_6/x86_64/dpdk-18.11.2-1.el7_6.x86_64.rpm"
+        dpdk_tool_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7_6/x86_64/dpdk-tools-18.11.2-1.el7_6.x86_64.rpm"
+    fi
 
-work_pipe=/tmp/sriov-github-work
-notify_pipe=/tmp/sriov-notfiy-work
-test -p $work_pipe && unlink $work_pipe
-test -p $notify_pipe && unlink $notify_pipe
-mkfifo $work_pipe
-mkfifo $notify_pipe
-python_file="start.py"
-bash_exit_str="sriov-github-vsperf"
-source $CASE_PATH/Perf-Verify.conf
-set +a
+    work_pipe=/tmp/sriov-github-work
+    notify_pipe=/tmp/sriov-notfiy-work
+    test -p $work_pipe && unlink $work_pipe
+    test -p $notify_pipe && unlink $notify_pipe
+    mkfifo $work_pipe
+    mkfifo $notify_pipe
+    python_file="start.py"
+    bash_exit_str="sriov-github-vsperf"
+    source $CASE_PATH/Perf-Verify.conf
+    set +a
+}
 
 create_log_folder()
 {
@@ -201,6 +204,7 @@ check_python_process()
 
 all_env_init()
 {
+    init_main_perf_env
     env
     install_beakerlib    
     install_python_and_init_env
@@ -214,9 +218,11 @@ all_env_init()
     pushd $CASE_PATH
 }
 
+create_log_folder
+touch ${NIC_LOG_FOLDER}/vsperf_pvp_all_performance.txt
+
 run_forever()
 {
-    create_log_folder
     all_env_init
     exec {fd}<>$work_pipe
     while true
@@ -236,7 +242,6 @@ run_forever()
     done
 }
 
-touch ${NIC_LOG_FOLDER}/vsperf_pvp_all_performance.txt
 run_forever |& tee -a ${NIC_LOG_FOLDER}/vsperf_pvp_all_performance.txt
 
 popd

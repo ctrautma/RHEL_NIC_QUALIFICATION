@@ -178,7 +178,7 @@ class Tools(object):
                 elif "Password:" in data:
                     sio.write("redhat" + os.linesep)
                     sio.flush()
-                elif "]#" in data:
+                elif "]#" in data or end_flag in data:
                     break
                 else:
                     continue

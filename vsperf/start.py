@@ -16,7 +16,7 @@ from bash import bash
 import tools
 import xmltool
 from tee import StderrTee as errtee , StdoutTee as outtee
-
+import xml.etree.ElementTree as xml
 
 def get_env(var_name):
     return os.environ.get(var_name)
@@ -317,7 +317,6 @@ def config_file_checks():
         TRAFFICGEN_TREX_HOST_IP_ADDR
         TRAFFICGEN_TREX_PORT1
         TRAFFICGEN_TREX_PORT2
-        TREX_URL
         """.split()
         for name in str_all_name:
             if False == check_env_var(name):
@@ -689,6 +688,16 @@ def configure_guest():
     log(ret)
     return 0
 
+def check_guest_kernel_bridge_result():
+    cmd = f"""
+    ip -d link show br0
+    ifconfig br0
+    """
+    pts = bash("virsh ttyconsole gg").value()
+    ret = my_tool.run_cmd_get_output(pts, cmd)
+    log(ret)
+    pass
+
 def guest_start_kernel_bridge():
     cmd = f"""
     brctl addbr br0
@@ -713,8 +722,18 @@ def guest_start_kernel_bridge():
     log(ret)
     pass
 
+def check_guest_testpmd_result():
+    cmd = f"""
+    show port info all
+    show port stats all
+    """
+    pts = bash("virsh ttyconsole gg").value()
+    ret = my_tool.run_cmd_get_output(pts, cmd,"testpmd>")
+    log(ret)
+    return 0
+
 # {modprobe  vfio enable_unsafe_noiommu_mode=1}
-def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_len):
+def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_len,fwd_mode):
     dpdk_ver = get_env("dpdk_ver")
     cmd = f"""
     /root/one_gig_hugepages.sh 1
@@ -755,13 +774,19 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     else:
         legacy_mem = ""
         hw_vlan_flag = "--disable-hw-vlan"
+    
+    extra_parameter = ""
+    if fwd_mode == "mac":
+        port0_peer_mac = get_env("TRAFFICGEN_TREX_PORT1")
+        port1_peer_mac = get_env("TRAFFICGEN_TREX_PORT2")
+        extra_parameter = f"--eth-peer=0,{port0_peer_mac} --eth-peer=1,{port1_peer_mac}"
 
     cmd_test = f"""testpmd -l {guest_cpu_list}  \
     --socket-mem 1024 \
     {legacy_mem} \
     -n 4 \
     -- \
-    --forward-mode=io \
+    --forward-mode={fwd_mode} \
     --port-topology=paired \
     {hw_vlan_flag} \
     --disable-rss \
@@ -772,6 +797,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     --txd={txd_size} \
     --nb-cores={num_core} \
     --max-pkt-len={max_pkt_len} \
+    {extra_parameter} \
     --auto-start
     """
     ret = my_tool.run_cmd_get_output(pts,cmd_test,"testpmd>")
@@ -799,6 +825,8 @@ def clear_env():
     virsh destroy gg
     virsh undefine gg
     systemctl stop openvswitch
+    ip tuntap del tap0 mode tap
+    ip tuntap del tap1 mode tap
     """
     log_and_run(cmd,"0,1")
     clear_dpdk_interface()
@@ -808,7 +836,7 @@ def clear_env():
     log_and_run("ip link show")
     return 0
 
-def bonding_test_trex(t_time,pkt_size):
+def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
     trex_server_ip = get_env("TRAFFICGEN_TREX_HOST_IP_ADDR")
     with pushd(case_path):
         ret = bash(f"ping {trex_server_ip} -c 3")
@@ -826,17 +854,24 @@ def bonding_test_trex(t_time,pkt_size):
             log_and_run(cmd)
         import time
         time.sleep(3)
-        trex_port_1 = get_env("TRAFFICGEN_TREX_PORT1")
-        trex_port_2 = get_env("TRAFFICGEN_TREX_PORT2")
-        log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{trex_port_1} {trex_port_2}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
+        # trex_port_1 = get_env("TRAFFICGEN_TREX_PORT1")
+        # trex_port_2 = get_env("TRAFFICGEN_TREX_PORT2")
+        # log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{trex_port_1} {trex_port_2}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
+        log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
     return 0
 
-def update_xml_sriov_vf_port(xml_file,vlan_id=0):
-    
+def attch_sriov_vf_to_vm(xml_file,vm,vlan_id=0):
     vf1_bus_info = my_tool.get_bus_from_name(get_env("NIC1_VF"))
     vf2_bus_info = my_tool.get_bus_from_name(get_env("NIC2_VF"))
-    vf1_bus_info.replace(":",'_')
-    vf2_bus_info.replace(":",'_')
+    
+    vf1_bus_info = vf1_bus_info.replace(":",'_')
+    vf1_bus_info = vf1_bus_info.replace(".",'_')
+    
+    vf2_bus_info = vf2_bus_info.replace(":",'_')
+    vf2_bus_info = vf2_bus_info.replace(".",'_')
+
+    log(vf1_bus_info)
+    log(vf2_bus_info)
     
     vf1_domain = vf1_bus_info.split('_')[0]
     vf1_bus    = vf1_bus_info.split('_')[1]
@@ -856,20 +891,120 @@ def update_xml_sriov_vf_port(xml_file,vlan_id=0):
         </vlan>
         <driver name='vfio'/>
         <source >
-            <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
+            <address type='pci' domain='0x{}' bus='0x{}' slot='0x{}' function='0x{}'/>
         </source >
         <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
     </interface >
     """
+
     item = """
+    <interface type='hostdev' managed='yes'>
+        <mac address='{}'/>
+        <driver name='vfio'/>
+        <source >
+            <address type='pci' domain='0x{}' bus='0x{}' slot='0x{}' function='0x{}'/>
+        </source >
+        <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
+    </interface >
+    """
+
+    vf1_xml_path = os.getcwd() + "/vf1.xml"
+    vf2_xml_path = os.getcwd() + "/vf2.xml"
+    if os.path.exists(vf1_xml_path):
+        os.remove(vf1_xml_path)
+    if os.path.exists(vf2_xml_path):
+        os.remove(vf2_xml_path)
+    local.path(vf1_xml_path).touch()
+    local.path(vf2_xml_path).touch()
+    vf1_f_obj = local.path(vf1_xml_path)
+    vf2_f_obj = local.path(vf2_xml_path)
+     
+    
+    import xml.etree.ElementTree as xml
+
+    if vlan_id != 0:
+        vf1_format_list = ['52:54:00:11:8f:ea', vlan_id ,vf1_domain ,vf1_bus, vf1_slot, vf1_func, '0x0000', '0x03', '0x0', '0x0'] 
+        vf1_vlan_item = vlan_item.format(*vf1_format_list)
+        vf1_vlan_obj = xml.fromstring(vf1_vlan_item)
+        vf1_f_obj.write(xml.tostring(vf1_vlan_obj))
+
+        vf2_format_list = ['52:54:00:11:8f:eb', vlan_id, vf2_domain, vf2_bus, vf2_slot, vf2_func, '0x0000', '0x04', '0x0', '0x0']
+        vf2_vlan_item = vlan_item.format(*vf2_format_list)
+        vf2_vlan_obj = xml.fromstring(vf2_vlan_item)
+        vf2_f_obj.write(xml.tostring(vf2_vlan_obj))
+    else:
+        vf1_format_list = ['52:54:00:11:8f:ea' ,vf1_domain, vf1_bus, vf1_slot, vf1_func, '0x0000', '0x03', '0x0', '0x0'] 
+        vf1_novlan_item = item.format(*vf1_format_list)
+        vf1_novlan_obj = xml.fromstring(vf1_novlan_item)
+        vf1_f_obj.write(xml.tostring(vf1_novlan_obj))
+
+        vf2_format_list = ['52:54:00:11:8f:eb' ,vf2_domain ,vf2_bus, vf2_slot ,vf2_func, '0x0000', '0x04', '0x0', '0x0']
+        vf2_novlan_item = item.format(*vf2_format_list)
+        vf2_novlan_obj = xml.fromstring(vf2_novlan_item)
+        vf2_f_obj.write(xml.tostring(vf2_novlan_obj))
+    
+    cmd = f"""
+    sleep 10
+    echo "#################################################"
+    cat {vf1_xml_path}
+    echo "#################################################"
+    cat {vf2_xml_path}
+    echo "#################################################"
+    virsh attach-device {vm} {vf1_xml_path}
+    sleep 5
+    virsh dumpxml {vm}
+    sleep 10
+    virsh attach-device {vm} {vf2_xml_path}
+    sleep 5
+    virsh dumpxml {vm}
+    """
+    log_and_run(cmd)
+
+    return 0
+
+def update_xml_sriov_vf_port(xml_file,vlan_id=0):
+    vf1_bus_info = my_tool.get_bus_from_name(get_env("NIC1_VF"))
+    vf2_bus_info = my_tool.get_bus_from_name(get_env("NIC2_VF"))
+    
+    vf1_bus_info = vf1_bus_info.replace(":",'_')
+    vf1_bus_info = vf1_bus_info.replace(".",'_')
+    
+    vf2_bus_info = vf2_bus_info.replace(":",'_')
+    vf2_bus_info = vf2_bus_info.replace(".",'_')
+
+    log(vf1_bus_info)
+    log(vf2_bus_info)
+    
+    vf1_domain = vf1_bus_info.split('_')[0]
+    vf1_bus    = vf1_bus_info.split('_')[1]
+    vf1_slot   = vf1_bus_info.split('_')[2]
+    vf1_func   = vf1_bus_info.split('_')[3]
+
+    vf2_domain = vf2_bus_info.split('_')[0]
+    vf2_bus    = vf2_bus_info.split('_')[1]
+    vf2_slot   = vf2_bus_info.split('_')[2]
+    vf2_func   = vf2_bus_info.split('_')[3]
+
+    vlan_item = """
     <interface type='hostdev' managed='yes'>
         <mac address='{}'/>
         <vlan >
             <tag id='{}'/>
-        </vlan >
+        </vlan>
         <driver name='vfio'/>
         <source >
-            <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
+            <address type='pci' domain='0x{}' bus='0x{}' slot='0x{}' function='0x{}'/>
+        </source >
+        <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
+    </interface >
+    """
+
+    item = """
+    <interface type='hostdev' managed='yes'>
+        <mac address='{}'/>
+        <driver name='vfio'/>
+        <source >
+            <address type='pci' domain='0x{}' bus='0x{}' slot='0x{}' function='0x{}'/>
         </source >
         <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
     </interface >
@@ -887,12 +1022,12 @@ def update_xml_sriov_vf_port(xml_file,vlan_id=0):
         xml_tool.add_item_from_xml(xml_file,"./devices" ,vf2_vlan_item)
     else:
         vf1_format_list = ['52:54:00:11:8f:ea' ,vf1_domain, vf1_bus, vf1_slot, vf1_func, '0x0000', '0x03', '0x0', '0x0'] 
-        vf1_vlan_item = item.format(*vf1_format_list)
-        xml_tool.add_item_from_xml(xml_file,"./devices",vf1_vlan_item)
+        vf1_novlan_item = item.format(*vf1_format_list)
+        xml_tool.add_item_from_xml(xml_file,"./devices",vf1_novlan_item)
 
         vf2_format_list = ['52:54:00:11:8f:eb' ,vf2_domain ,vf2_bus, vf2_slot ,vf2_func, '0x0000', '0x04', '0x0', '0x0']
-        vf2_vlan_item = item.format(*vf2_format_list)
-        xml_tool.add_item_from_xml(xml_file,"./devices", vf2_vlan_item)
+        vf2_novlan_item = item.format(*vf2_format_list)
+        xml_tool.add_item_from_xml(xml_file,"./devices", vf2_novlan_item)
     return 0
 
 
@@ -992,10 +1127,14 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
         guest_cpu_list="0,1,2"
     else:
         guest_cpu_list="0,1,2,3,4"
-    guest_start_testpmd(q_num,guest_cpu_list,get_env("RXD_SIZE"),get_env("TXD_SIZE"),mtu_val)
+    guest_start_testpmd(q_num,guest_cpu_list,get_env("RXD_SIZE"),get_env("TXD_SIZE"),mtu_val,"io")
 
-    log("PVP performance test Begin Now")
-    bonding_test_trex(cont_time,pkt_size)
+    log("ovs dpdk PVP performance test Begin Now")
+    trex_port_1 = get_env("TRAFFICGEN_TREX_PORT1")
+    trex_port_2 = get_env("TRAFFICGEN_TREX_PORT2")
+    bonding_test_trex(cont_time,pkt_size,trex_port_1,trex_port_2)
+
+    check_guest_testpmd_result()
 
     return 0
 
@@ -1003,7 +1142,7 @@ def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
     clear_env()
     nic1_name = get_env("NIC1")
     nic2_name = get_env("NIC2")
-    numa_node = bash("cat /sys/class/net/{nic1_name}/device/numa_node").value()
+    numa_node = bash(f"cat /sys/class/net/{nic1_name}/device/numa_node").value()
 
     if q_num == 1:
         vcpu_list = [ get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3")]
@@ -1020,10 +1159,20 @@ def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
         xml_tool.update_image_source(new_xml,case_path + "/" + get_env("one_queue_image"))
     else:
         xml_tool.update_image_source(new_xml,case_path + "/" + get_env("two_queue_image"))
+
     start_guest(new_xml)
+
     configure_guest()
+
     guest_start_kernel_bridge()
-    bonding_test_trex(cont_time,pkt_size)
+
+    log("ovs kernel datapath PVP performance test Begin Now")
+    trex_port_1 = get_env("TRAFFICGEN_TREX_PORT1")
+    trex_port_2 = get_env("TRAFFICGEN_TREX_PORT2")
+    bonding_test_trex(cont_time,pkt_size,trex_port_1,trex_port_2)
+
+    check_guest_kernel_bridge_result()
+
     return 0
 
 def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
@@ -1034,16 +1183,37 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
         vcpu_list = [ get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3"),get_env("VCPU4"),get_env("VCPU5")]
     new_xml = "g1.xml"
     vcpupin_in_xml(numa_node,"guest.xml",new_xml,vcpu_list)
-    update_xml_sriov_vf_port(new_xml,0)
+    #clear the old hostdev config and update xml file
+    xml_tool.remove_item_from_xml(new_xml,"./devices/interface[@type='hostdev']")
+    # Here because of the limit of p35 archtechture , I can not add two vf into vm at the same time 
+    # So , make a workaround , add vf with virsh attach-device two times
 
+    #start vm
     if q_num == 1:
         xml_tool.update_image_source(new_xml,case_path + "/" + get_env("one_queue_image"))
     else:
         xml_tool.update_image_source(new_xml,case_path + "/" + get_env("two_queue_image"))
+    
     start_guest(new_xml)
+
+    #Here attach vf to vm 
+    attch_sriov_vf_to_vm(new_xml,"gg")
+
     configure_guest
-    guest_start_testpmd(q_num,vcpu_list,get_env("SRIOV_RXD_SIZE"),get_env("SRIOV_TXD_SIZE"),pkt_size)
-    bonding_test_trex(cont_time,pkt_size)
+
+    log("guest start testpmd test Now")
+    if q_num == 1:
+        guest_cpu_list="0,1,2"
+    else:
+        guest_cpu_list="0,1,2,3,4"
+
+    guest_start_testpmd(q_num,guest_cpu_list,get_env("SRIOV_RXD_SIZE"),get_env("SRIOV_TXD_SIZE"),pkt_size,"mac")
+
+    log("sriov pci passthrough PVP performance test Begin Now")
+    bonding_test_trex(cont_time,pkt_size,"52:54:00:11:8f:ea","52:54:00:11:8f:eb")
+
+    check_guest_testpmd_result()
+
     return 0
 
 
@@ -1058,6 +1228,17 @@ def run_tests(test_list):
         """
         log(data)
         ovs_dpdk_pvp_test(1,1500,1500,30)
+        pass
+    
+    if test_list == "ALL" or test_list == "SRIOV":
+        data = """
+        ************************************************
+        Running 64/1500 Bytes SR-IOV VSPerf TEST
+        ************************************************
+        """
+        log(data)
+        sriov_pci_passthrough_test(1,64,30)
+        sriov_pci_passthrough_test(2,1500,30)
         pass
 
     if test_list == "ALL" or test_list == "1Q":
@@ -1111,16 +1292,6 @@ def run_tests(test_list):
         ovs_kernel_datapath_test(2,1500,30)
         pass
     
-    if test_list == "ALL" or test_list == "SRIOV":
-        data = """
-        ************************************************
-        Running 64/1500 Bytes SR-IOV VSPerf TEST
-        ************************************************
-        """
-        log(data)
-        sriov_pci_passthrough_test(1,64,30)
-        sriov_pci_passthrough_test(2,1500,30)
-        pass
 
     return 0
 
