@@ -510,7 +510,7 @@ def install_rpms():
         bash("systemctl restart libvirtd")
     return 0
 
-def ovs_bridge_with_kernel(nic1_mac, nic2_mac, pmd_cpu_mask):
+def ovs_bridge_with_kernel(nic1_name, nic2_name):
     cmd = f"""
 	modprobe openvswitch
 	systemctl stop openvswitch
@@ -520,23 +520,42 @@ def ovs_bridge_with_kernel(nic1_mac, nic2_mac, pmd_cpu_mask):
 	ovs-vsctl --if-exists del-br ovsbr0
 	sleep 5
 
-	ovs-vsctl set Open_vSwitch . other_config={{}}
-	ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-init=true
-	ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-socket-mem="4096,4096"
-	ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask="{pmd_cpu_mask}"
-    ovs-vsctl --no-wait set Open_vSwitch . other_config:vhost-iommu-support=true
+    ovs-vsctl set Open_vSwitch . other_config={{}}
 	systemctl restart openvswitch
-	sleep 3
-	ovs-vsctl add-br ovsbr0 -- set bridge ovsbr0 datapath_type=netdev
 
-    ovs-vsctl add-port ovsbr0 dpdk0 -- set Interface dpdk0 type=dpdk options:dpdk-devargs="class=eth,mac={nic1_mac}"
-    ovs-vsctl add-port ovsbr0 dpdk1 -- set Interface dpdk1 type=dpdk options:dpdk-devargs="class=eth,mac={nic2_mac}"
+    ovs-vsctl --timeout 10 add-br ovsbr0
+    ovs-vsctl --timeout 10 set Open_vSwitch . other_config:max-idle=30000
 
-    # ovs-vsctl add-port ovsbr0 vhost0 -- set interface vhost0 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost0
-    # ovs-vsctl add-port ovsbr0 vhost1 -- set interface vhost1 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost1
+    ip addr flush dev {nic1_name}
+    ip link set dev {nic1_name} up
+    ovs-vsctl --timeout 10 add-port ovsbr0 {nic1_name}
+    
+    ip addr flush dev {nic2_name}
+    ip link set dev {nic2_name} up
+    ovs-vsctl --timeout 10 add-port ovsbr0 {nic2_name}
+    
+    ip tuntap del tap0 mode tap
+    ip tuntap add tap0 mode tap
+    ip addr flush dev tap0
+    ip link set dev tap0 up
+    ovs-vsctl --timeout 10 add-port ovsbr0 tap0
+    
+    ip tuntap del tap1 mode tap
+    ip tuntap add tap1 mode tap
+    ip addr flush dev tap1
+    ip link set dev tap1 up
+    ovs-vsctl --timeout 10 add-port ovsbr0 tap1
 
-	ovs-ofctl del-flows ovsbr0
-	ovs-ofctl add-flow ovsbr0 actions=NORMAL
+    ovs-vsctl set Interface {nic1_name}  ofport_request=1
+    ovs-vsctl set Interface {nic2_name}  ofport_request=2
+    ovs-vsctl set Interface tap0 ofport_request=3
+    ovs-vsctl set Interface tap1 ofport_request=4
+
+    ovs-ofctl -O OpenFlow13 --timeout 10 del-flows br0 
+    ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 in_port=1,idle_timeout=0,action=output:3
+    ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 in_port=3,idle_timeout=0,action=output:1
+    ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 in_port=4,idle_timeout=0,action=output:2
+    ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 in_port=2,idle_timeout=0,action=output:4
 
 	sleep 2
 	ovs-vsctl show
@@ -670,6 +689,29 @@ def configure_guest():
     log(ret)
     return 0
 
+def guest_start_kernel_bridge():
+    cmd = f"""
+    brctl addbr br0
+    ip addr add 192.168.1.2/24 dev eth1
+    ip link set dev eth1 up
+    brctl addif br0 eth1
+    ip addr add 192.168.1.3/24 dev eth2
+    ip link set dev eth2 up
+    brctl addif br0 eth2
+    ip addr add 1.1.1.5/16 dev br0
+    ip link set dev br0 up
+    # arp -s 1.1.1.10 3c:fd:fe:ad:bc:e8
+    # arp -s 1.1.2.10 3c:fd:fe:ad:bc:e9
+    sysctl -w net.ipv4.ip_forward=1
+    yum install -y tuna
+    tuned-adm profile network-latency
+    sysctl -w net.ipv4.conf.all.rp_filter=0
+    sysctl -w net.ipv4.conf.eth0.rp_filter=0
+    """
+    pts = bash("virsh ttyconsole gg").value()
+    ret = my_tool.run_cmd_get_output(pts, cmd)
+    log(ret)
+    pass
 
 # {modprobe  vfio enable_unsafe_noiommu_mode=1}
 def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_len):
@@ -878,11 +920,11 @@ def update_xml_vnet_port(xml_file):
     xml_tool.add_item_from_xml(xml_file,"./devices", append_item)
 
     
-    vnet_format_list_one = ['52:54:00:11:8f:ea','ovsbr0','0x0000','0x03','0x0','0x0','vnet0']
+    vnet_format_list_one = ['52:54:00:11:8f:ea','ovsbr0','0x0000','0x03','0x0','0x0','tap0']
     vnet_format_item_one = item.format(*vnet_format_list_one)
     xml_tool.add_item_from_xml(xml_file,"./devices" ,vnet_format_item_one)
 
-    vnet_format_list_two = ['52:54:00:11:8f:eb','ovsbr0','0x0000','0x04','0x0','0x0','vnet1']
+    vnet_format_list_two = ['52:54:00:11:8f:eb','ovsbr0','0x0000','0x04','0x0','0x0','tap1']
     vnet_format_item_two = item.format(*vnet_format_list_two)
     xml_tool.add_item_from_xml(xml_file,"./devices",vnet_format_item_two)
     return 0
@@ -959,25 +1001,19 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
 
 def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
     clear_env()
-    
     nic1_name = get_env("NIC1")
     nic2_name = get_env("NIC2")
-    nic1_mac = my_tool.get_mac_from_name(nic1_name)
-    nic2_mac = my_tool.get_mac_from_name(nic2_name)
-    enable_dpdk(nic1_mac,nic2_mac)
-
     numa_node = bash("cat /sys/class/net/{nic1_name}/device/numa_node").value()
 
     if q_num == 1:
         vcpu_list = [ get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3")]
-        ovs_bridge_with_kernel(nic1_mac,nic2_mac,get_env("PMD2MASK"))
+        ovs_bridge_with_kernel(nic1_name,nic2_name)
     else:
         vcpu_list = [ get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3"),get_env("VCPU4"),get_env("VCPU5")]
-        ovs_bridge_with_kernel(nic1_mac,nic2_mac,get_env("PMD4MASK"))
+        ovs_bridge_with_kernel(nic1_name,nic2_name)
         pass
     new_xml = "g1.xml"
-    vcpupin_in_xml(numa_node,"guest.xml",new_xml,vcpu_list)
- 
+    vcpupin_in_xml(numa_node,"guest.xml",new_xml,vcpu_list) 
     update_xml_vnet_port(new_xml)
 
     if q_num == 1:
@@ -986,7 +1022,7 @@ def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
         xml_tool.update_image_source(new_xml,case_path + "/" + get_env("two_queue_image"))
     start_guest(new_xml)
     configure_guest()
-    guest_start_testpmd(q_num,vcpu_list,get_env("RXD_SIZE"),get_env("TXD_SIZE"),pkt_size)
+    guest_start_kernel_bridge()
     bonding_test_trex(cont_time,pkt_size)
     return 0
 
