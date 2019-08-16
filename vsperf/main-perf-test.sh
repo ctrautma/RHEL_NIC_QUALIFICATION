@@ -221,6 +221,7 @@ run_forever()
     exec {fd}<>$work_pipe
     while true
     do
+        echo -n "OK" > $notify_pipe
         #Here read ctrl + D as the end of one each command
         if read -t 60 -r line  <& $fd; then
             if [[ "$line" == "${bash_exit_str}" ]]; then
