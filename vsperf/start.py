@@ -550,7 +550,7 @@ def ovs_bridge_with_kernel(nic1_name, nic2_name):
     ovs-vsctl set Interface tap0 ofport_request=3
     ovs-vsctl set Interface tap1 ofport_request=4
 
-    ovs-ofctl -O OpenFlow13 --timeout 10 del-flows br0 
+    ovs-ofctl -O OpenFlow13 --timeout 10 del-flows ovsbr0 
     ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 in_port=1,idle_timeout=0,action=output:3
     ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 in_port=3,idle_timeout=0,action=output:1
     ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 in_port=4,idle_timeout=0,action=output:2
