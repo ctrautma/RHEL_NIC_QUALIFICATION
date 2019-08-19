@@ -53,7 +53,10 @@
 # Release the DPCK NIC back to kernel #
 # #####################################
 
-
+  - name: Start openvswitch
+    service:
+      name: openvswitch
+      state: started
   - name: Delete ovs bridge
     shell: ovs-vsctl --if-exists del-br ovs_pvp_br0
   - name: Disable dpdk

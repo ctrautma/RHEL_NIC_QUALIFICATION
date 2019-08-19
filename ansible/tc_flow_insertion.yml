@@ -22,12 +22,15 @@
     virt:
       name: rhel_loopback
       state: shutdown
-#  - name: Clone repo RHEL_NIC_QUALIFICATION
-#    git:
-#      repo: https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
-#      dest: ~/RHEL_NIC_QUALIFICATION
-#      track_submodules: yes
-#      force: yes
+  - stat: path=RHEL_NIC_QUALIFICATION
+    register: st
+  - name: Clone repo RHEL_NIC_QUALIFICATION
+    git:
+      repo: https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
+      dest: ~/RHEL_NIC_QUALIFICATION
+      track_submodules: yes
+      force: yes
+    when: not st.stat.exists
   - name: Install needed modules step 1
     yum:
       name: perf,gnuplot,kernel-debuginfo
@@ -58,8 +61,6 @@
       target: install
       params:
         PYTHON: /usr/bin/python3.6
-#  - name: Install latest perf
-#    shell: make PYTHON=/usr/bin/python3.6 install
   - name: Uncompress cls_flower folder
     shell: unxz /lib/modules/<kernel version>/kernel/net/sched/cls_flower.ko.xz
   - name: Running depmod to complete install

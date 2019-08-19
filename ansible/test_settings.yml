@@ -8,8 +8,8 @@ rh_sub_pool_id: NA
 
 # enable the below if internally testing for QE and use the command found at -> https://wiki.test.redhat.com/ctrautma and search for the section Subscription manager testing and enclose it with ""
 # DO NOT COMMIT THIS FILE TO GITHUB if this change is made!!!!!
-qe_subscription_mode: false
-qe_subscription_command:
+qe_subscription_mode: true
+qe_subscription_command: subscription-manager register --serverurl=subscription.rhsm.stage.redhat.com:443/subscription --baseurl=https://cdn.redhat.com --username=qa@redhat.com --password=redhatqa --auto-attach
 
 # T-Rex version to use (example v2.53 : Note please include the v)
 trex_version: v2.53
@@ -44,7 +44,7 @@ dut_dpdk_pmd_mask: 8002
 dut_dpdk_lcore_mask: 40
 
 # DUT PMD RXQ Affinity. The receive queue affinity which will be set on the PMD threads.
-dut_pmd_rxq_affinity: 0:1,1:15
+dut_pmd_rxq_affinity: 0:9,1:15
 
 # Path to RHEL guest image for PVP tests.  Please download the image from the red hat website.  See README for more info.
 rhel_guest_image_path: /root/rhel-8.0-beta-1-x86_64-kvm.qcow2
@@ -55,9 +55,9 @@ dut_cpu_model: SandyBridge
 #dut_cpu_model: Haswell-noTSX
 
 # Virtual CPU list (Should be in isolated list), emulator vcpu can be non isolated.  Use cores that will not clash with DPDK core mask.
-vcpu_1: 3
-vcpu_2: 5
-vcpu_3: 7
-vcpu_4: 9
+vcpu_1: 1
+vcpu_2: 3
+vcpu_3: 5
+vcpu_4: 7
 vcpu_emulator: 2
 
