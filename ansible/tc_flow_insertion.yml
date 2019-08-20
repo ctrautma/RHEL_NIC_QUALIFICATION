@@ -53,7 +53,7 @@
     git:
       repo: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
       clone: yes
-      dest: linux/tools/perf
+      dest: linux
       depth: 1
   - name: Build perf package
     make:
@@ -61,7 +61,10 @@
       target: install
       params:
         PYTHON: /usr/bin/python3.6
+  - name: Get kernel version
+    shell: uname -r
+    register: kernel_version
   - name: Uncompress cls_flower folder
-    shell: unxz /lib/modules/<kernel version>/kernel/net/sched/cls_flower.ko.xz
+    shell: unxz /lib/modules/{{ kernel_version.stdout }}/kernel/net/sched/cls_flower.ko.xz
   - name: Running depmod to complete install
     shell: depmod -a
