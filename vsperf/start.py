@@ -94,7 +94,7 @@ def run(cmd, str_ret_val="0"):
         if len(cmd) > 0:
             sh_run(cmd, str_ret_val)
         else:
-            sh_run("echo 'run Find command that length is 0 !'")
+            sh_run("echo")
     pass
 
 def runlog(cmd, str_ret_val="0"):
@@ -104,7 +104,7 @@ def runlog(cmd, str_ret_val="0"):
         if len(cmd) > 0:
             sh_run_log(cmd, str_ret_val)
         else:
-            sh_run("echo 'runlog Find command that length is 0 !'")
+            sh_run("echo")
     pass
     
 def log_and_run(cmd, str_ret_val="0"):
