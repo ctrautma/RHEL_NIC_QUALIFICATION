@@ -583,13 +583,14 @@ All test results are saved in: "/root/pvp_results_2018-02-23_040540_tc.tgz"
 If you card is going to support TC Flower rule offloading then please run the next
 set of tests.
 
-1. Stop openvswitch and the guest if it is still running
-```
-systemctl stop openvswitch
-virsh shutdown rhel_loopback
-```
+Use the Ansible script tc_flow_insertion.yml to setup needed packages to run the test script.
 
-The test is located in RHEL_NIC_QUALIFICATION/perf-flower/rule-install-rate
+'''
+sudo ansible-playbook tc_flow_insertion.yml
+'''
+
+The test is located in RHEL_NIC_QUALIFICATION/perf-flower/rule-install-rate and needs to be
+executed on the DUT.
 
 If this folder is empty you may have to force an init to pull the test package
 from the RHEL_NIC_QUALIFICATION folder.
@@ -598,44 +599,6 @@ from the RHEL_NIC_QUALIFICATION folder.
 git submodule update --init
 ```
 
-You may have to install some modules for run this test script.
-
-```
-yum install -y perf gnuplot kernel-debuginfo
-```
-
-You must build perf from a recent kernel source in order to make it work with python3:
-
-```
-yum install -y git make gcc flex bison libdwarf-devel \
-	python36-devel elfutils-devel ncurses-devel xz-devel \
-	elfutils-libelf-devel pcre2-devel binutils-devel numactl-devel \
-	slang-devel zlib-devel audit-libs-devel asciidoc \
-	xmlto openssl-devel perl-ExtUtils-Embed
-git clone --depth 1 https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-cd linux/tools/perf
-make PYTHON=/usr/bin/python3.6 install
-
-```
-
-Navigate back to the rule-install-rate folder
-
-```
-cd ../../../
-```
-
-Uncompress the cls_flower module (this is needed because RHEL8's elfutils can't
-deal with a compressed module with uncompressed debuginfo):
-
-```
-unxz /lib/modules/<kernel version>/kernel/net/sched/cls_flower.ko.xz
-```
-
-Run depmod to prevent module symbol error.
-
-```
-depmod -a
-```
 
 Now you shall execute the run.sh script as:
 

@@ -8,8 +8,8 @@ rh_sub_pool_id: NA
 
 # enable the below if internally testing for QE and use the command found at -> https://wiki.test.redhat.com/ctrautma and search for the section Subscription manager testing and enclose it with ""
 # DO NOT COMMIT THIS FILE TO GITHUB if this change is made!!!!!
-qe_subscription_mode: true
-qe_subscription_command: subscription-manager register --serverurl=subscription.rhsm.stage.redhat.com:443/subscription --baseurl=https://cdn.redhat.com --username=qa@redhat.com --password=redhatqa --auto-attach
+qe_subscription_mode: false
+qe_subscription_command:
 
 # T-Rex version to use (example v2.53 : Note please include the v)
 trex_version: v2.53
