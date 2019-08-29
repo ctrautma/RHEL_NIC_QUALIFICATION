@@ -351,7 +351,7 @@
   - name: Logging into vm rhel_loopback
     shell: ~/vm.sh login_vm rhel_loopback
   - name: Setting up subscription manager step 1 on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "subscription-manager register --username={{ rh_sub_username }} --password={{ rh_sub_pass }} --baseurl=cdn.stage.redhat.com --serverurl subscription.rhsm.stage.redhat.com"
+    shell: ~/vm.sh run_cmd rhel_loopback "subscription-manager register --username={{ rh_sub_username }} --password={{ rh_sub_pass }}"
     when: not qe_subscription_mode
   - name: Setting up subscription manager step 2 on rhel_loopback
     shell: ~/vm.sh run_cmd rhel_loopback "subscription-manager attach --pool={{ rh_sub_pool_id }}"

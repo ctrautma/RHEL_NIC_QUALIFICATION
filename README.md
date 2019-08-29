@@ -81,6 +81,9 @@ sum of both ports in frames per second.
 
 ## Setting up for Ansible script execution
 
+First make sure both the Trex server and the DUT have their Red Hat subscriptions setup with your credentials to be
+able to pull the repos correctly.
+
 The Ansible scripts are located in ansible folder of this github project. Each of the PVP setups below can be
 automated using the Ansible scripts so the manual steps can be ignored.  To properly run the Ansible scripts
 the configuration files must be completed.
@@ -101,6 +104,41 @@ Modify the trex and dut sections to reflect the system hostnames or ip addresses
 
 In this file go through each setting and modify them as noted by the notes in the file.  It is imperative these are
 done correctly for the scripts to work correctly in the setup.
+
+For your redhat subscription password you have two options.  One option is to store it in the file in clear text.
+If this is not desired you can use Ansible-vault to encrypt your password by doing the following.
+
+Type in the command where password is your subscription password.
+    ansible-vault encrypt_string --ask-vault-pass "password"
+
+When prompted for a vault password you can use the same password as your subscription password.
+
+You will get an output such as
+
+    !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          34653862363363663232616338393231363136326164353731383036396439626434376335323936
+          3134633465353832316165653634323936336665373462650a386239343164316234636661306630
+          35373538633338323032303062303265396239663836373461646339356538643633633538336135
+          6565616466613562320a363764643565326564633665353765653332666237363366613636353831
+          3861
+
+Copy this into your settings file under the rh_sub_pass var
+
+rh_sub_pass: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          34653862363363663232616338393231363136326164353731383036396439626434376335323936
+          3134633465353832316165653634323936336665373462650a386239343164316234636661306630
+          35373538633338323032303062303265396239663836373461646339356538643633633538336135
+          6565616466613562320a363764643565326564633665353765653332666237363366613636353831
+          3861
+
+Then whenever you run one of the ansible scripts make sure to supply the argument --ask-vault-pass and supply the same
+password when prompted.  This way your password is stored only in history and not in an actual clear text file stored
+on the system.
+
+Even though you did this on the bare-metal systems we have to setup the subscription credentials inside of the virtual
+image used for testing.  This is why this info must be supplied.
 
 Once the settings are complete you will need to use a remote system to execute the scripts on the DUT and trex server.
 You will need to setup keyless ssh login from your remote system to those test servers.  In a usual case this is done

@@ -1,27 +1,32 @@
 # Debug mode (Will print out extra debug information. Only enable if asked to by RedHat)
 redhat_debug_mode: False
 
-# subscription username, password, pool_id used for accessing Red Hat repositories.  If you do not have one please ask your Red Hat EPM to assist.
-rh_sub_username: NA
-rh_sub_pass: NA
-rh_sub_pool_id: NA
+# Red Hat subscription username, password, pool_id used for accessing Red Hat repositories.  If you do not have one
+# please ask your Red Hat EPM to assist.
+rh_sub_username:
+rh_sub_pass:
+rh_sub_pool_id:
 
-# enable the below if internally testing for QE and use the command found at -> https://wiki.test.redhat.com/ctrautma and search for the section Subscription manager testing and enclose it with ""
+# enable the below if internally testing for QE and use the command found at -> https://wiki.test.redhat.com/ctrautma
+# and search for the section Subscription manager testing and enclose it with ""
 # DO NOT COMMIT THIS FILE TO GITHUB if this change is made!!!!!
 qe_subscription_mode: false
 qe_subscription_command:
 
-# T-Rex version to use (example v2.53 : Note please include the v)
+# T-Rex version to use (example v2.53 : Note please include the v) This is the version that will be downloaded from git
+# and installed on the trex server.
 trex_version: v2.53
 
 # T-Rex server NIC names (example eth1, enp68s0f0, etc...)
 trex_interface_1: enp68s0f0
 trex_interface_2: enp68s0f1
 
-# Openvswitch package location
+# Openvswitch package location. While you can pull this from the fast datapath repository it is recommended to contact
+# your development representative to get the latest version. Then copy this to the DUT and specify its location.
 ovs_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch2.11/2.11.0/9.el8fdp/x86_64/openvswitch2.11-2.11.0-9.el8fdp.x86_64.rpm"
 
-# Openvswitch selinux package location
+# Openvswitch selinux package location. While you can pull this from the fast datapath repository it is recommended to
+# contact your development representative to get the latest version.  Then copy this to the DUT and specify its location.
 ovs_selinux_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch-selinux-extra-policy/1.0/11.el8fdp/noarch/openvswitch-selinux-extra-policy-1.0-11.el8fdp.noarch.rpm"
 
 # DUT server isolated core list
@@ -35,6 +40,7 @@ dut_interface_1_pciid: "0000:44:00.0"
 tc_offload_card_type: "Netronome"
 
 # DUT DPDK Driver,  for most devices this will be vfio-pci.  Changes for other cards such as Mellanox may be required.
+# This is the DPDK driver that the card will bind to on the DUT.
 dut_driver: vfio-pci
 
 # DUT DPDK PMD Mask.  PMD mask to set for which cores will be used for PMD threads.
@@ -47,6 +53,7 @@ dut_dpdk_lcore_mask: 40
 dut_pmd_rxq_affinity: 0:9,1:15
 
 # Path to RHEL guest image for PVP tests.  Please download the image from the red hat website.  See README for more info.
+# This is the location the file is located on the DUT.
 rhel_guest_image_path: /root/rhel-8.0-beta-1-x86_64-kvm.qcow2
 
 # CPU model info, needs to be modified to match your DUT cpu type. If an error occurs with virt-install might need to
