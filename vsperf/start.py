@@ -860,7 +860,7 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
         log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
     return 0
 
-def attch_sriov_vf_to_vm(xml_file,vm,vlan_id=0):
+def attach_sriov_vf_to_vm(xml_file,vm,vlan_id=0):
     vf1_bus_info = my_tool.get_bus_from_name(get_env("NIC1_VF"))
     vf2_bus_info = my_tool.get_bus_from_name(get_env("NIC2_VF"))
     
@@ -1197,7 +1197,7 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
     start_guest(new_xml)
 
     #Here attach vf to vm 
-    attch_sriov_vf_to_vm(new_xml,"gg")
+    attach_sriov_vf_to_vm(new_xml,"gg")
 
     configure_guest
 
