@@ -7,35 +7,54 @@
       msg: Debug mode is enabled
     when: redhat_debug_mode == true
 
+############################################
+# Get needed cpu list #
+############################################
+
+  - name: Get dut_isolated_cpus
+    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
+    register: dut_isolated_cpus
+  - name: Get vcpu_1
+    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
+    register: vcpu_1
+  - name: Get vcpu_2
+    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_2
+    register: vcpu_2
+  - name: Get vcpu_3
+    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
+    register: vcpu_3
+  - name: Get vcpu_4
+    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_4
+    register: vcpu_4
 
 #############################
 # Return back isolated CPUs #
 # ###########################
 
   - name: Checking isolcpus in tuned
-    shell: "cat /etc/tuned/cpu-partitioning-variables.conf | grep isolated_cores={{ vcpu_1 }},{{ vcpu_2 }},{{ vcpu_3 }},{{ vcpu_4 }}"
+    shell: "cat /etc/tuned/cpu-partitioning-variables.conf | grep isolated_cores={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}"
     register: tuned_found
     ignore_errors: True
   - name: Change isolcpus in tuned
     when: tuned_found.rc != 0
     replace:
       dest: /etc/tuned/cpu-partitioning-variables.conf
-      regexp: 'isolated_cores={{ dut_isolated_cpus }}'
-      replace: 'isolated_cores={{ vcpu_1 }},{{ vcpu_2 }},{{ vcpu_3 }},{{ vcpu_4 }}'
+      regexp: 'isolated_cores={{ dut_isolated_cpus.stdout }}'
+      replace: 'isolated_cores={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}'
 
   - name: Starting cpu-partitioning tuned profile
     shell: tuned-adm profile cpu-partitioning
 
   - name: Checking isolcpus in grub
-    shell: "cat /etc/default/grub | grep isolcpus={{ vcpu_1 }},{{ vcpu_2 }},{{ vcpu_3 }},{{ vcpu_4 }}"
+    shell: "cat /etc/default/grub | grep isolcpus={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}"
     register: grub_found
     ignore_errors: True
   - name: Change isolcpus in grub
     when: grub_found.rc != 0
     replace:
       dest: /etc/default/grub
-      regexp: 'isolcpus={{ dut_isolated_cpus }}'
-      replace: 'isolcpus={{ vcpu_1 }},{{ vcpu_2 }},{{ vcpu_3 }},{{ vcpu_4 }}'
+      regexp: 'isolcpus={{ dut_isolated_cpus.stdout }}'
+      replace: 'isolcpus={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}'
 
   - name: Tweak the kernel isolated list
     command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
