@@ -444,21 +444,13 @@
   - name: Rebooting vm rhel_loopback step 1
     virt:
       name: rhel_loopback
-      state: shutdown
+      state: destroyed
   - name: Rebooting vm rhel_loopback step 2
     virt:
       name: rhel_loopback
       state: running
   - name: Logging into VM rhel_loopback
     shell: ~/vm.sh login_vm rhel_loopback
-  - name: Removing previous pvp_results folder
-    file:
-      state: absent
-      path: "~/pvp_results"
-  - name: Creating new pvp_results folder
-    file:
-      state: directory
-      path: "~/pvp_results"
   - name: Logging into vm rhel_loopback
     shell: ~/vm.sh login_vm rhel_loopback
   - name: Getting IP address from VM

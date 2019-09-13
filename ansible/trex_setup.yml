@@ -225,4 +225,17 @@
   - name: Copy trex client files step 2
     shell: cp -r /root/trex/{{ trex_version}}/trex_client/external_libs /root/ovs_perf/trex/
 
+#############################
+# Create pvp results folder #
+#############################
+
+  - name: Removing previous pvp_results folder
+    file:
+      state: absent
+      path: "~/pvp_results"
+  - name: Creating new pvp_results folder
+    file:
+      state: directory
+      path: "~/pvp_results"
+
     
