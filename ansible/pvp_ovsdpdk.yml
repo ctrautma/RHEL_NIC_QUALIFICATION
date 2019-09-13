@@ -173,6 +173,33 @@
       state: started
 
 ############################################
+# Get needed cpu list #
+############################################
+
+  - name: Get dut_isolated_cpus
+    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
+    register: dut_isolated_cpus
+  - name: Get dut_dpdk_pmd_mask
+    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_dpdk_pmd_mask
+    register: dut_dpdk_pmd_mask
+  - name: Get dut_pmd_rxq_affinity
+    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_pmd_rxq_affinity
+    register: dut_pmd_rxq_affinity
+  - name: Get vcpu_1
+    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
+    register: vcpu_1
+  - name: Get vcpu_2
+    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_2
+    register: vcpu_2
+  - name: Get vcpu_3
+    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
+    register: vcpu_3
+  - name: Get vcpu_4
+    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_4
+    register: vcpu_4
+
+
+############################################
 # Tune isolated cpus based on t-rex config #
 ############################################
 
@@ -185,20 +212,20 @@
       name: tuned
       state: started
   - name: Checking for isolcpus in grub (Fatal errors are normal here)
-    shell: cat /etc/tuned/cpu-partitioning-variables.conf | grep {{ dut_isolated_cpus }}
+    shell: cat /etc/tuned/cpu-partitioning-variables.conf | grep {{ dut_isolated_cpus.stdout }}
     ignore_errors: True
     register: isolcpus_needed
   - name: Adding isolated cpus to tuned
-    shell: echo isolated_cores={{ dut_isolated_cpus }} >> /etc/tuned/cpu-partitioning-variables.conf
+    shell: echo isolated_cores={{ dut_isolated_cpus.stdout }} >> /etc/tuned/cpu-partitioning-variables.conf
     when: isolcpus_needed.rc != 0
   - name: Starting cpu-partitioning tuned profile
     shell: tuned-adm profile cpu-partitioning
   - name: Checking for isolcpus in grub (Fatal errors are normal here)
-    shell: cat /etc/default/grub | grep {{ dut_isolated_cpus }}
+    shell: cat /etc/default/grub | grep {{ dut_isolated_cpus.stdout }}
     ignore_errors: True
     register: isolcpus_needed
   - name: Adding isolated cpus to grub
-    shell: sed -i -e 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="isolcpus={{ dut_isolated_cpus }} /'  /etc/default/grub
+    shell: sed -i -e 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="isolcpus={{ dut_isolated_cpus.stdout }} /'  /etc/default/grub
     when: isolcpus_needed.rc != 0
   - name: Tweak the kernel isolated list
     command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
@@ -252,7 +279,7 @@
   - name: Setting up OVS-DPDK config step 2
     shell: ovs-vsctl set Open_vSwitch . other_config:dpdk-socket-mem=4096
   - name: Setting up OVS-DPDK config step 3
-    shell: ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask=0x{{ dut_dpdk_pmd_mask }}
+    shell: ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask={{ dut_dpdk_pmd_mask.stdout }}
   - name: Setting up OVS-DPDK config step 4
     shell: ovs-vsctl set Open_vSwitch . other_config:dpdk-lcore-mask=0x{{ dut_dpdk_lcore_mask }}
   - name: Restart service openvswitch
@@ -264,9 +291,9 @@
   - name: Setting up OVS-DPDK config step 6
     shell: ovs-vsctl add-br ovs_pvp_br0 -- set bridge ovs_pvp_br0 datapath_type=netdev
   - name: Setting up OVS-DPDK config step 7
-    shell: ovs-vsctl add-port ovs_pvp_br0 dpdk0 -- set Interface dpdk0 type=dpdk -- set Interface dpdk0 options:dpdk-devargs="{{ dut_nic1_pci_address.stdout }}" -- set interface dpdk0 options:n_rxq=2 other_config:pmd-rxq-affinity="{{ dut_pmd_rxq_affinity }}" -- set Interface dpdk0 ofport_request=1
+    shell: ovs-vsctl add-port ovs_pvp_br0 dpdk0 -- set Interface dpdk0 type=dpdk -- set Interface dpdk0 options:dpdk-devargs="{{ dut_nic1_pci_address.stdout }}" -- set interface dpdk0 options:n_rxq=2 other_config:pmd-rxq-affinity="{{ dut_pmd_rxq_affinity.stdout }}" -- set Interface dpdk0 ofport_request=1
   - name: Setting up OVS-DPDK config step 8
-    shell: ovs-vsctl add-port ovs_pvp_br0 vhost0 -- set Interface vhost0 type=dpdkvhostuserclient -- set Interface vhost0 options:vhost-server-path="/tmp/vhost-sock0" -- set interface vhost0 options:n_rxq=2 other_config:pmd-rxq-affinity="{{ dut_pmd_rxq_affinity }}" -- set Interface vhost0 ofport_request=2
+    shell: ovs-vsctl add-port ovs_pvp_br0 vhost0 -- set Interface vhost0 type=dpdkvhostuserclient -- set Interface vhost0 options:vhost-server-path="/tmp/vhost-sock0" -- set interface vhost0 options:n_rxq=2 other_config:pmd-rxq-affinity="{{ dut_pmd_rxq_affinity.stdout }}" -- set Interface vhost0 ofport_request=2
 
 ##############################
 # Setting up Virtual machine #
@@ -302,19 +329,19 @@
     shell: virsh undefine rhel_loopback
     when: '"rhel_loopback" in all_vms.list_vms'
   - name: Running virt-install
-    shell: virt-install --connect=qemu:///system --network vhostuser,source_type=unix,source_path=/tmp/vhost-sock0,source_mode=server,model=virtio,driver_queues=2 --network network=default --name=rhel_loopback --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0 --vcpus=4,cpuset={{ vcpu_1 }},{{ vcpu_2 }},{{ vcpu_3 }},{{ vcpu_4 }} --check-cpu --cpu {{ dut_cpu_model }},+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
+    shell: virt-install --connect=qemu:///system --network vhostuser,source_type=unix,source_path=/tmp/vhost-sock0,source_mode=server,model=virtio,driver_queues=2 --network network=default --name=rhel_loopback --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0 --vcpus=4,cpuset={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }} --check-cpu --cpu {{ dut_cpu_model }},+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
   - name: Setting permissions on vhost socket folder
     file:
        path: /tmp/vhost-sock0
        mode: 777
   - name: Setting cpu pin for vcpu 0
-    shell: virsh vcpupin rhel_loopback 0 {{ vcpu_1 }}
+    shell: virsh vcpupin rhel_loopback 0 {{ vcpu_1.stdout }}
   - name: Setting cpu pin for vcpu 1
-    shell: virsh vcpupin rhel_loopback 1 {{ vcpu_2 }}
+    shell: virsh vcpupin rhel_loopback 1 {{ vcpu_2.stdout }}
   - name: Setting cpu pin for vcpu 2
-    shell: virsh vcpupin rhel_loopback 2 {{ vcpu_3 }}
+    shell: virsh vcpupin rhel_loopback 2 {{ vcpu_3.stdout }}
   - name: Setting cpu pin for vcpu 3
-    shell: virsh vcpupin rhel_loopback 3 {{ vcpu_4 }}
+    shell: virsh vcpupin rhel_loopback 3 {{ vcpu_4.stdout }}
   - name: Setting emulator pin for guest
     shell: virsh emulatorpin rhel_loopback {{ vcpu_emulator }}
   - name: stop rhel guest
