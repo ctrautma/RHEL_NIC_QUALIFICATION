@@ -263,6 +263,9 @@ Use the Ansible script pvp_ovsdpdk.yml to setup the DUT for the OVS-dpdk PVP tes
 Please note the last step will display the VM IP address in a long message that you will need to read through to find
 the IP. The VM IP is needed to run the test script below.
 
+Also note that you may have to enter your ssh key passphrase that you specified when you created your token file.  This
+may need to be entered at the start of the script and during the reboot of the DUT.
+
 For manual instructions please refer to  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#setup-the-device-under-test-dut-open-vswitch) on how to configure the DUT for OVS. Follow the above-linked chapter and stop at the [Running the PVP script](https://github.com/chaudron/ovs_perf/tree/RHEL8#running-the-pvp-script) chapter, and continue below.
 
 ### Running the PVP script
@@ -405,6 +408,12 @@ the steps to convert it to a Linux datapath setup.
 Run the Ansible script pvp_kernel.yml
 
     sudo ansible-playbook pvp_kernel.yml
+
+Please note the last step will display the VM IP address in a long message that you will need to read through to find
+the IP. The VM IP is needed to run the test script below.
+
+Also note that you may have to enter your ssh key passphrase that you specified when you created your token file.  This
+may need to be entered at the start of the script and during the reboot of the DUT.
 
 For manual steps refer to  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#open-vswitch-with-linux-kernel-datapath)
 
