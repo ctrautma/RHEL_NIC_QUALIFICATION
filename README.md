@@ -1,6 +1,6 @@
 # Red Hat NIC NFV Qualification
 
-# Ansible branch for RHEL 8.0 only.
+# Ansible branch for RHEL 8.1 only.
 
 The goal of this document is to guide you step by step through the process of
 qualifying a NIC driver for NFV usage. This includes both the Linux Kernel
@@ -34,7 +34,7 @@ functional requirements.
 
 The performance based tests (_VSPerf_ and _ovs\_perf_) require two servers.
 One server will have TREX installed, the other will be a clean install system
-running RHEL 7.5 or greater. The servers should be wired back to back from the
+running RHEL 8.1 or greater. The servers should be wired back to back from the
 test NICs to the output NICs of the T-Rex server. These tests use two NIC ports
 on the DUT and two ports on the T-Rex which are connected as shown below.
 The two NIC ports on the DUT must be the brand and type of NICs which are to be
@@ -82,7 +82,9 @@ sum of both ports in frames per second.
 ## Setting up for Ansible script execution
 
 First make sure both the Trex server and the DUT have their Red Hat subscriptions setup with your credentials to be
-able to pull the repos correctly.
+able to pull the repos correctly.  If you do not have this info please contact your Red Hat representative to get
+this info.  If the systems are not subscribed correctly the yum installs will fail.  If you are using this test
+inside the Red Hat network this step can be ignored.
 
 The Ansible scripts are located in ansible folder of this github project. Each of the PVP setups below can be
 automated using the Ansible scripts so the manual steps can be ignored.  To properly run the Ansible scripts
@@ -134,11 +136,11 @@ rh_sub_pass: !vault |
           3861
 
 Then whenever you run one of the ansible scripts make sure to supply the argument --ask-vault-pass and supply the same
-password when prompted.  This way your password is stored only in history and not in an actual clear text file stored
-on the system.
+password when prompted.
 
-Even though you did this on the bare-metal systems we have to setup the subscription credentials inside of the virtual
-image used for testing.  This is why this info must be supplied.
+The reason this info must be entered into a settings file is because the guest will require installing some rpms so
+we need to setup the subscriptions in the Ansible script.  This is separate from setting up the subscriptions on the
+bare metal systems.
 
 Once the settings are complete you will need to use a remote system to execute the scripts on the DUT and trex server.
 You will need to setup keyless ssh login from your remote system to those test servers.  In a usual case this is done
@@ -203,7 +205,8 @@ of Ansible.
     sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum update https://releases.ansible.com/ansible/rpm/release/epel-7-x86_64/ansible-2.8.0-1.el7.ans.noarch.rpm
 
-Version 2.8.0.1 or above should work with all of the Ansible scripts.
+Version 2.8.0.1 or above should work with all of the Ansible scripts.  In my case my work laptop is running RHEL 7 which
+is ideal for this task.
 
 After all of these things are complete login into each system to make sure your access works, then proceed to each
 section below and use the corresponding script.  The scripts only do the setup of the environments.  You will still
@@ -213,11 +216,11 @@ If errors are seen and the Ansible script fails,  please check the config file. 
 its a script issue please contact Red Hat PFT team at redhat-pft@redhat.com
 
 Please be aware that the scripts must be run in order.  You cannot run the kernel script without running the ovs-dpdk
-script first.  They are designed to be executed in order.  If you want to run just the kernel setup,  you must run
+script first.  They are designed to be executed in order.  If you want to run just the kernel test,  you must run
 the ovs-dpdk script,  then move on to the kernel script.  Then you can run the test for Kernel PVP.
 
 Also if the ovs-dpdk script fails at any point, you will have to stop the openvswitch server and unbind the nic to
-restart the script if it completed a few steps.
+restart the script if it completed a few steps.  The NIC will be bound using driverctl utility.
 
 ## Download the guest image
 
@@ -239,6 +242,17 @@ Use the Ansible script trex_setup.yml to setup the trex server system.
 
 For manual instructions please refer to [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#setup-the-trex-traffic-generator) on how to configure the TRex traffic generator.
 
+Once the script is complete you must still start the T-rex application on the server itself.  Log into the T-Rex server
+and perform the following steps
+
+    cd ~/trex/v2.53
+
+Note if you picked a different version to use for T-Rex the above command may change.
+Then start the server
+
+    ./t-rex-64 -c 4 -i --no-scapy-server
+
+
 ## Setup the Device Under Test (DUT), Open vSwitch
 <a name="DUTsetup"/>
 
@@ -247,7 +261,7 @@ Use the Ansible script pvp_ovsdpdk.yml to setup the DUT for the OVS-dpdk PVP tes
     sudo ansible-playbook pvp_ovsdpdk.yml
 
 Please note the last step will display the VM IP address in a long message that you will need to read through to find
-the IP.  This is to be cleaned up and will be fixed later.  The VM IP is needed to run the test script below.
+the IP. The VM IP is needed to run the test script below.
 
 For manual instructions please refer to  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#setup-the-device-under-test-dut-open-vswitch) on how to configure the DUT for OVS. Follow the above-linked chapter and stop at the [Running the PVP script](https://github.com/chaudron/ovs_perf/tree/RHEL8#running-the-pvp-script) chapter, and continue below.
 
