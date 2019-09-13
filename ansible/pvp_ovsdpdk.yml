@@ -176,27 +176,54 @@
 # Get needed cpu list #
 ############################################
 
+  - name: Copy up cpulist script to remote DUT
+    copy:
+      src: get_cpulist.sh
+      dest: /root/get_cpulist.sh
+  - name: Changing perm of "/root/get_cpu_list.sh", adding "+x"
+    file: dest=/root/get_cpulist.sh mode=a+x
   - name: Get dut_isolated_cpus
-    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
     register: dut_isolated_cpus
+  - debug:
+      var: dut_isolated_cpus
+    when: redhat_debug_mode == true
   - name: Get dut_dpdk_pmd_mask
-    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_dpdk_pmd_mask
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_dpdk_pmd_mask
     register: dut_dpdk_pmd_mask
+  - debug:
+      var: dut_dpdk_pmd_mask
+    when: redhat_debug_mode == true
   - name: Get dut_pmd_rxq_affinity
-    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_pmd_rxq_affinity
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_pmd_rxq_affinity
     register: dut_pmd_rxq_affinity
+  - debug:
+      var: dut_pmd_rxq_affinity
+    when: redhat_debug_mode == true
   - name: Get vcpu_1
-    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
     register: vcpu_1
+  - debug:
+      var: vcpu_1
+    when: redhat_debug_mode == true
   - name: Get vcpu_2
-    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_2
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_2
     register: vcpu_2
+  - debug:
+      var: vcpu_2
+    when: redhat_debug_mode == true
   - name: Get vcpu_3
-    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
     register: vcpu_3
+  - debug:
+      var: vcpu_3
+    when: redhat_debug_mode == true
   - name: Get vcpu_4
-    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_4
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_4
     register: vcpu_4
+  - debug:
+      var: vcpu_4
+    when: redhat_debug_mode == true
 
 
 ############################################
