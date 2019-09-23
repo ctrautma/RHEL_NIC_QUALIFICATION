@@ -182,6 +182,14 @@
       dest: /root/get_cpulist.sh
   - name: Changing perm of "/root/get_cpu_list.sh", adding "+x"
     file: dest=/root/get_cpulist.sh mode=a+x
+  - name: check cpu requirement
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
+    register: cpu_meet
+  - block:
+      - debug:
+          msg: cpu list can't meet the test requirement,exit the script
+      - meta: end_play
+    when: cpu_meet.rc != 0
   - name: Get dut_isolated_cpus
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
     register: dut_isolated_cpus
@@ -223,6 +231,18 @@
     register: vcpu_4
   - debug:
       var: vcpu_4
+    when: redhat_debug_mode == true
+  - name: Get dut_dpdk_lcore_mask
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_dpdk_lcore_mask
+    register: dut_dpdk_lcore_mask
+  - debug:
+      var: dut_dpdk_lcore_mask
+    when: redhat_debug_mode == true
+  - name: Get vcpu_emulator
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_emulator
+    register: vcpu_emulator
+  - debug:
+      var: vcpu_emulator
     when: redhat_debug_mode == true
 
 
@@ -308,7 +328,7 @@
   - name: Setting up OVS-DPDK config step 3
     shell: ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask={{ dut_dpdk_pmd_mask.stdout }}
   - name: Setting up OVS-DPDK config step 4
-    shell: ovs-vsctl set Open_vSwitch . other_config:dpdk-lcore-mask=0x{{ dut_dpdk_lcore_mask }}
+    shell: ovs-vsctl set Open_vSwitch . other_config:dpdk-lcore-mask={{ dut_dpdk_lcore_mask.stdout }}
   - name: Restart service openvswitch
     service:
       name: openvswitch
@@ -370,7 +390,7 @@
   - name: Setting cpu pin for vcpu 3
     shell: virsh vcpupin rhel_loopback 3 {{ vcpu_4.stdout }}
   - name: Setting emulator pin for guest
-    shell: virsh emulatorpin rhel_loopback {{ vcpu_emulator }}
+    shell: virsh emulatorpin rhel_loopback {{ vcpu_emulator.stdout }}
   - name: stop rhel guest
     virt:
       name: rhel_loopback

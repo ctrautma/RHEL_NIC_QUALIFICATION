@@ -19,7 +19,7 @@ then
 fi
 
 nofunc=1
-for name in dut_isolated_cpus dut_dpdk_pmd_mask dut_pmd_rxq_affinity vcpu_1 vcpu_2 vcpu_3 vcpu_4
+for name in dut_isolated_cpus dut_dpdk_pmd_mask dut_pmd_rxq_affinity vcpu_1 vcpu_2 vcpu_3 vcpu_4 dut_dpdk_lcore_mask vcpu_emulator
 do
 	if [ $func_name == $name ]
 	then
@@ -52,6 +52,20 @@ for cpu in $pmd_cpu_full
 do
 	remaining_cpus=$(echo $remaining_cpus | sed "s/^$cpu,//g" | sed "s/,$cpu,/,/g")
 done
+
+num_isolated_cpu=$(echo $dut_isolated_cpus | awk -F, '{print NF}')
+# two cpus for pmd_mask, 4 cpus for v_cpu, 1 cpu for vcpu_emulator
+if [ $num_isolated_cpu -lt 7 ]
+then
+	exit 1
+fi
+
+nu_numa_node=$(lscpu | grep "NUMA node(s)" | awk '{print $3}')
+# need at least two numa node
+if [ $nu_numa_node -lt 2 ]
+then
+	exit 1
+fi
 
 pmd_mask()
 {
@@ -101,6 +115,18 @@ vcpu_3()
 vcpu_4()
 {
 	echo $remaining_cpus | awk -F, '{print $4}'
+}
+
+vcpu_emulator()
+{
+	echo $remaining_cpus | awk -F, '{print $5}'
+}
+
+dut_dpdk_lcore_mask()
+{
+	cpu_on_anothernuma=$(lscpu | grep "NUMA node.*CPU" | grep -v "NUMA node${dev_numa_node}" | head -n 1 | awk '{print $4}')
+	cpu_dpdk_lcore=$(echo $cpu_on_anothernuma | awk -F, '{print $2}')
+	pmd_mask "$cpu_dpdk_lcore"
 }
 
 $func_name
