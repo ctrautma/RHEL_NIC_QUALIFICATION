@@ -12,19 +12,19 @@
 ############################################
 
   - name: Get dut_isolated_cpus
-    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
     register: dut_isolated_cpus
   - name: Get vcpu_1
-    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
     register: vcpu_1
   - name: Get vcpu_2
-    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_2
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_2
     register: vcpu_2
   - name: Get vcpu_3
-    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
     register: vcpu_3
   - name: Get vcpu_4
-    script: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_4
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_4
     register: vcpu_4
 
 #############################

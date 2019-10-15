@@ -47,7 +47,7 @@ dut_driver: vfio-pci
 #dut_dpdk_pmd_mask: 8002
 
 # DUT DPDK L-Core Mask.  Core mask for the logical core,  should not conflict with DPDK PMD mask.  Does not have to align with NUMA of NIC.
-dut_dpdk_lcore_mask: 40
+#dut_dpdk_lcore_mask: 40
 
 # DUT PMD RXQ Affinity. The receive queue affinity which will be set on the PMD threads.
 #dut_pmd_rxq_affinity: 0:9,1:15
@@ -66,5 +66,5 @@ dut_cpu_model: SandyBridge
 #vcpu_2: 3
 #vcpu_3: 5
 #vcpu_4: 7
-vcpu_emulator: 2
+#vcpu_emulator: 2
 
