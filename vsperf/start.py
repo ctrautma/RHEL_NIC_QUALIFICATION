@@ -338,7 +338,7 @@ def nic_card_check():
 def rpm_check():
     log("*** Checking for installed RPMS ***")
 
-    if bash("rpm -qa | grep ^openvswitch-[0-9]").value() == "":
+    if bash("rpm -qa | grep ^openvswitch").value() == "":
         log("Openvswitch rpm" "Please install Openvswitch rpm")
         return 1
     else:
