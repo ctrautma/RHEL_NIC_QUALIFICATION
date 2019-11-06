@@ -30,42 +30,18 @@ init_main_perf_env()
     CASE_PATH="$(dirname $(readlink -f $0))"
     source /etc/os-release
     SYSTEM_VERSION_ID=`echo $VERSION_ID | tr -d '.'`
-    /bin/bash $CASE_PATH/repo.sh || exit 1
-
-    if [ $VERSION_ID == "7.5" ]
-    then
-        dpdk_ver="18112-1"
-        #one_queue_image="RHEL7-5VNF-1Q.qcow2"
-        #two_queue_image="RHEL7-5VNF-2Q.qcow2"
-        one_queue_image="rhel7.6-vsperf-1Q-viommu.qcow2"
-        two_queue_image="rhel7.6-vsperf-2Q-viommu.qcow2"
-        one_queue_zip="RHEL7-5VNF-1Q.qcow2.lrz"
-        two_queue_zip="RHEL7-5VNF-2Q.qcow2.lrz"
-        dpdk_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7/x86_64/dpdk-18.11.2-1.el7.x86_64.rpm"
-        dpdk_tool_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7/x86_64/dpdk-tools-18.11.2-1.el7.x86_64.rpm"
-    elif [ $VERSION_ID == "7.6" ]
-    then
-        dpdk_ver="18112-1"
-        #one_queue_image="RHEL76-1Q.qcow2"
-        #two_queue_image="RHEL76-2Q.qcow2"
-        one_queue_image="rhel7.6-vsperf-1Q-viommu.qcow2"
-        two_queue_image="rhel7.6-vsperf-2Q-viommu.qcow2"
-        one_queue_zip="RHEL76-1Q.qcow2.lrz"
-        two_queue_zip="RHEL76-2Q.qcow2.lrz"
-        dpdk_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7_6/x86_64/dpdk-18.11.2-1.el7_6.x86_64.rpm"
-        dpdk_tool_url="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7_6/x86_64/dpdk-tools-18.11.2-1.el7_6.x86_64.rpm"
-    fi
-
     work_pipe=/tmp/sriov-github-work
     notify_pipe=/tmp/sriov-notfiy-work
-    test -p $work_pipe && unlink $work_pipe
-    test -p $notify_pipe && unlink $notify_pipe
-    mkfifo $work_pipe
-    mkfifo $notify_pipe
     python_file="start.py"
     bash_exit_str="sriov-github-vsperf"
     source $CASE_PATH/Perf-Verify.conf
     set +a
+
+    /bin/bash $CASE_PATH/repo.sh || exit 1
+    rm -rf $work_pipe
+    rm -rf $notify_pipe
+    mkfifo $work_pipe
+    mkfifo $notify_pipe
 }
 
 create_log_folder()
@@ -121,6 +97,32 @@ install_beakerlib()
 
     popd
     return 0
+}
+
+install_rpms()
+{
+	if (( $SYSTEM_VERSION_ID < 80 ))
+	then
+        yum -y install python-netifaces
+	else
+        yum -y install python3-netifaces
+	fi
+	rpm -qa | grep yum-utils || yum -y install yum-utils
+	rpm -qa | grep python36  || yum -y install python36 python36-devel python36-pip
+	rpm -qa | grep scl-utils || yum -y install scl-utils
+	rpm -qa | grep tuned-profiles-cpu-partitioning || yum -y install tuned-profiles-cpu-partitioning
+    yum install -y wget nano ftp git tuna openssl sysstat python3-pyelftools
+	#install libvirt
+	yum install -y libvirt virt-install virt-manager virt-viewer
+
+    #for qemu bug that can not start qemu
+    echo -e "group = 'hugetlbfs'" >> /etc/libvirt/qemu.conf
+
+	systemctl restart libvirtd
+	yum install -y python
+	yum install -y czmq-devel
+	yum install -y libguestfs-tools
+    yum -y install ethtool
 }
 
 install_python_and_init_env()
@@ -205,8 +207,11 @@ check_python_process()
 all_env_init()
 {
     init_main_perf_env
+    echo "==============================================="
     env
-    install_beakerlib    
+    echo "==============================================="
+    install_beakerlib
+    install_rpms
     install_python_and_init_env
     sleep 3
     source lib/lib_nc_sync.sh || exit 1

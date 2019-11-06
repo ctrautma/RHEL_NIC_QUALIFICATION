@@ -27,8 +27,6 @@ my_tool = tools.Tools()
 xml_tool = xmltool.XmlTool()
 work_pipe = get_env("work_pipe")
 notify_pipe = get_env("notify_pipe")
-# print(work_pipe)
-# print(notify_pipe)
 
 def set_check(ret):
     def my_wrap(f):
@@ -48,8 +46,6 @@ def set_check(ret):
 
 def send_command(cmd):
     cmd = cmd + os.linesep
-    # import ripdb
-    # ripdb.set_trace()
     try:
         with open(notify_pipe,"r") as rfd:
             rfd.read()
@@ -121,7 +117,6 @@ def shpushd(path):
 
 
 def shpopd():
-    #cmd = "rlRun popd"
     cmd = "popd > /dev/null"
     send_command(cmd)
     pass
@@ -314,16 +309,26 @@ def config_file_checks():
         VCPU3
         VCPU4
         VCPU5
+        TXD_SIZE
+        RXD_SIZE
+        SRIOV_TXD_SIZE
+        SRIOV_RXD_SIZE
         TRAFFICGEN_TREX_HOST_IP_ADDR
         TRAFFICGEN_TREX_PORT1
         TRAFFICGEN_TREX_PORT2
+        NIC1_VF
+        NIC2_VF
+        ONE_QUEUE_IMAGE
+        TWO_QUEUE_IMAGE
+        DPDK_VER
+        DPDK_URL
+        DPDK_TOOL_URL
         """.split()
         for name in str_all_name:
             if False == check_env_var(name):
                 log(f"Please set the config Var {name} in Perf-Verify.conf file")
                 return 1
         return 0
-
 
 def nic_card_check():
     log("Now Checking for NIC cards")
@@ -356,6 +361,9 @@ def rpm_check():
     else:
         log("dpdk package check OK")
 
+    log("Please make sure qemu-kvm qemu-kvm-tools version >= 2.12 !!!!")
+    log("Please make sure qemu-kvm qemu-kvm-tools version >= 2.12 !!!!")
+    log("Please make sure qemu-kvm qemu-kvm-tools version >= 2.12 !!!!")
     if bash("rpm -qa | grep qemu-kvm-tools").value() == "":
         log("Please install qemu-kvm-tools rpm ")
         return 1
@@ -402,9 +410,11 @@ def ovs_running_check():
 
 def download_VNF_image():
     with pushd(case_path):
-        one_queue_image = get_env("one_queue_image")
-        two_queue_image = get_env("two_queue_image")
-        if os.path.exists(f"{case_path}/{one_queue_image}"):
+        one_queue_image = get_env("ONE_QUEUE_IMAGE")
+        two_queue_image = get_env("TWO_QUEUE_IMAGE")
+        one_queue_image_name = os.path.basename(one_queue_image)
+        two_queue_image_name = os.path.basename(two_queue_image)
+        if os.path.exists(f"{case_path}/{one_queue_image_name}"):
             pass
         else:
             log_info = """
@@ -413,17 +423,13 @@ def download_VNF_image():
             ***********************************************************************
             """
             log(log_info)
-            one_queue_zip = get_env("one_queue_zip")
             cmd = f"""
-            wget http://netqe-bj.usersys.redhat.com/share/tli/vsperf_img/{one_queue_image} > /dev/null 2>&1
-            #wget people.redhat.com/ctrautma/{one_queue_zip} > /dev/null 2>&1
-            #lrzip -d {one_queue_zip}
-            #rm -f {one_queue_zip}
+            wget {one_queue_image} > /dev/null 2>&1
             """
             log_and_run(cmd)
             pass
 
-        if os.path.exists(f"{case_path}/{two_queue_image}"):
+        if os.path.exists(f"{case_path}/{two_queue_image_name}"):
             pass
         else:
             log_info = """
@@ -432,12 +438,8 @@ def download_VNF_image():
             ***********************************************************************
             """
             log(log_info)
-            two_queue_zip = get_env("two_queue_zip")
             cmd = f"""
-            wget http://netqe-bj.usersys.redhat.com/share/tli/vsperf_img/{two_queue_image} > /dev/null 2>&1
-            # wget people.redhat.com/ctrautma/{two_queue_zip} > /dev/null 2>&1
-            # lrzip -d {two_queue_zip}
-            # rm -f {two_queue_zip}
+            wget {two_queue_image} > /dev/null 2>&1
             """
             log_and_run(cmd)
             pass
@@ -453,26 +455,25 @@ def download_VNF_image():
 
 
     cmd = f"""
-    virt-copy-in -a {case_path}/{one_queue_image} {udev_file} /etc/udev/rules.d/
-    virt-copy-in -a {case_path}/{two_queue_image} {udev_file} /etc/udev/rules.d/
+    virt-copy-in -a {case_path}/{one_queue_image_name} {udev_file} /etc/udev/rules.d/
+    virt-copy-in -a {case_path}/{two_queue_image_name} {udev_file} /etc/udev/rules.d/
     """
     log_and_run(cmd)
 
-    dpdk_url = get_env("dpdk_url")
-    dpdk_tool_url = get_env("dpdk_tool_url")
-    dpdk_ver = get_env("dpdk_ver")
+    dpdk_url = get_env("DPDK_URL")
+    dpdk_tool_url = get_env("DPDK_TOOL_URL")
+    dpdk_ver = get_env("DPDK_VER")
 
     cmd =  f"""
     rm -rf /root/{dpdk_ver}
     mkdir -p /root/{dpdk_ver}
     wget -P /root/{dpdk_ver}/ {dpdk_url} > /dev/null 2>&1
     wget -P /root/{dpdk_ver}/ {dpdk_tool_url} > /dev/null 2>&1
-    virt-copy-in -a {case_path}/{one_queue_image} /root/{dpdk_ver} /root/
-    virt-copy-in -a {case_path}/{two_queue_image} /root/{dpdk_ver} /root/
+    virt-copy-in -a {case_path}/{one_queue_image_name} /root/{dpdk_ver} /root/
+    virt-copy-in -a {case_path}/{two_queue_image_name} /root/{dpdk_ver} /root/
     sleep 5
     """
     log_and_run(cmd)
-    
     return 0
 
 
@@ -641,47 +642,47 @@ def destroy_guest():
 
 def configure_guest():
     cmd = """
-        stty rows 24 cols 120
-        nmcli dev set eth1 managed no
-        nmcli dev set eth2 managed no
-        systemctl stop firewalld
-        iptables -t filter -P INPUT ACCEPT
-        iptables -t filter -P FORWARD ACCEPT
-        iptables -t filter -P OUTPUT ACCEPT
-        iptables -t mangle -P PREROUTING ACCEPT
-        iptables -t mangle -P INPUT ACCEPT
-        iptables -t mangle -P FORWARD ACCEPT
-        iptables -t mangle -P OUTPUT ACCEPT
-        iptables -t mangle -P POSTROUTING ACCEPT
-        iptables -t nat -P PREROUTING ACCEPT
-        iptables -t nat -P INPUT ACCEPT
-        iptables -t nat -P OUTPUT ACCEPT
-        iptables -t nat -P POSTROUTING ACCEPT
-        iptables -t filter -F
-        iptables -t filter -X
-        iptables -t mangle -F
-        iptables -t mangle -X
-        iptables -t nat -F
-        iptables -t nat -X
-        ip6tables -t filter -P INPUT ACCEPT
-        ip6tables -t filter -P FORWARD ACCEPT
-        ip6tables -t filter -P OUTPUT ACCEPT
-        ip6tables -t mangle -P PREROUTING ACCEPT
-        ip6tables -t mangle -P INPUT ACCEPT
-        ip6tables -t mangle -P FORWARD ACCEPT
-        ip6tables -t mangle -P OUTPUT ACCEPT
-        ip6tables -t mangle -P POSTROUTING ACCEPT
-        ip6tables -t nat -P PREROUTING ACCEPT
-        ip6tables -t nat -P INPUT ACCEPT
-        ip6tables -t nat -P OUTPUT ACCEPT
-        ip6tables -t nat -P POSTROUTING ACCEPT
-        ip6tables -t filter -F
-        ip6tables -t filter -X
-        ip6tables -t mangle -F
-        ip6tables -t mangle -X
-        ip6tables -t nat -F
-        ip6tables -t nat -X
-        ip -d addr show
+    stty rows 24 cols 120
+    nmcli dev set eth1 managed no
+    nmcli dev set eth2 managed no
+    systemctl stop firewalld
+    iptables -t filter -P INPUT ACCEPT
+    iptables -t filter -P FORWARD ACCEPT
+    iptables -t filter -P OUTPUT ACCEPT
+    iptables -t mangle -P PREROUTING ACCEPT
+    iptables -t mangle -P INPUT ACCEPT
+    iptables -t mangle -P FORWARD ACCEPT
+    iptables -t mangle -P OUTPUT ACCEPT
+    iptables -t mangle -P POSTROUTING ACCEPT
+    iptables -t nat -P PREROUTING ACCEPT
+    iptables -t nat -P INPUT ACCEPT
+    iptables -t nat -P OUTPUT ACCEPT
+    iptables -t nat -P POSTROUTING ACCEPT
+    iptables -t filter -F
+    iptables -t filter -X
+    iptables -t mangle -F
+    iptables -t mangle -X
+    iptables -t nat -F
+    iptables -t nat -X
+    ip6tables -t filter -P INPUT ACCEPT
+    ip6tables -t filter -P FORWARD ACCEPT
+    ip6tables -t filter -P OUTPUT ACCEPT
+    ip6tables -t mangle -P PREROUTING ACCEPT
+    ip6tables -t mangle -P INPUT ACCEPT
+    ip6tables -t mangle -P FORWARD ACCEPT
+    ip6tables -t mangle -P OUTPUT ACCEPT
+    ip6tables -t mangle -P POSTROUTING ACCEPT
+    ip6tables -t nat -P PREROUTING ACCEPT
+    ip6tables -t nat -P INPUT ACCEPT
+    ip6tables -t nat -P OUTPUT ACCEPT
+    ip6tables -t nat -P POSTROUTING ACCEPT
+    ip6tables -t filter -F
+    ip6tables -t filter -X
+    ip6tables -t mangle -F
+    ip6tables -t mangle -X
+    ip6tables -t nat -F
+    ip6tables -t nat -X
+    ip -d addr show
     """
     pts = bash("virsh ttyconsole gg").value()
     ret = my_tool.run_cmd_get_output(pts, cmd)
@@ -734,7 +735,7 @@ def check_guest_testpmd_result():
 
 # {modprobe  vfio enable_unsafe_noiommu_mode=1}
 def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_len,fwd_mode):
-    dpdk_ver = get_env("dpdk_ver")
+    dpdk_ver = get_env("DPDK_VER")
     cmd = f"""
     /root/one_gig_hugepages.sh 1
     rpm -ivh /root/dpdkrpms/{dpdk_ver}/dpdk*.rpm
@@ -755,8 +756,6 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     pts = bash("virsh ttyconsole gg").value()
     ret = my_tool.run_cmd_get_output(pts, cmd)
     log(ret)
-    # from remote_pdb import set_trace
-    # set_trace() 
 
     num_core = 2
     if queue_num == 1:
@@ -767,7 +766,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     hw_vlan_flag = ""
     legacy_mem = ""
 
-    dpdk_version = int(get_env("dpdk_ver").split('-')[0])
+    dpdk_version = int(get_env("DPDK_VER").split('-')[0])
     if dpdk_version >= 1811:
         legacy_mem = " --legacy-mem "
         hw_vlan_flag = ""
@@ -854,9 +853,6 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
             log_and_run(cmd)
         import time
         time.sleep(3)
-        # trex_port_1 = get_env("TRAFFICGEN_TREX_PORT1")
-        # trex_port_2 = get_env("TRAFFICGEN_TREX_PORT2")
-        # log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{trex_port_1} {trex_port_2}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
         log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
     return 0
 
@@ -1113,10 +1109,13 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     vcpupin_in_xml(numa_node,"guest.xml",new_xml,vcpu_list)
     update_xml_vhostuser(new_xml,q_num)
 
+    one_queue_image_name = os.path.basename(get_env("ONE_QUEUE_IMAGE"))
+    two_queue_image_name = os.path.basename(get_env("TWO_QUEUE_IMAGE"))
+
     if q_num == 1:
-        xml_tool.update_image_source(new_xml,case_path + "/" + get_env("one_queue_image"))
+        xml_tool.update_image_source(new_xml,case_path + "/" + one_queue_image_name)
     else:
-        xml_tool.update_image_source(new_xml,case_path + "/" + get_env("two_queue_image"))
+        xml_tool.update_image_source(new_xml,case_path + "/" + two_queue_image_name)
     
     log("start and config guest Now")
     start_guest(new_xml)
@@ -1155,10 +1154,14 @@ def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
     vcpupin_in_xml(numa_node,"guest.xml",new_xml,vcpu_list) 
     update_xml_vnet_port(new_xml)
 
+    one_queue_image_name = os.path.basename(get_env("ONE_QUEUE_IMAGE"))
+    two_queue_image_name = os.path.basename(get_env("TWO_QUEUE_IMAGE"))
+
     if q_num == 1:
-        xml_tool.update_image_source(new_xml,case_path + "/" + get_env("one_queue_image"))
+        xml_tool.update_image_source(new_xml,case_path + "/" + one_queue_image_name)
     else:
-        xml_tool.update_image_source(new_xml,case_path + "/" + get_env("two_queue_image"))
+        xml_tool.update_image_source(new_xml,case_path + "/" + two_queue_image_name)
+
 
     start_guest(new_xml)
 
@@ -1188,12 +1191,15 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
     # Here because of the limit of p35 archtechture , I can not add two vf into vm at the same time 
     # So , make a workaround , add vf with virsh attach-device two times
 
-    #start vm
+    one_queue_image_name = os.path.basename(get_env("ONE_QUEUE_IMAGE"))
+    two_queue_image_name = os.path.basename(get_env("TWO_QUEUE_IMAGE"))
+
     if q_num == 1:
-        xml_tool.update_image_source(new_xml,case_path + "/" + get_env("one_queue_image"))
+        xml_tool.update_image_source(new_xml,case_path + "/" + one_queue_image_name)
     else:
-        xml_tool.update_image_source(new_xml,case_path + "/" + get_env("two_queue_image"))
-    
+        xml_tool.update_image_source(new_xml,case_path + "/" + two_queue_image_name)
+
+
     start_guest(new_xml)
 
     #Here attach vf to vm 
