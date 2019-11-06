@@ -409,6 +409,10 @@ def ovs_running_check():
 
 
 def download_VNF_image():
+    cmd = f"""
+    chmod 777 {case_path}
+    """
+    log_and_run(cmd)
     with pushd(case_path):
         one_queue_image = get_env("ONE_QUEUE_IMAGE")
         two_queue_image = get_env("TWO_QUEUE_IMAGE")
