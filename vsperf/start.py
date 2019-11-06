@@ -323,6 +323,7 @@ def config_file_checks():
         DPDK_VER
         DPDK_URL
         DPDK_TOOL_URL
+        TREX_URL
         """.split()
         for name in str_all_name:
             if False == check_env_var(name):
@@ -846,7 +847,7 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
         if ret.code != 0:
             log("Trex server {} not up please check ".format(trex_server_ip))
         
-        trex_url = "http://netqe-bj.usersys.redhat.com/share/wanghekai/v2.59.tar.gz"
+        trex_url = get_env("TREX_URL")
         trex_dir = os.path.basename(trex_url).replace(".tar.gz","")
         trex_name = os.path.basename(trex_url)
         if not os.path.exists(trex_dir):
