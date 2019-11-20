@@ -28,6 +28,8 @@ xml_tool = xmltool.XmlTool()
 work_pipe = get_env("work_pipe")
 notify_pipe = get_env("notify_pipe")
 
+image_dir = "/root/"
+
 def set_check(ret):
     def my_wrap(f):
         @wraps(f)
@@ -408,10 +410,9 @@ def ovs_running_check():
         log("ovs-vswitchd and ovsdb-server check OK")
     return 0
 
-
 def download_VNF_image():
     cmd = f"""
-    chmod 777 {case_path}
+    chmod 777 {image_dir}
     """
     log_and_run(cmd)
     with pushd(case_path):
@@ -419,7 +420,7 @@ def download_VNF_image():
         two_queue_image = get_env("TWO_QUEUE_IMAGE")
         one_queue_image_name = os.path.basename(one_queue_image)
         two_queue_image_name = os.path.basename(two_queue_image)
-        if os.path.exists(f"{case_path}/{one_queue_image_name}"):
+        if os.path.exists(f"{image_dir}/{one_queue_image_name}"):
             pass
         else:
             log_info = """
@@ -429,12 +430,12 @@ def download_VNF_image():
             """
             log(log_info)
             cmd = f"""
-            wget {one_queue_image} > /dev/null 2>&1
+            wget -P {image_dir} {one_queue_image} > /dev/null 2>&1
             """
             log_and_run(cmd)
             pass
 
-        if os.path.exists(f"{case_path}/{two_queue_image_name}"):
+        if os.path.exists(f"{image_dir}/{two_queue_image_name}"):
             pass
         else:
             log_info = """
@@ -444,7 +445,7 @@ def download_VNF_image():
             """
             log(log_info)
             cmd = f"""
-            wget {two_queue_image} > /dev/null 2>&1
+            wget -P {image_dir} {two_queue_image} > /dev/null 2>&1
             """
             log_and_run(cmd)
             pass
@@ -474,8 +475,8 @@ def download_VNF_image():
     mkdir -p /root/{dpdk_ver}
     wget -P /root/{dpdk_ver}/ {dpdk_url} > /dev/null 2>&1
     wget -P /root/{dpdk_ver}/ {dpdk_tool_url} > /dev/null 2>&1
-    virt-copy-in -a {case_path}/{one_queue_image_name} /root/{dpdk_ver} /root/
-    virt-copy-in -a {case_path}/{two_queue_image_name} /root/{dpdk_ver} /root/
+    virt-copy-in -a {image_dir}/{one_queue_image_name} /root/{dpdk_ver} /root/
+    virt-copy-in -a {image_dir}/{two_queue_image_name} /root/{dpdk_ver} /root/
     sleep 5
     """
     log_and_run(cmd)
@@ -1118,9 +1119,9 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     two_queue_image_name = os.path.basename(get_env("TWO_QUEUE_IMAGE"))
 
     if q_num == 1:
-        xml_tool.update_image_source(new_xml,case_path + "/" + one_queue_image_name)
+        xml_tool.update_image_source(new_xml,image_dir + "/" + one_queue_image_name)
     else:
-        xml_tool.update_image_source(new_xml,case_path + "/" + two_queue_image_name)
+        xml_tool.update_image_source(new_xml,image_dir + "/" + two_queue_image_name)
     
     log("start and config guest Now")
     start_guest(new_xml)
@@ -1163,9 +1164,9 @@ def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
     two_queue_image_name = os.path.basename(get_env("TWO_QUEUE_IMAGE"))
 
     if q_num == 1:
-        xml_tool.update_image_source(new_xml,case_path + "/" + one_queue_image_name)
+        xml_tool.update_image_source(new_xml,image_dir + "/" + one_queue_image_name)
     else:
-        xml_tool.update_image_source(new_xml,case_path + "/" + two_queue_image_name)
+        xml_tool.update_image_source(new_xml,image_dir + "/" + two_queue_image_name)
 
 
     start_guest(new_xml)
@@ -1200,9 +1201,9 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
     two_queue_image_name = os.path.basename(get_env("TWO_QUEUE_IMAGE"))
 
     if q_num == 1:
-        xml_tool.update_image_source(new_xml,case_path + "/" + one_queue_image_name)
+        xml_tool.update_image_source(new_xml,image_dir + "/" + one_queue_image_name)
     else:
-        xml_tool.update_image_source(new_xml,case_path + "/" + two_queue_image_name)
+        xml_tool.update_image_source(new_xml,image_dir + "/" + two_queue_image_name)
 
 
     start_guest(new_xml)
