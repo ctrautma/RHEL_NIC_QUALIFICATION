@@ -1,5 +1,5 @@
 - name: Tc flower offload setup
-  hosts: usa
+  hosts: dut
   vars_files:
     - ./test_settings.yml
   tasks:
@@ -43,6 +43,12 @@
       dest: /etc/default/grub
       regexp: "hugepages=32"
       replace: ""
+  - name: Tweak the kernel for hugepages step 1
+    when: hugepages_found1.rc == 0 or hugepages_found2.rc == 0 or hugepages_found3.rc == 0
+    command: "grub2-editenv - unset kernelopts"
+  - name: Tweak the kernel for hugepages step 1
+    when: hugepages_found1.rc == 0 or hugepages_found2.rc == 0 or hugepages_found3.rc == 0
+    command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
 
 #################################
 # Set up tc offload for Netronome #
@@ -51,23 +57,34 @@
 
   - block:
     - name: Create the script for select firmware for Netronome step 1
-      shell: echo "cd /lib/firmware/netronome/" > /tmp/select_fw_nfp.sh
+      shell: echo "change_fm=0;cd /lib/firmware/netronome/" > /tmp/select_fw_nfp.sh
     - name: Create the script for select firmware for Netronome step 2
       shell: echo "for FW in *.nffw; do" >> /tmp/select_fw_nfp.sh
     - name: Create the script for select firmware for Netronome step 3
-      shell: echo "if [ -L ${FW} ]; then" >> /tmp/select_fw_nfp.sh
+      shell: echo "if [ -L \${FW} ]; then" >> /tmp/select_fw_nfp.sh
     - name: Create the script for select firmware for Netronome step 4
-      shell: echo "ln -sf flower/${FW} ${FW}" >> /tmp/select_fw_nfp.sh
+      shell: echo "if [ x\"\$(readlink \${FW})\" != x\"flower/\${FW}\" ]; then" >> /tmp/select_fw_nfp.sh
     - name: Create the script for select firmware for Netronome step 5
-      shell: echo "fi" >> /tmp/select_fw_nfp.sh
+      shell: echo "change_fm=1" >> /tmp/select_fw_nfp.sh
     - name: Create the script for select firmware for Netronome step 6
+      shell: echo "ln -sf flower/\${FW} \${FW}" >> /tmp/select_fw_nfp.sh
+    - name: Create the script for select firmware for Netronome step 7
+      shell: echo "fi" >> /tmp/select_fw_nfp.sh
+    - name: Create the script for select firmware for Netronome step 8
+      shell: echo "fi" >> /tmp/select_fw_nfp.sh
+    - name: Create the script for select firmware for Netronome step 9
       shell: echo "done" >> /tmp/select_fw_nfp.sh
+    - name: Create the script for select firmware for Netronome step 10
+      shell: echo "[ \$change_fm -eq 0 ] && exit 1 || exit 0" >> /tmp/select_fw_nfp.sh
     - name: Select the correct firmware for Netronome
       shell: bash /tmp/select_fw_nfp.sh
+      ignore_errors: True
+      register: nfp_fw_change
     - name: Run dracut
       shell: dracut -f -v
     - name: Reboot the system
       reboot:
+      when: hugepages_found1.rc == 0 or hugepages_found2.rc == 0 or hugepages_found3.rc == 0 or nfp_fw_change.rc == 0
     - name: Enable tc offload for hardware
       shell: ethtool -K {{ dut_interface_1 }} hw-tc-offload on
     - name: Create VF for card
@@ -77,7 +94,7 @@
         name: openvswitch
         state: started
     - name: Get VF name
-      shell: ls /sys/bus/pci/devices/{{ dut_interface_1 }}/virtfn0/net
+      shell: ls /sys/bus/pci/devices/{{ dut_interface_1_pciid }}/virtfn0/net
       register: vf_name
     - name: Delete ovs_pvp_br0 if existed
       shell: ovs-vsctl --if-exists del-br ovs_pvp_br0

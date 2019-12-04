@@ -68,3 +68,5 @@
     shell: unxz /lib/modules/{{ kernel_version.stdout }}/kernel/net/sched/cls_flower.ko.xz
   - name: Running depmod to complete install
     shell: depmod -a
+  - name: Mv kernel folder to bak
+    shell: mv /usr/src/kernels/{{ kernel_version.stdout }} /usr/src/kernels/{{ kernel_version.stdout }}.bak
