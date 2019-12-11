@@ -210,6 +210,10 @@
       remote_src: yes
   - name: Create vm
     shell: virt-install --connect=qemu:///system --network none --host-device {{ vf_pciiid.stdout }},driver_name=vfio --network network=default --name=rhel_loopback_tcflower --disk path=/opt/images/rhel-guest-image-8.0-x86_64-kvm-tc.qcow2,format=qcow2 --ram 8192 --vcpus=4,cpuset={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}  --check-cpu --cpu {{ dut_cpu_model }},+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
+  - name: stop rhel guest
+    virt:
+      name: rhel_loopback_tcflower
+      state: shutdown
   - name: Configuring VM for network manager
     shell: LIBGUESTFS_BACKEND=direct virt-customize -d rhel_loopback_tcflower --root-password password:root --uninstall cloud-init --firstboot-command 'nmcli c | grep -o --  "[0-9a-fA-F]\{8\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{12\}" | xargs -n 1 nmcli c delete uuid' --firstboot-command 'nmcli con add con-name ovs-dpdk ifname ens2 type ethernet ip4 1.1.1.1/24' --firstboot-command 'nmcli con add con-name management ifname ens3 type ethernet' --firstboot-command 'reboot'
   - name: Starting up VM rhel_loopback_tcflower
