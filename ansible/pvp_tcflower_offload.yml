@@ -96,14 +96,17 @@
     - name: Get VF name
       shell: ls /sys/bus/pci/devices/{{ dut_interface_1_pciid }}/virtfn0/net
       register: vf_name
+    - name: Get pci id for vf
+      shell: ethtool -i {{ vf_name.stdout }} | grep bus-info | awk '{print $2}'
+      register: vf_pciiid
     - name: Delete ovs_pvp_br0 if existed
       shell: ovs-vsctl --if-exists del-br ovs_pvp_br0
     - name: Add ovs_pvp_br0
       shell: ovs-vsctl add-br ovs_pvp_br0
     - name: Add pf into ovs
-      shell: ovs-vsctl add-port ovs_pvp_br0 {{ dut_interface_1 }} set Interface {{ dut_interface_1 }} ofport_request=1
+      shell: ovs-vsctl add-port ovs_pvp_br0 {{ dut_interface_1 }} -- set Interface {{ dut_interface_1 }} ofport_request=1
     - name: Add vf into ovs
-      shell: ovs-vsctl add-port ovs_pvp_br0 {{ vf_name.stout }} set Interface {{ vf_name.stout }} ofport_request=2
+      shell: ovs-vsctl add-port ovs_pvp_br0 {{ vf_name.stdout }} -- set Interface {{ vf_name.stdout }} ofport_request=2
     - name: Enable offload on ovs
       shell: ovs-vsctl set Open_vSwitch . other_config:hw-offload=true
     when: tc_offload_card_type == "Netronome"
@@ -124,19 +127,19 @@
       shell: ls /sys/bus/pci/devices/{{ dut_interface_1_pciid }}/virtfn0/net
       register: vf_name
     - name: Get pci id for vf
-      shell: ethtool -i {{ vf_name.stout }} | grep bus-info | awk '{print $2}'
+      shell: ethtool -i {{ vf_name.stdout }} | grep bus-info | awk '{print $2}'
       register: vf_pciiid
     - name: Get driver for pf
       shell: ethtool -i {{ dut_interface_1 }} | grep driver | awk '{print $2}'
       register: dut_nic1_driver
     - name: Unbind vf from kernel
-      shell: echo {{ vf_pciiid.stout }} > /sys/bus/pci/drivers/{{ dut_nic1_driver.stdout }}/unbind
+      shell: echo {{ vf_pciiid.stdout }} > /sys/bus/pci/drivers/{{ dut_nic1_driver.stdout }}/unbind
     - name: Change the e-switch mode from legacy
       shell: devlink dev eswitch set pci/{{ dut_interface_1_pciid }} mode switchdev
     - name: Bind vf to kernel
-      shell: echo {{ vf_pciiid.stout }} > /sys/bus/pci/drivers/{{ dut_nic1_driver.stdout }}/bind
+      shell: echo {{ vf_pciiid.stdout }} > /sys/bus/pci/drivers/{{ dut_nic1_driver.stdout }}/bind
     - name: Get vf name again after change mode
-      shell: ls /sys/bus/pci/devices/{{ vf_pciiid.stout }}/virtfn0/net
+      shell: ls /sys/bus/pci/devices/{{ vf_pciiid.stdout }}/virtfn0/net
       register: vf_name
     - name: Start openvswitch
       service:
@@ -149,12 +152,31 @@
     - name: Add pf into ovs
       shell: ovs-vsctl add-port ovs_pvp_br0 {{ dut_interface_1 }} set Interface {{ dut_interface_1 }} ofport_request=1
     - name: Add vf into ovs
-      shell: ovs-vsctl add-port ovs_pvp_br0 {{ vf_name.stout }} set Interface {{ vf_name.stout }} ofport_request=2
+      shell: ovs-vsctl add-port ovs_pvp_br0 {{ vf_name.stdout }} set Interface {{ vf_name.stdout }} ofport_request=2
     - name: Enable offload on ovs
       shell: ovs-vsctl set Open_vSwitch . other_config:hw-offload=true
     when: tc_offload_card_type == "Mellanox"
 
 
+############################################
+# Get needed cpu list #
+############################################
+
+  - name: Get dut_isolated_cpus
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
+    register: dut_isolated_cpus
+  - name: Get vcpu_1
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
+    register: vcpu_1
+  - name: Get vcpu_2
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_2
+    register: vcpu_2
+  - name: Get vcpu_3
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
+    register: vcpu_3
+  - name: Get vcpu_4
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_4
+    register: vcpu_4
 
 ##############
 # Create vm #
@@ -170,7 +192,7 @@
       dest: /opt/images/rhel-guest-image-8.0-x86_64-kvm-tc.qcow2
       remote_src: yes
   - name: Create vm
-    shell: virt-install --connect=qemu:///system --network none --host-device {{ vf_pciiid.stout }},driver_name=vfio --network network=default --name=rhel_loopback_tcflower --disk path=/opt/images/rhel-guest-image-8.0-x86_64-kvm-tc.qcow2,format=qcow2 --ram 8192 --vcpus=4,cpuset={{ vcpu_1 }},{{ vcpu_2 }},{{ vcpu_3 }},{{ vcpu_4 }}  --check-cpu --cpu {{ dut_cpu_model }},+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
+    shell: virt-install --connect=qemu:///system --network none --host-device {{ vf_pciiid.stdout }},driver_name=vfio --network network=default --name=rhel_loopback_tcflower --disk path=/opt/images/rhel-guest-image-8.0-x86_64-kvm-tc.qcow2,format=qcow2 --ram 8192 --vcpus=4,cpuset={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}  --check-cpu --cpu {{ dut_cpu_model }},+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
   - name: Configuring VM for network manager
     shell: LIBGUESTFS_BACKEND=direct virt-customize -d rhel_loopback_tcflower --root-password password:root --uninstall cloud-init --firstboot-command 'nmcli c | grep -o --  "[0-9a-fA-F]\{8\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{12\}" | xargs -n 1 nmcli c delete uuid' --firstboot-command 'nmcli con add con-name ovs-dpdk ifname ens2 type ethernet ip4 1.1.1.1/24' --firstboot-command 'nmcli con add con-name management ifname ens3 type ethernet' --firstboot-command 'reboot'
   - name: Starting up VM rhel_loopback_tcflower
