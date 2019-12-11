@@ -162,6 +162,10 @@
 # Get needed cpu list #
 ############################################
 
+  - name: Copy up cpulist script to remote DUT
+    copy:
+      src: get_cpulist.sh
+      dest: /root/get_cpulist.sh
   - name: Get dut_isolated_cpus
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
     register: dut_isolated_cpus
