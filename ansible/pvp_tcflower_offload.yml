@@ -158,6 +158,17 @@
     when: tc_offload_card_type == "Mellanox"
 
 
+#######################
+# get vf_pciid #
+# ####################
+
+  - name: Get VF name
+    shell: ls /sys/bus/pci/devices/{{ dut_interface_1_pciid }}/virtfn0/net
+    register: vf_name
+  - name: Get pci id for vf
+    shell: ethtool -i {{ vf_name.stdout }} | grep bus-info | awk '{print $2}'
+    register: vf_pciiid
+
 ############################################
 # Get needed cpu list #
 ############################################
@@ -166,6 +177,8 @@
     copy:
       src: get_cpulist.sh
       dest: /root/get_cpulist.sh
+  - name: Changing perm of "/root/get_cpu_list.sh", adding "+x"
+    file: dest=/root/get_cpulist.sh mode=a+x
   - name: Get dut_isolated_cpus
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
     register: dut_isolated_cpus
