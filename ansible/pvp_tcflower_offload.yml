@@ -214,12 +214,15 @@
     virt:
       name: rhel_loopback_tcflower
       state: shutdown
-  - name: Configuring VM for network manager
-    shell: LIBGUESTFS_BACKEND=direct virt-customize -d rhel_loopback_tcflower --root-password password:root --uninstall cloud-init --firstboot-command 'nmcli c | grep -o --  "[0-9a-fA-F]\{8\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{12\}" | xargs -n 1 nmcli c delete uuid' --firstboot-command 'nmcli con add con-name ovs-dpdk ifname ens2 type ethernet ip4 1.1.1.1/24' --firstboot-command 'nmcli con add con-name management ifname ens3 type ethernet' --firstboot-command 'reboot'
+  - name: Change passwd to root for vm
+    shell: LIBGUESTFS_BACKEND=direct virt-customize -d rhel_loopback_tcflower --root-password password:root --uninstall cloud-init
   - name: Starting up VM rhel_loopback_tcflower
     virt:
       name: rhel_loopback_tcflower
       state: running
+  - name: Wait vm to start
+    pause:
+      seconds: 60
   - name: copying virsh console script to default location
     copy:
       src: ./vm.sh
@@ -227,6 +230,12 @@
       mode: "777"
   - name: Logging into vm rhel_loopback_tcflower
     shell: ~/vm.sh login_vm rhel_loopback_tcflower
+  - name: Delete nmcli connection
+    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "nmcli c | grep -o --  '[0-9a-fA-F]\{8\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{12\}' | xargs -n 1 nmcli c delete uuid"
+  - name: Create nmcli connection for ovs-dpdk
+    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "nmcli con add con-name ovs-dpdk ifname $(for dev in `find /sys/class/net/ -type l | awk -F'/' '!/lo|sit|usb|ib/{print $5}' | sort -u`; do if ethtool -i $dev | grep driver | grep -q virtio; then continue; else echo $dev;break; fi;done) type ethernet ip4 1.1.1.1/24"
+  - name: Create nmcli connection for management
+    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "nmcli con add con-name management ifname $(for dev in `find /sys/class/net/ -type l | awk -F'/' '!/lo|sit|usb|ib/{print $5}' | sort -u`; do if ethtool -i $dev | grep -q virtio; then echo $dev;break; fi; done) type ethernet"
   - name: Setting up subscription manager step 1 on rhel_loopback_tcflower
     shell: ~/vm.sh run_cmd rhel_loopback_tcflower "subscription-manager register --username={{ rh_sub_username }} --password={{ rh_sub_pass }} --baseurl=cdn.stage.redhat.com --serverurl subscription.rhsm.stage.redhat.com"
     when: not qe_subscription_mode
@@ -273,5 +282,8 @@
     virt:
       name: rhel_loopback_tcflower
       state: running
+  - name: Wait vm to start
+    pause:
+      seconds: 60
   - name: Logging into VM rhel_loopback_tcflower
     shell: ~/vm.sh login_vm rhel_loopback_tcflower
