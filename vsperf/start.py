@@ -461,8 +461,8 @@ def download_VNF_image():
 
 
     cmd = f"""
-    virt-copy-in -a {case_path}/{one_queue_image_name} {udev_file} /etc/udev/rules.d/
-    virt-copy-in -a {case_path}/{two_queue_image_name} {udev_file} /etc/udev/rules.d/
+    virt-copy-in -a {image_dir}/{one_queue_image_name} {udev_file} /etc/udev/rules.d/
+    virt-copy-in -a {image_dir}/{two_queue_image_name} {udev_file} /etc/udev/rules.d/
     """
     log_and_run(cmd)
 
