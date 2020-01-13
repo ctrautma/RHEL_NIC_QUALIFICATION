@@ -739,12 +739,12 @@ def check_guest_testpmd_result():
     log(ret)
     return 0
 
+#rpm -ivh /root/dpdkrpms/{dpdk_ver}/dpdk*.rpm
 # {modprobe  vfio enable_unsafe_noiommu_mode=1}
 def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_len,fwd_mode):
     dpdk_ver = get_env("DPDK_VER")
     cmd = f"""
     /root/one_gig_hugepages.sh 1
-    rpm -ivh /root/dpdkrpms/{dpdk_ver}/dpdk*.rpm
     rpm -ivh /root//{dpdk_ver}/dpdk*.rpm
     echo "options vfio enable_unsafe_noiommu_mode=1" > /etc/modprobe.d/vfio.conf
     modprobe -r vfio_iommu_type1
