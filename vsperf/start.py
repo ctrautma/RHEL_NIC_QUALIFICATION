@@ -805,6 +805,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     {extra_parameter} \
     --auto-start
     """
+    log(cmd_test)
     ret = my_tool.run_cmd_get_output(pts,cmd_test,"testpmd>")
     log(ret)
     return 0
