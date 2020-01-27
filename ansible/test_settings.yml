@@ -1,37 +1,62 @@
-# Debug mode (Will print out extra debug information. Only enable if asked to by RedHat)
+# Debug mode (Will print out extra debug information. Only enable if asked
+# to by RedHat)
 redhat_debug_mode: False
 
-# Red Hat subscription username, password, pool_id used for accessing Red Hat repositories.  If you do not have one
-# please ask your Red Hat EPM to assist.
-rh_sub_mode: true
+# Red Hat subscription username, password, pool_id used for accessing Red
+# Hat repositories.  If you do not have one please ask your Red Hat EPM
+# to assist.
+rh_sub_mode: True
 rh_sub_username:
 rh_sub_pass:
 rh_sub_pool_id:
 
-# enable the below if internally testing for QE and use the command found at -> https://wiki.test.redhat.com/ctrautma
-# and search for the section Subscription manager testing and enclose it with ""
+# Enable the below if internally testing for QE and use the command found
+# at -> https://wiki.test.redhat.com/ctrautma and search for the section
+# Subscription manager testing and enclose it with ""
 # DO NOT COMMIT THIS FILE TO GITHUB if this change is made!!!!!
-qe_subscription_mode: false
+qe_subscription_mode: False
 qe_subscription_command:
 
-# Allows custom repo support if rh_sub or qe_subscription are not available.
-custom_repo_mode: false
-custom_repo_path: 
+# Alternate solution to subscription manager and QE subscription. Allows
+# custom repos to be used instead.  User is responsible for making sure
+# that the selected repo includes the required binaries.
+custom_repo_setup: False
+custom_repo_path:
 
+#######################################
+# T-Rex Server specific configuration #
+####################################### 
 # T-Rex version to use (example v2.53 : Note please include the v).
-# This is the version that will be downloaded from git and installed on the
-# T-Rex server.
+# This is the version that will be downloaded and installed on the T-Rex
+# server.
 trex_path: https://trex-tgn.cisco.com/trex/release
-trex_version: v2.53
+trex_version: v2.72
 
-# T-Rex server NIC PCI addresses
-trex_interface_1_pciid: "0000:58:00.0"
-trex_interface_2_pciid: "0000:58:00.1"
+# T-Rex server NICs
+trex_interface_1_pciid: 0000:58:00.0
+trex_interface_2_pciid: 0000:58:00.1
 
-# DUT NIC PCI addresses
-dut_interface_1_pciid: "0034:01:00.0"
-dut_interface_2_pciid: "0034:01:00.1"
+# T-Rex user mode driver. For most systems this will be vfio-pci. Changes
+# for other cards such as Mellanox may be required.
+# This is the kernel driver that the NIC will bind to on the T-Rex server.
+trex_driver: vfio-pci
 
+# Hugepage kernel command-line options for the T-Rex system.
+trex_hugepages: 32
+trex_hugepagesz: 1G
+trex_default_hugepagesz: 1G
+
+# IOMMU kernel command-line option. x86 based systems typically require "pt",
+# Power based systems should select "none".
+trex_iommu_mode: "pt"
+
+# intel_iommu kernel command-line option. x86 based systems will require "on",
+# Power based systems ignore this setting
+trex_intel_iommu_mode: "on"
+
+#####################################
+# DUT Server specific configuration #
+#####################################
 # Openvswitch package location. While you can pull this from the fast datapath
 # repository it is recommended to contact your development representative to
 # get the latest version. Then copy this to the DUT and specify its location.
@@ -43,70 +68,51 @@ ovs_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/open
 # specify its location.
 ovs_selinux_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch-selinux-extra-policy/1.0/11.el8fdp/noarch/openvswitch-selinux-extra-policy-1.0-11.el8fdp.noarch.rpm"
 
-# VM isolated core list (x86_64 should use 1,2,3 and Power should use 1,2,3,4,5,6,7)
-# ToDo: Move this get_cpulist.sh
-vm_isolated_cpus: 1,2,3
-
-# Openvswitch package location. While you can pull this from the fast datapath repository it is recommended to contact
-# your development representative to get the latest version. Then copy this to the DUT and specify its location.
-ovs_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch2.11/2.11.0/9.el8fdp/x86_64/openvswitch2.11-2.11.0-9.el8fdp.x86_64.rpm"
-
-# Openvswitch selinux package location. While you can pull this from the fast datapath repository it is recommended to
-# contact your development representative to get the latest version.  Then copy this to the DUT and specify its location.
-ovs_selinux_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch-selinux-extra-policy/1.0/11.el8fdp/noarch/openvswitch-selinux-extra-policy-1.0-11.el8fdp.noarch.rpm"
-
-# VM NIC interface names and PCI addresses.  Note that interface naming is
-# influenced by the underlying emulated machine type.  x86 systems will
-# typically use enp[1-X]f[0-X] names while Power systems will typically
-# use eth[0-X].
-# ToDo: Try and eliminate the dependency on interface names in favor of
-#       PCI addresses only.  Could use:
-#       sudo lshw -businfo -class network | grep 0034:01:00.0 | awk '{print $2}'
-vm_interface_1_pciid: "0000:00:01.0"
-vm_interface_2_pciid: "0000:00:02.0"
-
-# ToDo: Need description here
-tc_offload_card_type: "Unknown"
-
-# User mode driver. For most devices this will be "vfio-pci", but some NICs
-# such as Mellanox ConnectX-5 don't require user access to hardware registers,
-# so the driver should be "none".  And in some cases other drivers such as
-# "uio_pci_generic" driver may be required, though not officially supported.
-# by Red Hat.
-# dut_driver: none
-# dut_driver: vfio-pci
-# dut_driver: uio_pci_generic
-dut_driver: vfio-pci
-
-# Path to RHEL guest image for PVP tests.  Please download the image from the red hat website.  See README for more info.
-# This is the location the file is located on the DUT.
+# Path to RHEL guest image for PVP tests.  Please download the image from the
+# Red Hat website.  See README for more info. This is the location of the file
+# on the DUT.
 rhel_guest_image_path: /root/rhel-8.0-beta-1-x86_64-kvm.qcow2
 
-# CPU model info, needs to be modified to match your DUT cpu type. If 
-# an error occurs with virt-install might need to modify this line to
-# a model present in /usr/share/libvirt/cpu_map.xml
+# DUT NICs
+dut_interface_1_pciid: "0000:44:00.0"
+dut_interface_2_pciid: "0000:44:00.1"
+tc_offload_card_type: "Netronome"
+
+# DUT user mode driver. For most systems this will be vfio-pci. Changes
+# for other cards such as Mellanox may be required.
+# This is the kernel driver that the NIC will bind to on the DUT.
+dut_driver: vfio-pci
+
+# CPU model info. In most cases "host" is satisfactory. If an error occurs
+# with virt-install might need to modify this line to a model present in
+# /usr/share/libvirt/cpu_map.xml.
 #dut_cpu_model: SandyBridge
 #dut_cpu_model: Haswell-noTSX
 dut_cpu_model: host
 
-# Hugepage kernel command-line options for the DUT and T-Rex systems.
+# Hugepage kernel command-line options for the DUT system.
 # The VM is configured with 8GB of RAM, OVS/DPDK is configured with
 # 4G per NUMA node, and the tests expect at least two NUMA nodes, so
-# 32GB is the recommended setting for both systems.
+# 32GB is the recommended setting.
 dut_hugepages: 32
 dut_hugepagesz: 1G
 dut_default_hugepagesz: 1G
 
-trex_hugepages: 32
-trex_hugepagesz: 1G
-trex_default_hugepagesz: 1G
-
-# iommu kernel command-line option. x86 based systems typically require "pt",
-# Power based systems should select "none".  
+# IOMMU kernel command-line option. x86 based systems typically require "pt",
+# Power based systems should select "none".
 dut_iommu_mode: "pt"
-trex_iommu_mode: "pt"
 
 # intel_iommu kernel command-line option. x86 based systems will require "on",
 # Power based systems ignore this setting
 dut_intel_iommu_mode: "on"
-trex_intel_iommu_mode: "on"
+
+#############################
+# VM specific configuration #
+#############################
+# VM user mode driver. For most systems this will be vfio-pci. Changes
+# for other cards such as Mellanox may be required.
+# This is the kernel driver that the NIC will bind to on the VM.
+vm_driver: vfio-pci
+
+# VM isolated core list (x86_64 should use 1-3 and Power should use 1-7)
+vm_isolated_cpus: 1-3
