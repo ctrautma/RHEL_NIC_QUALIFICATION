@@ -20,7 +20,7 @@ qe_subscription_command:
 # Alternate solution to subscription manager and QE subscription. Allows
 # custom repos to be used instead.  User is responsible for making sure
 # that the selected repo includes the required binaries.
-custom_repo_setup: False
+custom_repo_mode: False
 custom_repo_path:
 
 #######################################

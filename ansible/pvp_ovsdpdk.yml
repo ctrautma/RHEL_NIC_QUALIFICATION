@@ -419,14 +419,14 @@
   - name: Copying set_maxreadreq console script to default location
     copy:
       src: ./set_maxreadreq.sh
-      dest: ~/set_maxreadreq.sh
+      dest: /root/set_maxreadreq.sh
       mode: u=rwx,g=rwx,o=rwx
   # This setting does not survive a reboot
   - name: Tuning PCIe Max Read Request Size for {{ dut_interface_1_pciid }} (Power)
-    shell: "set_maxreadreq.sh {{ dut_interface_1_pciid }}"
+    shell: "/root/set_maxreadreq.sh {{ dut_interface_1_pciid }}"
     when: ansible_architecture == "ppc64le"
   - name: Tuning PCIe Max Read Request Size for {{ dut_interface_2_pciid }} (Power)
-    shell: "set_maxreadreq.sh {{ dut_interface_2_pciid }}"
+    shell: "/root/set_maxreadreq.sh {{ dut_interface_2_pciid }}"
     when: ansible_architecture == "ppc64le"
 
 ################################
@@ -610,7 +610,7 @@
     when: not custom_repo_mode
   - name: Setting up custom repos on rhel_loopback VM
     shell: ~/vm.sh run_cmd rhel_loopback "curl -o /etc/yum.repos.d/custom.repo {{ custom_repo_path }}"
-    when: custom_repo_setup
+    when: custom_repo_mode
   - name: Running yum commandset on rhel_loopback VM step 1
     shell: ~/vm.sh run_cmd rhel_loopback "yum -y clean all"
   - name: Running yum commandset on rhel_loopback VM step 2
