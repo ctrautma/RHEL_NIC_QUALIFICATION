@@ -424,17 +424,21 @@
       mode: "777"
   - name: Logging into vm rhel_loopback
     shell: ~/vm.sh login_vm rhel_loopback
-  - name: Setting up subscription manager step 1 on rhel_loopback
+  - name: Setting up subscription manager on rhel_loopback VM step 1
     shell: ~/vm.sh run_cmd rhel_loopback "subscription-manager register --username={{ rh_sub_username }} --password={{ rh_sub_pass }}"
-    when: not qe_subscription_mode
-  - name: Setting up subscription manager step 2 on rhel_loopback
+    when: rh_sub_mode
+  - name: Setting up subscription manager on rhel_loopback VM step 2
     shell: ~/vm.sh run_cmd rhel_loopback "subscription-manager attach --pool={{ rh_sub_pool_id }}"
-    when: not qe_subscription_mode
-  - name: Using QE Secret sauce to add subscription for repos
+    when: rh_sub_mode
+  - name: Using QE Secret sauce to add subscription for repos on rhel_loopback VM
     shell: ~/vm.sh run_cmd rhel_loopback "{{ qe_subscription_command }}"
     when: qe_subscription_mode
-  - name: subscribing to appstream on VM rhel_loopback
+  - name: Subscribing to appstream on rhel_loopback VM
     shell: ~/vm.sh run_cmd rhel_loopback "subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms"
+    when: not custom_repo_mode
+  - name: Setting up custom repos on rhel_loopback VM
+    shell: ~/vm.sh run_cmd rhel_loopback "curl -o /etc/yum.repos.d/custom.repo {{ custom_repo_path }}"
+    when: custom_repo_setup
   - name: Running yum commandset step 1 on rhel_loopback
     shell: ~/vm.sh run_cmd rhel_loopback "yum -y clean all"
   - name: Running yum commandset step 2 on rhel_loopback

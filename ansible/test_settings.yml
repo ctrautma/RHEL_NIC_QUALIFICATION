@@ -3,6 +3,7 @@ redhat_debug_mode: False
 
 # Red Hat subscription username, password, pool_id used for accessing Red Hat repositories.  If you do not have one
 # please ask your Red Hat EPM to assist.
+rh_sub_mode: true
 rh_sub_username:
 rh_sub_pass:
 rh_sub_pool_id:
@@ -12,6 +13,10 @@ rh_sub_pool_id:
 # DO NOT COMMIT THIS FILE TO GITHUB if this change is made!!!!!
 qe_subscription_mode: false
 qe_subscription_command:
+
+# Allows custom repo support if rh_sub or qe_subscription are not available.
+custom_repo_mode: false
+custom_repo_path: 
 
 # T-Rex version to use (example v2.53 : Note please include the v) This is the version that will be downloaded from git
 # and installed on the trex server.
