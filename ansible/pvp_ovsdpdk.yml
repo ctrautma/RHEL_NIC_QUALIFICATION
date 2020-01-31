@@ -11,42 +11,42 @@
 # Install repositories on DUT server #
 ######################################
 
-  - name: Install FedoraProject Repo
+  - name: Installing FedoraProject Repo
     yum:
       name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-  - name: Install needed repos stage 1
+  - name: Installing needed repos stage 1
     yum:
       name: aspell,aspell-en,autoconf,automake,bc,checkpolicy
-  - name: Install needed repos stage 2
+  - name: Installing needed repos stage 2
     yum:
       name: desktop-file-utils,dpdk-tools,driverctl,emacs,expect,gcc,gcc-c++,gdb
-  - name: Install needed repos stage 3
+  - name: Installing needed repos stage 3
     yum:
       name: git,graphviz,hwloc,intltool,kernel-devel,libcap-ng
-  - name: Install needed repos stage 4
+  - name: Installing needed repos stage 4
     yum:
       name: libcap-ng-devel,libguestfs,libguestfs-tools-c,libtool,libvirt
-  - name: Install needed repos stage 5
+  - name: Installing needed repos stage 5
     yum:
       name: lshw,openssl,openssl-devel,procps-ng,python3
-  - name: Install needed repos stage 6
+  - name: Installing needed repos stage 6
     yum:
       name: python3-six,rpm-build,selinux-policy-devel,sshpass,sysstat
-  - name: Install needed repos stage 7
+  - name: Installing needed repos stage 7
     yum:
       name: systemd-units,tcpdump,time,tmux,tuned-profiles-cpu-partitioning
-  - name: Install needed repos stage 8
+  - name: Installing needed repos stage 8
     yum:
       name: virt-install,virt-manager,wget
   - name: Installing openvswitch packages
     yum:
       name: "{{ ovs_selinux_rpm_path }}, {{ ovs_rpm_path }}"
-  - name: Create symbolic link for python3
+  - name: Creating symbolic link for python3
     file:
       src: "/usr/bin/python3"
       dest: "/usr/bin/python"
       state: link
-  - name: Create symbolic link for pip3
+  - name: Creating symbolic link for pip3
     file:
       src: "/usr/bin/pip3"
       dest: "/usr/bin/pip"
@@ -99,9 +99,12 @@
 # Tweak the system for QEMU and and OVS-DPDK usage #
 ####################################################
 
-  - name: Modifying selinux params step 1
-    shell: sed -i -e 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
-  - name: Modifying selinux params step 2
+  - name: Setting SELINUX for permissive mode step 1
+    lineinfile:
+      path: /etc/selinux/config
+      regexp: '^SELINUX='
+      line: 'SELINUX=permissive'
+  - name: Setting SELINUX for permissive mode step 2
     shell: setenforce permissive
 
 #####################################################
@@ -194,13 +197,24 @@
 # Setup libvirt service #
 #########################
 
-  - name: Set user for libvirt to hugetlbfs
-    shell: sed -i -e 's/#group = "root"/group = "hugetlbfs"/' /etc/libvirt/qemu.conf
-  - name: Enable service libvirtd.service
+  # DPDK currently runs on Power with IOVA=PA, needs root permissions for OVS
+  - name: Setting QEMU user to root (Power)
+    lineinfile:
+      path: /etc/libvirt/qemu.conf
+      regexp: '^#user = "root"'
+      line: 'user = "root"'
+    when: ansible_architecture == "ppc64le"
+  - name: Changing QEMU group from libvirt to hugetlbfs (x86_64)
+    lineinfile:
+      path: /etc/libvirt/qemu.conf
+      regexp: '^#group = "root"'
+      line: 'group = "hugetlbfs"'
+    when: ansible_architecture == "x86_64"
+  - name: Enabling service libvirtd.service
     service:
       name: libvirtd.service
       enabled: yes
-  - name: Start service libvirtd.service, if not started
+  - name: Starting service libvirtd.service, if not started
     service:
       name: libvirtd.service
       state: started
@@ -419,18 +433,24 @@
 # Starting openvswitch service #
 ################################
 
-  - name: Enable service openvswitch
+  - name: Enabling root user for OVS (Power)
+    lineinfile:
+      path: /etc/sysconfig/openvswitch
+      regexp: '^OVS_USER_ID='
+      line: 'OVS_USER_ID="root:root"'
+    when: ansible_architecture == "ppc64le"
+  - name: Enabling openvswitch service if not enabled
     service:
       name: openvswitch
       enabled: yes
-  - name: Start service openvswitch, if not started
+  - name: Starting openvswitch service if not started
     service:
       name: openvswitch
       state: started
 
-############################
-# Starting OVS-DPDK config #
-############################
+##############################
+# Generating OVS-DPDK config #
+##############################
 
   - name: Setting up OVS-DPDK config step 1
     shell: "ovs-vsctl set Open_vSwitch . other_config:dpdk-socket-mem=4096,0,0,0,0,0,0,0,4096"
@@ -458,19 +478,23 @@
 ##############################
   - stat: path=/opt/images
     register: st
-  - name: Creates directory for image storage
+  - name: Creating directory for VM image storage
     file:
       path: /opt/images
       state: directory
     when: not st.stat.exists
   - stat: path=/opt/images/{{ rhel_guest_image_path }}
     register: st
-  - name: Copy image to /opt/images
+  - name: Copying RHEL VM image to /opt/images
     copy:
       src: "{{ rhel_guest_image_path }}"
       dest: /opt/images/rhel_guest_image_pvp.qcow2
       remote_src: yes
     when: not st.stat.exists
+  - name: Setting permissions on RHEL VM image
+    file:
+      path: /opt/images/rhel_guest_image_pvp.qcow2
+      mode: u=rw,g=rw,o=rw
   - name: Checking status of rhel_loopback image
     virt:
       command: list_vms
@@ -478,12 +502,12 @@
   - debug:
       var: all_vms
     when: redhat_debug_mode == true
-  - name: Stopping rhel_loopback if its started
+  - name: Destroying rhel_loopback VM if its started
     virt:
       name: rhel_loopback
       state: destroyed
     when: '"rhel_loopback" in all_vms.list_vms'
-  - name: Undefining rhel_loopback if needed
+  - name: Undefining rhel_loopback VM if needed
     shell: virsh undefine rhel_loopback
     when: '"rhel_loopback" in all_vms.list_vms'
     # ToDo: Doesn't the "cell0.cpus=0" generate a warning for x86? It did for Power
@@ -496,8 +520,12 @@
     when: ansible_architecture == "ppc64le"
   - name: Setting permissions on vhost socket folder
     file:
-       path: /tmp/vhost-sock0
-       mode: 777
+      path: /tmp/vhost-sock0
+      mode: u=rwx,g=rwx,o=rwx
+  - name: Pausing to allow rhel_loopback VM to boot successfully (Power)
+    pause:
+      minutes: 1
+    when: ansible_architecture == "ppc64le"
   - name: Setting cpu pin for vcpu 0
     shell: virsh vcpupin rhel_loopback 0 {{ vcpu_0.stdout }}
   - name: Setting cpu pin for vcpu 1
@@ -541,7 +569,8 @@
       name: rhel_loopback
   - name: Redefining rhel_loopback VM with new XML modifications
     shell: virsh define /tmp/rhel_loopback.xml
-  - name: Shutdown VM
+  # Destroy the VM if shutdown didn't work
+  - name: Destroying rhel_loopback VM (errors likely)
     virt:
       name: rhel_loopback
       command: destroy
@@ -551,12 +580,16 @@
     virt:
       name: rhel_loopback
       state: running
-  - name: copying virsh console script to default location
+  - name: Pausing to allow VM to boot successfully (Power)
+    pause:
+      minutes: 1
+    when: ansible_architecture == "ppc64le"
+  - name: Copying virsh console script to default location
     copy:
       src: ./vm.sh
       dest: ~/vm.sh
-      mode: "777"
-  - name: Logging into vm rhel_loopback
+      mode: u=rwx,g=rwx,o=rwx
+  - name: Logging into rhel_loopback VM
     shell: ~/vm.sh login_vm rhel_loopback
   - name: Setting up subscription manager on rhel_loopback VM step 1
     shell: ~/vm.sh run_cmd rhel_loopback "subscription-manager register --username={{ rh_sub_username }} --password={{ rh_sub_pass }}"
@@ -564,7 +597,7 @@
   - name: Setting up subscription manager on rhel_loopback VM step 2
     shell: ~/vm.sh run_cmd rhel_loopback "subscription-manager attach --pool={{ rh_sub_pool_id }}"
     when: rh_sub_mode
-  - name: Using QE Secret sauce to add subscription for repos on rhel_loopback VM
+  - name: Using QE secret sauce to add subscription for repos on rhel_loopback VM
     shell: ~/vm.sh run_cmd rhel_loopback "{{ qe_subscription_command }}"
     when: qe_subscription_mode
   - name: Subscribing to appstream on rhel_loopback VM
@@ -573,15 +606,15 @@
   - name: Setting up custom repos on rhel_loopback VM
     shell: ~/vm.sh run_cmd rhel_loopback "curl -o /etc/yum.repos.d/custom.repo {{ custom_repo_path }}"
     when: custom_repo_setup
-  - name: Running yum commandset step 1 on rhel_loopback
+  - name: Running yum commandset on rhel_loopback VM step 1
     shell: ~/vm.sh run_cmd rhel_loopback "yum -y clean all"
-  - name: Running yum commandset step 2 on rhel_loopback
+  - name: Running yum commandset on rhel_loopback VM step 2
     shell: ~/vm.sh run_cmd rhel_loopback "yum -y update"
-  - name: Running yum commandset step 3 on rhel_loopback
+  - name: Running yum commandset on rhel_loopback VM step 3
     shell: ~/vm.sh run_cmd rhel_loopback "yum -y install driverctl gcc kernel-devel numactl-devel tuned-profiles-cpu-partitioning wget libibverbs dpdk"
-  - name: Running yum commandset step 4 on rhel_loopback
+  - name: Running yum commandset on rhel_loopback VM step 4
     shell: ~/vm.sh run_cmd rhel_loopback "yum -y update kernel"
-  - name: Modifying grub for tuning on rhel_loopback
+  - name: Tuning isolcpus/hugepage setup on rhel_loopback VM (x86_64)
     shell: ~/vm.sh run_cmd rhel_loopback "sed -i -e 's/GRUB_CMDLINE_LINUX=\"/GRUB_CMDLINE_LINUX=\"isolcpus=1,2,3 default_hugepagesz=1G hugepagesz=1G hugepages=2 /'  /etc/default/grub"
   - name: Running grub set command step 1 on rhel_loopback
     shell: ~/vm.sh run_cmd rhel_loopback "grub2-editenv - unset kernelopts"
@@ -599,17 +632,19 @@
     shell: ~/vm.sh run_cmd rhel_loopback "echo isolated_cores=1,2,3 >> /etc/tuned/cpu-partitioning-variables.conf"
   - name: Starting tuned profile cpu-partitioning on rhel_loopback
     shell: ~/vm.sh run_cmd rhel_loopback "tuned-adm profile cpu-partitioning"
-  - name: Rebooting vm rhel_loopback step 1
+  - name: Destroying rhel_loopback VM to activate configuration changes
     virt:
       name: rhel_loopback
       state: destroyed
-  - name: Rebooting vm rhel_loopback step 2
+  - name: Starting rhel_loopback VM to activate configuration changes
     virt:
       name: rhel_loopback
       state: running
-  - name: Logging into VM rhel_loopback
-    shell: ~/vm.sh login_vm rhel_loopback
-  - name: Logging into vm rhel_loopback
+  - name: Pausing to allow VM to boot successfully (Power)
+    pause:
+      minutes: 1
+    when: ansible_architecture == "ppc64le"
+  - name: Logging into rhel_loopback VM
     shell: ~/vm.sh login_vm rhel_loopback
   - name: Getting IP address from VM
     shell: ~/vm.sh run_cmd rhel_loopback "ip a | grep inet | grep brd | awk '{ print \$2 }'" | grep -A 1 "ip a \| grep inet \| grep brd"   | tail -n 1

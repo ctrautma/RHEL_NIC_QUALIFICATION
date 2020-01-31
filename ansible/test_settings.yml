@@ -18,13 +18,34 @@ qe_subscription_command:
 custom_repo_mode: false
 custom_repo_path: 
 
-# T-Rex version to use (example v2.53 : Note please include the v) This is the version that will be downloaded from git
-# and installed on the trex server.
+# T-Rex version to use (example v2.53 : Note please include the v).
+# This is the version that will be downloaded from git and installed on the
+# T-Rex server.
+trex_path: https://trex-tgn.cisco.com/trex/release
 trex_version: v2.53
 
-# T-Rex server NIC names (example eth1, enp68s0f0, etc...)
-trex_interface_1: enp68s0f0
-trex_interface_2: enp68s0f1
+# T-Rex server NIC PCI addresses
+trex_interface_1_pciid: "0000:58:00.0"
+trex_interface_2_pciid: "0000:58:00.1"
+
+# DUT NIC PCI addresses
+dut_interface_1_pciid: "0034:01:00.0"
+dut_interface_2_pciid: "0034:01:00.1"
+
+# Openvswitch package location. While you can pull this from the fast datapath
+# repository it is recommended to contact your development representative to
+# get the latest version. Then copy this to the DUT and specify its location.
+ovs_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch2.11/2.11.0/9.el8fdp/x86_64/openvswitch2.11-2.11.0-9.el8fdp.x86_64.rpm"
+
+# Openvswitch selinux package location. While you can pull this from the fast
+# datapath repository it is recommended to contact your development
+# representative to get the latest version.  Then copy this to the DUT and
+# specify its location.
+ovs_selinux_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch-selinux-extra-policy/1.0/11.el8fdp/noarch/openvswitch-selinux-extra-policy-1.0-11.el8fdp.noarch.rpm"
+
+# VM isolated core list (x86_64 should use 1,2,3 and Power should use 1,2,3,4,5,6,7)
+# ToDo: Move this get_cpulist.sh
+vm_isolated_cpus: 1,2,3
 
 # Openvswitch package location. While you can pull this from the fast datapath repository it is recommended to contact
 # your development representative to get the latest version. Then copy this to the DUT and specify its location.
@@ -34,16 +55,27 @@ ovs_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/open
 # contact your development representative to get the latest version.  Then copy this to the DUT and specify its location.
 ovs_selinux_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch-selinux-extra-policy/1.0/11.el8fdp/noarch/openvswitch-selinux-extra-policy-1.0-11.el8fdp.noarch.rpm"
 
-# DUT server isolated core list
-#dut_isolated_cpus: 1,3,5,7,9,11,13,15
+# VM NIC interface names and PCI addresses.  Note that interface naming is
+# influenced by the underlying emulated machine type.  x86 systems will
+# typically use enp[1-X]f[0-X] names while Power systems will typically
+# use eth[0-X].
+# ToDo: Try and eliminate the dependency on interface names in favor of
+#       PCI addresses only.  Could use:
+#       sudo lshw -businfo -class network | grep 0034:01:00.0 | awk '{print $2}'
+vm_interface_1_pciid: "0000:00:01.0"
+vm_interface_2_pciid: "0000:00:02.0"
 
-# DUT NIC Device names
-dut_interface_1_pciid: "0000:44:00.0"
-dut_interface_2_pciid: "0000:44:00.1"
-tc_offload_card_type: "Netronome"
+# ToDo: Need description here
+tc_offload_card_type: "Unknown"
 
-# DUT DPDK Driver,  for most devices this will be vfio-pci.  Changes for other cards such as Mellanox may be required.
-# This is the DPDK driver that the card will bind to on the DUT.
+# User mode driver. For most devices this will be "vfio-pci", but some NICs
+# such as Mellanox ConnectX-5 don't require user access to hardware registers,
+# so the driver should be "none".  And in some cases other drivers such as
+# "uio_pci_generic" driver may be required, though not officially supported.
+# by Red Hat.
+# dut_driver: none
+# dut_driver: vfio-pci
+# dut_driver: uio_pci_generic
 dut_driver: vfio-pci
 
 # Path to RHEL guest image for PVP tests.  Please download the image from the red hat website.  See README for more info.
