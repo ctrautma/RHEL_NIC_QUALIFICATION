@@ -38,33 +38,24 @@ ovs_selinux_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packa
 #dut_isolated_cpus: 1,3,5,7,9,11,13,15
 
 # DUT NIC Device names
-dut_interface_1: enp68s0f0
-dut_interface_2: enp68s0f1
-
 dut_interface_1_pciid: "0000:44:00.0"
+dut_interface_2_pciid: "0000:44:00.1"
 tc_offload_card_type: "Netronome"
 
 # DUT DPDK Driver,  for most devices this will be vfio-pci.  Changes for other cards such as Mellanox may be required.
 # This is the DPDK driver that the card will bind to on the DUT.
 dut_driver: vfio-pci
 
-# DUT DPDK PMD Mask.  PMD mask to set for which cores will be used for PMD threads.
-#dut_dpdk_pmd_mask: 8002
-
-# DUT DPDK L-Core Mask.  Core mask for the logical core,  should not conflict with DPDK PMD mask.  Does not have to align with NUMA of NIC.
-#dut_dpdk_lcore_mask: 40
-
-# DUT PMD RXQ Affinity. The receive queue affinity which will be set on the PMD threads.
-#dut_pmd_rxq_affinity: 0:9,1:15
-
 # Path to RHEL guest image for PVP tests.  Please download the image from the red hat website.  See README for more info.
 # This is the location the file is located on the DUT.
 rhel_guest_image_path: /root/rhel-8.0-beta-1-x86_64-kvm.qcow2
 
-# CPU model info, needs to be modified to match your DUT cpu type. If an error occurs with virt-install might need to
-# modify this line to a model present in  /usr/share/libvirt/cpu_map.xml
-dut_cpu_model: SandyBridge
+# CPU model info, needs to be modified to match your DUT cpu type. If 
+# an error occurs with virt-install might need to modify this line to
+# a model present in /usr/share/libvirt/cpu_map.xml
+#dut_cpu_model: SandyBridge
 #dut_cpu_model: Haswell-noTSX
+dut_cpu_model: host
 
 # Hugepage kernel command-line options for the DUT and T-Rex systems.
 # The VM is configured with 8GB of RAM, OVS/DPDK is configured with
@@ -87,11 +78,3 @@ trex_iommu_mode: "pt"
 # Power based systems ignore this setting
 dut_intel_iommu_mode: "on"
 trex_intel_iommu_mode: "on"
-
-# Virtual CPU list (Should be in isolated list), emulator vcpu can be non isolated.  Use cores that will not clash with DPDK core mask.
-#vcpu_1: 1
-#vcpu_2: 3
-#vcpu_3: 5
-#vcpu_4: 7
-#vcpu_emulator: 2
-

@@ -7,20 +7,6 @@
       msg: Debug mode is enabled
     when: redhat_debug_mode == true
 
-#################################################
-# Check for nic to make sure its seen by kernel #
-#################################################
-
-  - stat: path=/sys/class/net/{{ dut_interface_1 }}
-    register: st
-  - block:
-    - name: "Checking nic to be seen by kernel"
-      debug:
-        msg: "exiting as nic {{ dut_interface_1 }} cannot be seen by the kernel.  Please check settings or unbind the nic from a dpdk driver using driverctl"
-
-    - meta: end_play
-    when: not st.stat.exists
-
 ######################################
 # Install repositories on DUT server #
 ######################################
@@ -65,6 +51,49 @@
       src: "/usr/bin/pip3"
       dest: "/usr/bin/pip"
       state: link
+  - name: Stopping openvswitch service if present and running (errors ok)
+    service:
+      name: openvswitch
+      state: stopped
+    ignore_errors: true
+  
+######################################
+# Check that nics are seen by kernel #
+######################################
+
+  - name: Removing any existing driverctl overrides for first NIC
+    shell: driverctl unset-override {{ dut_interface_1_pciid }}
+  - name: Removing any existing driverctl overrides for second nic
+    shell: driverctl unset-override {{ dut_interface_2_pciid }}
+  - name: Retrieving list of installed devices and drivers
+    shell: driverctl -v list-devices
+    register: list_devices
+    when: redhat_debug_mode == true
+  - debug:
+      var: list_devices
+    when: redhat_debug_mode == true
+  - name: Getting network interface for first NIC
+    shell: lshw -businfo -class network | grep {{ dut_interface_1_pciid }} | awk '{print $2}'
+    register: dut_interface_1
+  - name: Getting network interface for second NIC
+    shell: lshw -businfo -class network | grep {{ dut_interface_2_pciid }} | awk '{print $2}'
+    register: dut_interface_2
+  - stat: path=/sys/class/net/{{ dut_interface_1.stdout }}
+    register: st
+  - block:
+    - name: Checking that first NIC is seen by kernel
+      debug:
+        msg: "Exiting as first nic {{ dut_interface_1.stdout }} cannot be seen by the kernel."
+    - meta: end_play
+    when: not st.stat.exists
+  - stat: path=/sys/class/net/{{ dut_interface_2.stdout }}
+    register: st
+  - block:
+    - name: Checking that second NIC is seen by kernel
+      debug:
+        msg: "Exiting as second nic {{ dut_interface_2.stdout }} cannot be seen by the kernel."
+    - meta: end_play
+    when: not st.stat.exists
 
 ####################################################
 # Tweak the system for QEMU and and OVS-DPDK usage #
@@ -176,85 +205,135 @@
       name: libvirtd.service
       state: started
 
-############################################
+#######################
 # Get needed cpu list #
-############################################
+#######################
 
-  - name: Copy up cpulist script to remote DUT
+  - name: Copying get_cpulist script to DUT
     copy:
       src: get_cpulist.sh
       dest: /root/get_cpulist.sh
-  - name: Changing perm of "/root/get_cpu_list.sh", adding "+x"
-    file: dest=/root/get_cpulist.sh mode=a+x
-  - name: check cpu requirement
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
+      mode: u+rwx
+  - name: Checking CPU requirement for DUT
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
     register: cpu_meet
   - block:
       - debug:
-          msg: cpu list can't meet the test requirement,exit the script
+          msg: Available CPUs don't meet test requirements, exiting the script
       - meta: end_play
     when: cpu_meet.rc != 0
-  - name: Get dut_isolated_cpus
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
+  - name: Getting dut_isolated_cpus
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
     register: dut_isolated_cpus
   - debug:
       var: dut_isolated_cpus
     when: redhat_debug_mode == true
-  - name: Get dut_dpdk_pmd_mask
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_dpdk_pmd_mask
+  - name: Getting dut_dpdk_pmd_mask
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} dut_dpdk_pmd_mask
     register: dut_dpdk_pmd_mask
   - debug:
       var: dut_dpdk_pmd_mask
     when: redhat_debug_mode == true
-  - name: Get dut_pmd_rxq_affinity
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_pmd_rxq_affinity
+  - name: Getting dut_pmd_rxq_affinity
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} dut_pmd_rxq_affinity
     register: dut_pmd_rxq_affinity
   - debug:
       var: dut_pmd_rxq_affinity
     when: redhat_debug_mode == true
-  - name: Get vcpu_1
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
+  - name: Getting vcpu_0
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_0
+    register: vcpu_0
+  - debug:
+      var: vcpu_0
+    when: redhat_debug_mode == true
+  - name: Getting vcpu_1
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
     register: vcpu_1
   - debug:
       var: vcpu_1
     when: redhat_debug_mode == true
-  - name: Get vcpu_2
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_2
+  - name: Getting vcpu_2
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_2
     register: vcpu_2
   - debug:
       var: vcpu_2
     when: redhat_debug_mode == true
-  - name: Get vcpu_3
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
+  - name: Getting vcpu_3
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
     register: vcpu_3
   - debug:
       var: vcpu_3
     when: redhat_debug_mode == true
-  - name: Get vcpu_4
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_4
+  - name: Getting vcpu_4 (Power)
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_4
     register: vcpu_4
+    when: ansible_architecture == "ppc64le"
   - debug:
       var: vcpu_4
+    when: ansible_architecture == "ppc64le" and redhat_debug_mode == true
+  - name: Getting vcpu_5 (Power)
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_5
+    register: vcpu_5
+    when: ansible_architecture == "ppc64le"
+  - debug:
+      var: vcpu_5
+    when: ansible_architecture == "ppc64le" and redhat_debug_mode == true
+  - name: Getting vcpu_6 (Power)
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_6
+    register: vcpu_6
+    when: ansible_architecture == "ppc64le"
+  - debug:
+      var: vcpu_6
+    when: ansible_architecture == "ppc64le" and redhat_debug_mode == true
+  - name: Getting vcpu_7 (Power)
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_7
+    register: vcpu_7
+    when: ansible_architecture == "ppc64le"
+  - debug:
+      var: vcpu_7
+    when: ansible_architecture == "ppc64le" and redhat_debug_mode == true
+  - name: Getting vcpu_count
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_count
+    register: vcpu_count
+  - debug:
+      var: vcpu_count
     when: redhat_debug_mode == true
-  - name: Get dut_dpdk_lcore_mask
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_dpdk_lcore_mask
+  - name: Getting vcpu_str
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_str
+    register: vcpu_str
+  - debug:
+      var: vcpu_str
+    when: redhat_debug_mode == true
+  - name: Getting dut_dpdk_lcore_mask
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} dut_dpdk_lcore_mask
     register: dut_dpdk_lcore_mask
   - debug:
       var: dut_dpdk_lcore_mask
     when: redhat_debug_mode == true
-  - name: Get vcpu_emulator
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_emulator
+  - name: Getting vcpu_emulator
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_emulator
     register: vcpu_emulator
   - debug:
       var: vcpu_emulator
     when: redhat_debug_mode == true
-
+  - name: Getting numa_node
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} numa_node
+    register: numa_node
+  - debug:
+      var: numa_node
+    when: redhat_debug_mode == true
+  - name: Getting driver_queues
+    shell: /root/get_cpulist.sh {{ dut_interface_1_pciid }} driver_queues
+    register: driver_queues
+  - debug:
+      var: driver_queues
+    when: redhat_debug_mode == true
 
 ##########################################
 # Tune isolated cpus based on DUT config #
 ##########################################
 
-- name: Checksumming cpu-partitioning-variables.conf file step 1
+  - name: Checksumming cpu-partitioning-variables.conf file step 1
     stat: path=/etc/tuned/cpu-partitioning-variables.conf
     register: tuned_before
   - name: Adding/modifying isolcpus in cpu-partitioning-variables.conf
@@ -305,31 +384,36 @@
     when: grub_before.stat.checksum != grub_after.stat.checksum or tuned_before.stat.checksum != tuned_after.stat.checksum
     tags: ["grub"]
 
-###################################################
+#################################################
 # Reboot DUT system for settings to take effect #
-###################################################
+#################################################
 
   - name: REBOOTING DUT SERVER NOW
     reboot:
     when: grub_before.stat.checksum != grub_after.stat.checksum
 
-
 ####################
 # Getting NIC info #
 ####################
 
-  - name: Getting pci address of NIC 1
-    shell: "ethtool -i {{ dut_interface_1 }} | grep bus-info | awk '{print $2}'"
-    register: dut_nic1_pci_address
-  - name: finding numa node of nic
-    shell: cat /sys/class/net/{{ dut_interface_1}}/device/numa_node
-    register: nic1_numa
-  - debug:
-      var: dut_nic1_pci_address
-    when: redhat_debug_mode == true
-  - name: Binding nic {{ dut_interface_1 }} to driver {{ dut_driver }}
-    shell: "driverctl -v set-override {{ dut_nic1_pci_address.stdout }} {{ dut_driver }}"
-    ignore_errors: True
+  - name: Binding nic {{ dut_interface_1_pciid }} to driver {{ dut_driver }}
+    shell: "driverctl -v set-override {{ dut_interface_1_pciid }} {{ dut_driver }}"
+    when: dut_driver != "none"
+  - name: Binding nic {{ dut_interface_2_pciid }} to driver {{ dut_driver }}
+    shell: "driverctl -v set-override {{ dut_interface_2_pciid }} {{ dut_driver }}"
+    when: dut_driver != "none"
+  - name: Copying set_maxreadreq console script to default location
+    copy:
+      src: ./set_maxreadreq.sh
+      dest: ~/set_maxreadreq.sh
+      mode: u=rwx,g=rwx,o=rwx
+  # This setting does not survive a reboot
+  - name: Tuning PCIe Max Read Request Size for {{ dut_interface_1_pciid }} (Power)
+    shell: "set_maxreadreq.sh {{ dut_interface_1_pciid }}"
+    when: ansible_architecture == "ppc64le"
+  - name: Tuning PCIe Max Read Request Size for {{ dut_interface_2_pciid }} (Power)
+    shell: "set_maxreadreq.sh {{ dut_interface_2_pciid }}"
+    when: ansible_architecture == "ppc64le"
 
 ################################
 # Starting openvswitch service #
@@ -349,13 +433,13 @@
 ############################
 
   - name: Setting up OVS-DPDK config step 1
-    shell: "ovs-vsctl set Open_vSwitch . other_config:dpdk-init=true"
+    shell: "ovs-vsctl set Open_vSwitch . other_config:dpdk-socket-mem=4096,0,0,0,0,0,0,0,4096"
   - name: Setting up OVS-DPDK config step 2
-    shell: ovs-vsctl set Open_vSwitch . other_config:dpdk-socket-mem=4096
+    shell: "ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask={{ dut_dpdk_pmd_mask.stdout }}"
   - name: Setting up OVS-DPDK config step 3
-    shell: ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask={{ dut_dpdk_pmd_mask.stdout }}
+    shell: "ovs-vsctl set Open_vSwitch . other_config:dpdk-lcore-mask={{ dut_dpdk_lcore_mask.stdout }}"
   - name: Setting up OVS-DPDK config step 4
-    shell: ovs-vsctl set Open_vSwitch . other_config:dpdk-lcore-mask={{ dut_dpdk_lcore_mask.stdout }}
+    shell: "ovs-vsctl set Open_vSwitch . other_config:dpdk-init=true"
   - name: Restart service openvswitch
     service:
       name: openvswitch
@@ -365,9 +449,9 @@
   - name: Setting up OVS-DPDK config step 6
     shell: ovs-vsctl add-br ovs_pvp_br0 -- set bridge ovs_pvp_br0 datapath_type=netdev
   - name: Setting up OVS-DPDK config step 7
-    shell: ovs-vsctl add-port ovs_pvp_br0 dpdk0 -- set Interface dpdk0 type=dpdk -- set Interface dpdk0 options:dpdk-devargs="{{ dut_nic1_pci_address.stdout }}" -- set interface dpdk0 options:n_rxq=2 other_config:pmd-rxq-affinity="{{ dut_pmd_rxq_affinity.stdout }}" -- set Interface dpdk0 ofport_request=1
+    shell: ovs-vsctl add-port ovs_pvp_br0 dpdk0 -- set Interface dpdk0 type=dpdk -- set Interface dpdk0 options:dpdk-devargs="{{ dut_interface_1_pciid }}" -- set interface dpdk0 options:n_rxq={{ driver_queues.stdout }} other_config:pmd-rxq-affinity="{{ dut_pmd_rxq_affinity.stdout }}" -- set Interface dpdk0 ofport_request=1
   - name: Setting up OVS-DPDK config step 8
-    shell: ovs-vsctl add-port ovs_pvp_br0 vhost0 -- set Interface vhost0 type=dpdkvhostuserclient -- set Interface vhost0 options:vhost-server-path="/tmp/vhost-sock0" -- set interface vhost0 options:n_rxq=2 other_config:pmd-rxq-affinity="{{ dut_pmd_rxq_affinity.stdout }}" -- set Interface vhost0 ofport_request=2
+    shell: ovs-vsctl add-port ovs_pvp_br0 vhost0 -- set Interface vhost0 type=dpdkvhostuserclient -- set Interface vhost0 options:vhost-server-path="/tmp/vhost-sock0" -- set interface vhost0 options:n_rxq={{ driver_queues.stdout }} other_config:pmd-rxq-affinity="{{ dut_pmd_rxq_affinity.stdout }}" -- set Interface vhost0 ofport_request=2
 
 ##############################
 # Setting up Virtual machine #
@@ -402,37 +486,60 @@
   - name: Undefining rhel_loopback if needed
     shell: virsh undefine rhel_loopback
     when: '"rhel_loopback" in all_vms.list_vms'
-  - name: Running virt-install
-    shell: virt-install --connect=qemu:///system --network vhostuser,source_type=unix,source_path=/tmp/vhost-sock0,source_mode=server,model=virtio,driver_queues=2 --network network=default --name=rhel_loopback --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0 --vcpus=4,cpuset={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }} --check-cpu --cpu {{ dut_cpu_model }},+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
+    # ToDo: Doesn't the "cell0.cpus=0" generate a warning for x86? It did for Power
+  - name: Running virt-install (x86_64)
+    shell: virt-install --connect=qemu:///system --network vhostuser,source_type=unix,source_path=/tmp/vhost-sock0,source_mode=server,model=virtio,driver_queues={{ driver_queues.stdout }} --network network=default --name=rhel_loopback --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0 --vcpus={{ vcpu_count.stdout }},cpuset={{ vcpu_str.stdout }} --check-cpu --cpu {{ dut_cpu_model }},+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset={{ numa_node.stdout }} --nographics --noautoconsole --import
+    when: ansible_architecture == "x86_64"
+  # DRC - Check the details here!!! Note "cpus=0-7" below.
+  - name: Running virt-install (Power)
+    shell: virt-install --connect=qemu:///system --network vhostuser,source_type=unix,source_path=/tmp/vhost-sock0,source_mode=server,model=virtio,driver_queues={{ driver_queues.stdout }} --network network=default --name=rhel_loopback --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0 --vcpus={{ vcpu_count.stdout }},cpuset={{ vcpu_str.stdout }} --check-cpu --cpu {{ dut_cpu_model }},cell0.id=0,cell0.cpus=0-7,cell0.memory=8388608 --numatune mode=strict,nodeset={{ numa_node.stdout }} --nographics --noautoconsole --import
+    when: ansible_architecture == "ppc64le"
   - name: Setting permissions on vhost socket folder
     file:
        path: /tmp/vhost-sock0
        mode: 777
   - name: Setting cpu pin for vcpu 0
-    shell: virsh vcpupin rhel_loopback 0 {{ vcpu_1.stdout }}
+    shell: virsh vcpupin rhel_loopback 0 {{ vcpu_0.stdout }}
   - name: Setting cpu pin for vcpu 1
-    shell: virsh vcpupin rhel_loopback 1 {{ vcpu_2.stdout }}
+    shell: virsh vcpupin rhel_loopback 1 {{ vcpu_1.stdout }}
   - name: Setting cpu pin for vcpu 2
-    shell: virsh vcpupin rhel_loopback 2 {{ vcpu_3.stdout }}
+    shell: virsh vcpupin rhel_loopback 2 {{ vcpu_2.stdout }}
   - name: Setting cpu pin for vcpu 3
-    shell: virsh vcpupin rhel_loopback 3 {{ vcpu_4.stdout }}
+    shell: virsh vcpupin rhel_loopback 3 {{ vcpu_3.stdout }}
+  - name: Setting cpu pin for vcpu 4 (Power)
+    shell: virsh vcpupin rhel_loopback 4 {{ vcpu_4.stdout }}
+    when: ansible_architecture == "ppc64le"
+  - name: Setting cpu pin for vcpu 5 (Power)
+    shell: virsh vcpupin rhel_loopback 5 {{ vcpu_5.stdout }}
+    when: ansible_architecture == "ppc64le"
+  - name: Setting cpu pin for vcpu 6 (Power)
+    shell: virsh vcpupin rhel_loopback 6 {{ vcpu_6.stdout }}
+    when: ansible_architecture == "ppc64le"
+  - name: Setting cpu pin for vcpu 7 (Power)
+    shell: virsh vcpupin rhel_loopback 7 {{ vcpu_7.stdout }}
+    when: ansible_architecture == "ppc64le"
   - name: Setting emulator pin for guest
     shell: virsh emulatorpin rhel_loopback {{ vcpu_emulator.stdout }}
-  - name: stop rhel guest
+  # Pinning vcpus is a transient event, it's not written to the domain's
+  # XML configuration.  Dumping the running configuration here allows the
+  # pinned configuration to be captured and hard-coded when the XML is
+  # "imported" later with the define command.
+  - name: Dumping the rhel_loopback VM XML
+    shell: "virsh dumpxml rhel_loopback > /tmp/rhel_loopback.xml"
+  - name: Shutting down the rhel_loopback VM
     virt:
       name: rhel_loopback
       state: shutdown
-  - name: dump xml
-    shell: "virsh dumpxml rhel_loopback > /tmp/rhel_loopback.xml"
-  - replace:
+  - name: Enabling shared memory in the rhel_loopback VM XML
+    replace:
       dest: /tmp/rhel_loopback.xml
       regexp: "unit='KiB'/>"
       replace: "unit='KiB' memAccess='shared'/>"
-  - name: Undefining rhel_loopback
+  - name: Undefining rhel_loopback VM
     virt:
       command: undefine
       name: rhel_loopback
-  - name: Redefining rhel_loopback with new xml modifications
+  - name: Redefining rhel_loopback VM with new XML modifications
     shell: virsh define /tmp/rhel_loopback.xml
   - name: Shutdown VM
     virt:
