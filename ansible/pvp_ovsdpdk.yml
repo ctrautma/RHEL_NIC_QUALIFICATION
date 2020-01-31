@@ -1,4 +1,4 @@
-- name: T-Rex Setup
+- name: DUT Setup for PVP OVS/DPDK Testing
   hosts: dut
   vars_files:
     - ./test_settings.yml
@@ -79,83 +79,87 @@
 # Modify startup parameters for hugepages and iommu #
 #####################################################
 
-  - name: Checking for hugepages in grub step 1 (Fatal errors are normal here)
-    shell: "cat /etc/default/grub | grep hugepages=32"
-    register: hugepages_found1
-    ignore_errors: True
-  - debug:
-      var: hugepages_found
-    when: redhat_debug_mode == true
-  - name: Adding hugepages in grub if needed step 1
-    when: hugepages_found1.rc != 0
+  - name: Checksumming grub configuration file step 1
+    stat: path=/etc/default/grub
+    register: grub_before
+  - name: Changing existing hugepages in grub if present
     lineinfile:
       path: /etc/default/grub
-      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
-      line: '\1hugepages=32 \2'
-      backrefs: yes
-  - name: Checking for hugepages in grub step 2 (Fatal errors are normal here)
-    shell: "cat /etc/default/grub | grep hugepagesz=1G"
-    register: hugepages_found2
-    ignore_errors: True
-  - debug:
-      var: hugepages_found
-    when: redhat_debug_mode == true
-  - name: Adding hugepages in grub if needed step 2
-    when: hugepages_found2.rc != 0
+      regexp: '(^GRUB_CMDLINE_LINUX=\"[^<]*\bhugepages=)(\d+)([^<]*\"$)'
+      line: '\g<1>{{ dut_hugepages }}\g<3>'
+      backrefs: true
+  - name: Adding new hugepages in grub if missing
     lineinfile:
       path: /etc/default/grub
-      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
-      line: '\1hugepagesz=1G \2'
-      backrefs: yes
-  - name: Checking for hugepages in grub step 3 (Fatal errors are normal here)
-    shell: "cat /etc/default/grub | grep default_hugepagesz=1G"
-    register: hugepages_found3
-    ignore_errors: True
-  - debug:
-      var: hugepages_found
-    when: redhat_debug_mode == true
-  - name: Adding hugepages in grub if needed step 3
-    when: hugepages_found3.rc != 0
+      regexp: '(^GRUB_CMDLINE_LINUX=\")((?![^<]*\bhugepages=\d+)[^<]*\"$)'
+      line: '\g<1>hugepages={{ dut_hugepages }} \g<2>'
+      backrefs: true
+  - name: Changing existing hugepagesz in grub if present
     lineinfile:
       path: /etc/default/grub
-      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
-      line: '\1default_hugepagesz=1G \2'
-      backrefs: yes
-  - name: Checking for iommu in grub step 1 (Fatal errors are normal here)
-    shell: "cat /etc/default/grub | grep iommu=pt"
-    register: iommu_found1
-    ignore_errors: True
-  - debug:
-      var: iommu_found
-    when: redhat_debug_mode == true
-  - name: Adding iommu in grub if needed step 1
-    when: iommu_found1.rc != 0
+      regexp: '(^GRUB_CMDLINE_LINUX=\"[^<]*\bhugepagesz=)(\d+[gGkKmM])([^<]*\"$)'
+      line: '\g<1>{{ dut_hugepagesz }}\g<3>'
+      backrefs: true
+  - name: Adding new hugepagesz in grub if missing
     lineinfile:
       path: /etc/default/grub
-      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
-      line: '\1iommu=pt \2'
-      backrefs: yes
-  - name: Checking for iommu in grub step 2 (Fatal errors are normal here)
-    shell: "cat /etc/default/grub | grep intel_iommu=on"
-    register: iommu_found2
-    ignore_errors: True
-  - debug:
-      var: iommu_found
-    when: redhat_debug_mode == true
-  - name: Adding iommu in grub if needed step 2
-    when: iommu_found2.rc != 0
+      regexp: '(^GRUB_CMDLINE_LINUX=\")((?![^<]*\bhugepagesz=\d+[gGkKmM])[^<]*\"$)'
+      line: '\g<1>hugepagesz={{ dut_hugepagesz }} \g<2>'
+      backrefs: true
+  - name: Changing existing default_hugepagesz in grub if present
     lineinfile:
       path: /etc/default/grub
-      regexp: '(GRUB_CMDLINE_LINUX=")(.*")'
-      line: '\1intel_iommu=on \2'
-      backrefs: yes
-  - name: Tweak the kernel for hugepages and iommu step 1
-    command: "grub2-editenv - unset kernelopts"
-    when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0
-  - name: Tweak the kernel for hugepages and iommu step 2
-    command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
-    when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0
-    tags: ["grub"]
+      regexp: '(^GRUB_CMDLINE_LINUX=\"[^<]*\bdefault_hugepagesz=)(\d+[gGkKmM])([^<]*\"$)'
+      line: '\g<1>{{ dut_default_hugepagesz }}\g<3>'
+      backrefs: true
+  - name: Adding new default_hugepagesz in grub if missing
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(^GRUB_CMDLINE_LINUX=\")((?![^<]*\bdefault_hugepagesz=\d+[gGkKmM])[^<]*\"$)'
+      line: '\g<1>default_hugepagesz={{ dut_default_hugepagesz }} \g<2>'
+      backrefs: true
+  - name: Removing existing iommu in grub if requested
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(^GRUB_CMDLINE_LINUX=\"[^<]*?)(\s*\biommu=[a-zA-Z]+\s*)([^<]*\"$)'
+      line: '\g<1>\g<3>'
+      backrefs: true
+    when: dut_iommu_mode == "none"
+  - name: Changing existing iommu in grub if present
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(^GRUB_CMDLINE_LINUX=\"[^<]*\biommu=)([a-zA-Z]+)([^<]*\"$)'
+      line: '\g<1>{{ dut_iommu_mode }}\g<3>'
+      backrefs: true
+    when: dut_iommu_mode != "none"
+  - name: Adding new iommu in grub if missing
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(^GRUB_CMDLINE_LINUX=\")((?![^<]*\biommu=[a-zA-Z]+)[^<]*\"$)'
+      line: '\g<1>iommu={{ dut_iommu_mode }} \g<2>'
+      backrefs: true
+    when: dut_iommu_mode != "none"
+  - name: Removing existing intel_iommu in grub if requested (x86_64)
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(^GRUB_CMDLINE_LINUX=\"[^<]*?)(\s*intel_iommu=[a-zA-Z]+\s*)([^<]*\"$)'
+      line: '\g<1>\g<3>'
+      backrefs: true
+    when: ansible_architecture == "x86_64" and dut_intel_iommu_mode == "none"
+  - name: Changing existing intel_iommu in grub if present (x86_64)
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(^GRUB_CMDLINE_LINUX=\"[^<]*\bintel_iommu=)([a-zA-Z]+)([^<]*\"$)'
+      line: '\g<1>{{ dut_intel_iommu_mode }}\g<3>'
+      backrefs: true
+    when: ansible_architecture == "x86_64" and dut_intel_iommu_mode != "none"
+  - name: Adding new intel_iommu in grub if missing (x86_64)
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(^GRUB_CMDLINE_LINUX=\")((?![^<]*\bintel_iommu=[a-zA-Z]+)[^<]*\"$)'
+      line: '\g<1>intel_iommu={{ dut_intel_iommu_mode }} \g<2>'
+      backrefs: true
+    when: ansible_architecture == "x86_64" and dut_intel_iommu_mode != "none"
 
 #########################
 # Setup libvirt service #
@@ -246,46 +250,69 @@
     when: redhat_debug_mode == true
 
 
-############################################
-# Tune isolated cpus based on t-rex config #
-############################################
+##########################################
+# Tune isolated cpus based on DUT config #
+##########################################
 
-  - name: Enable service tuned
+- name: Checksumming cpu-partitioning-variables.conf file step 1
+    stat: path=/etc/tuned/cpu-partitioning-variables.conf
+    register: tuned_before
+  - name: Adding/modifying isolcpus in cpu-partitioning-variables.conf
+    lineinfile:
+      path: /etc/tuned/cpu-partitioning-variables.conf
+      regexp: '^isolated_cores=.*$'
+      line: 'isolated_cores={{ dut_isolated_cpus.stdout }}'
+  - name: Checksumming cpu-partitioning-variables.conf file step 2
+    stat: path=/etc/tuned/cpu-partitioning-variables.conf
+    register: tuned_after
+  - name: Enabling service tuned
     service:
       name: tuned
       enabled: yes
-  - name: Start service tuned, if not started
+  - name: Selecting tuned cpu-partitioning profile (x86_64)
+    shell: tuned-adm profile cpu-partitioning
+    when: ansible_architecture == "x86_64"
+  # Note: See Bugzilla XXXXXX
+  - name: Selecting tuned balanced profile (Power)
+    shell: tuned-adm profile balanced
+    when: ansible_architecture == "ppc64le"
+  - name: Starting tuned service if not started
     service:
       name: tuned
       state: started
-  - name: Checking for isolcpus in grub (Fatal errors are normal here)
-    shell: cat /etc/tuned/cpu-partitioning-variables.conf | grep {{ dut_isolated_cpus.stdout }}
-    ignore_errors: True
-    register: isolcpus_needed
-  - name: Adding isolated cpus to tuned
-    shell: echo isolated_cores={{ dut_isolated_cpus.stdout }} >> /etc/tuned/cpu-partitioning-variables.conf
-    when: isolcpus_needed.rc != 0
-  - name: Starting cpu-partitioning tuned profile
-    shell: tuned-adm profile cpu-partitioning
-  - name: Checking for isolcpus in grub (Fatal errors are normal here)
-    shell: cat /etc/default/grub | grep {{ dut_isolated_cpus.stdout }}
-    ignore_errors: True
-    register: isolcpus_needed
-  - name: Adding isolated cpus to grub
-    shell: sed -i -e 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="isolcpus={{ dut_isolated_cpus.stdout }} /'  /etc/default/grub
-    when: isolcpus_needed.rc != 0
-  - name: Tweak the kernel isolated list
-    command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
-    tags: ["grub2"]
-    when: isolcpus_needed.rc != 0
+  - name: Changing existing isolcpus in grub if present
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(^GRUB_CMDLINE_LINUX=\"[^<]*\bisolcpus=)([0-9,-]+)([^<]*\"$)'
+      line: '\g<1>{{ dut_isolated_cpus.stdout }}\g<3>'
+      backrefs: true
+  - name: Adding new isolcpus in grub if missing
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '(^GRUB_CMDLINE_LINUX=\")((?![^<]*\bisolcpus=[0-9,-]+)[^<]*\"$)'
+      line: '\g<1>isolcpus={{ dut_isolated_cpus.stdout }} \g<2>'
+      backrefs: true
+  - name: Checksumming grub configuration file step 2
+    stat: path=/etc/default/grub
+    register: grub_after
+
+  - name: Regenerating grub configuration
+    block:
+      - name: Unsetting current grub "kernelopts" environment variable
+        command: "grub2-editenv - unset kernelopts"
+      - name: Rebuilding grub configuration with new defaults
+        command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
+    when: grub_before.stat.checksum != grub_after.stat.checksum or tuned_before.stat.checksum != tuned_after.stat.checksum
+    tags: ["grub"]
 
 ###################################################
-# Reboot t-rex system for settings to take effect #
+# Reboot DUT system for settings to take effect #
 ###################################################
 
   - name: REBOOTING DUT SERVER NOW
     reboot:
-    when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0 or isolcpus_needed.rc !=0
+    when: grub_before.stat.checksum != grub_after.stat.checksum
+
 
 ####################
 # Getting NIC info #

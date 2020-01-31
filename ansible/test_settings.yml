@@ -66,6 +66,28 @@ rhel_guest_image_path: /root/rhel-8.0-beta-1-x86_64-kvm.qcow2
 dut_cpu_model: SandyBridge
 #dut_cpu_model: Haswell-noTSX
 
+# Hugepage kernel command-line options for the DUT and T-Rex systems.
+# The VM is configured with 8GB of RAM, OVS/DPDK is configured with
+# 4G per NUMA node, and the tests expect at least two NUMA nodes, so
+# 32GB is the recommended setting for both systems.
+dut_hugepages: 32
+dut_hugepagesz: 1G
+dut_default_hugepagesz: 1G
+
+trex_hugepages: 32
+trex_hugepagesz: 1G
+trex_default_hugepagesz: 1G
+
+# iommu kernel command-line option. x86 based systems typically require "pt",
+# Power based systems should select "none".  
+dut_iommu_mode: "pt"
+trex_iommu_mode: "pt"
+
+# intel_iommu kernel command-line option. x86 based systems will require "on",
+# Power based systems ignore this setting
+dut_intel_iommu_mode: "on"
+trex_intel_iommu_mode: "on"
+
 # Virtual CPU list (Should be in isolated list), emulator vcpu can be non isolated.  Use cores that will not clash with DPDK core mask.
 #vcpu_1: 1
 #vcpu_2: 3
