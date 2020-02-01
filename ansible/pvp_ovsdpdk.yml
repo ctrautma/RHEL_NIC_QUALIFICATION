@@ -574,9 +574,14 @@
     virt:
       name: rhel_loopback
       command: destroy
-  - name: Configuring VM for network manager
-    shell: LIBGUESTFS_BACKEND=direct virt-customize -d rhel_loopback --root-password password:root --uninstall cloud-init --firstboot-command 'nmcli c | grep -o --  "[0-9a-fA-F]\{8\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{12\}" | xargs -n 1 nmcli c delete uuid' --firstboot-command 'nmcli con add con-name ovs-dpdk ifname ens2 type ethernet ip4 1.1.1.1/24' --firstboot-command 'nmcli con add con-name management ifname ens3 type ethernet' --firstboot-command 'reboot'
-  - name: Starting up VM rhel_loopback
+    ignore_errors: true
+  - name: Configuring root password and cloud-init in rhel_loopback VM
+    shell: LIBGUESTFS_BACKEND=direct virt-customize -d rhel_loopback --root-password password:root --uninstall cloud-init
+  # DRC - Temporary fix for kernel issue with uio_pci_generic (Power)
+  - name: Injecting temporary workaround for uio_pci_generic driver failures step 1 (Power)
+    shell: LIBGUESTFS_BACKEND=direct virt-customize -d rhel_loopback --mkdir /lib/modules/4.18.0-147.el8.ppc64le/updates --copy-in /home/drc/rpmbuild/BUILD/kernel-4.18.0-147.el8/linux-4.18.0-147.el8.ppc64le/drivers/uio/uio.ko:/lib/modules/4.18.0-147.el8.ppc64le/updates
+    when: ansible_architecture == "ppc64le" and vm_driver == "uio_pci_generic"
+  - name: Starting up rhel_loopback VM
     virt:
       name: rhel_loopback
       state: running
@@ -616,21 +621,39 @@
     shell: ~/vm.sh run_cmd rhel_loopback "yum -y update kernel"
   - name: Tuning isolcpus/hugepage setup on rhel_loopback VM (x86_64)
     shell: ~/vm.sh run_cmd rhel_loopback "sed -i -e 's/GRUB_CMDLINE_LINUX=\"/GRUB_CMDLINE_LINUX=\"isolcpus=1,2,3 default_hugepagesz=1G hugepagesz=1G hugepages=2 /'  /etc/default/grub"
-  - name: Running grub set command step 1 on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "grub2-editenv - unset kernelopts"
-  - name: Running grub set command step 2 on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "grub2-mkconfig -o /boot/grub2/grub.cfg"
-  - name: Setting vfio options on rhel_loopback
+    when: ansible_architecture == "x86_64"
+  # ToDo: Is this assumption right? Make it configurable in test_settings
+  - name: Tuning isolcpus/hugepage setup on rhel_loopback VM (Power)
+    shell: ~/vm.sh run_cmd rhel_loopback "sed -i -e 's/GRUB_CMDLINE_LINUX=\"/GRUB_CMDLINE_LINUX=\"isolcpus=1-7 default_hugepagesz=1G hugepagesz=1G hugepages=2 /'  /etc/default/grub"
+    when: ansible_architecture == "ppc64le"
+  - name: Regenerating grub configuration on rhel_loopback
+    block:
+      - name: Unsetting current grub "kernelopts" environment variable
+        shell: ~/vm.sh run_cmd rhel_loopback "grub2-editenv - unset kernelopts"
+      - name: Rebuilding grub configuration with new defaults
+        shell: ~/vm.sh run_cmd rhel_loopback "grub2-mkconfig -o /boot/grub2/grub.cfg"
+  - name: Setting vfio options on rhel_loopback (x86_64 & vfio)
     shell: ~/vm.sh run_cmd rhel_loopback "echo 'options vfio enable_unsafe_noiommu_mode=1' > /etc/modprobe.d/vfio.conf"
-  - name: Binding nic to vfio-pci on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "driverctl -v set-override 0000:00:02.0 vfio-pci"
-  - name: Starting tuned service step 1 on rhel_loopback
+    when: ansible_architecture != "ppc64le" and vm_driver == "vfio-pci"
+  # Temporary fix for kernel issue with uio_pci_generic (Power)
+  - name: Injecting temporary workaround for uio_pci_generic driver failures step 2 (Power)
+    shell: ~/vm.sh run_cmd rhel_loopback "depmod -a"
+    when: ansible_architecture == "ppc64le" and vm_driver == "uio_pci_generic"
+  # Disable SELINUX in the VM to use an unsigned kernel module (Power)
+  - name: Injecting temporary workaround for uio_pci_generic driver failures step 3 (Power)
+    shell: ~/vm.sh run_cmd rhel_loopback "sed -i 's/^SELINUX=[a-zA-Z]*$/SELINUX=disabled/' /etc/selinux/config"
+    when: ansible_architecture == "ppc64le" and vm_driver == "uio_pci_generic"
+  - name: Binding nic {{ vm_interface_1_pciid }} to driver {{ vm_driver }} on rhel_loopback VM
+    shell: ~/vm.sh run_cmd rhel_loopback "driverctl -v set-override {{ vm_interface_1_pciid }} {{ vm_driver }}"
+    when: vm_driver != "none"
+  - name: Enabling tuned service on rhel_loopback VM
     shell: ~/vm.sh run_cmd rhel_loopback "systemctl enable tuned"
-  - name: Starting runed service step 2 on rhel_loopback
+  - name: Starting tuned service on rhel_loopback VM
     shell: ~/vm.sh run_cmd rhel_loopback "systemctl start tuned"
-  - name: Setting isolated cores for tuning profile on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "echo isolated_cores=1,2,3 >> /etc/tuned/cpu-partitioning-variables.conf"
-  - name: Starting tuned profile cpu-partitioning on rhel_loopback
+  - name: Setting isolated cores for CPU tuning profile on rhel_loopback VM
+    shell: ~/vm.sh run_cmd rhel_loopback "echo isolated_cores={{ vm_isolated_cpus }} >> /etc/tuned/cpu-partitioning-variables.conf"
+  # Todo: Check if Power workaround required in the VM
+  - name: Starting tuned profile cpu-partitioning on rhel_loopback VM
     shell: ~/vm.sh run_cmd rhel_loopback "tuned-adm profile cpu-partitioning"
   - name: Destroying rhel_loopback VM to activate configuration changes
     virt:
