@@ -289,7 +289,8 @@ class TrexTest(object):
         print("x"*100)
 
     def start_trex_server(self):
-        trex = trex_client.CTRexClient(self.trex_host)
+        trex = trex_client.CTRexClient(self.trex_host,trex_args="--no-ofed-check")
+        #trex = trex_client.CTRexClient(self.trex_host)
         trex.force_kill(confirm=False)
         time.sleep(3)
         print("Before Running, TRex status is: {}".format(trex.is_running()))
@@ -317,7 +318,7 @@ class TrexTest(object):
         """
         core_num = len(t_config_obj[0]['platform']['dual_if'][0]['threads'])
         #t_config_obj["platform"]["dual_if"]["threads"].len()
-        trex.trex_args = "-c {}".format(core_num)
+        trex.trex_args = "-c {} {}".format(core_num,"--no-ofed-check")
         trex.start_stateless()
         #trex.get_trex_config()
         print("After Starting, TRex status is: {},{}".format(trex.is_running(), trex.get_running_status()))
