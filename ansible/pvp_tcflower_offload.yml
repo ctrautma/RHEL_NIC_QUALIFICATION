@@ -3,287 +3,189 @@
   vars_files:
     - ./test_settings.yml
   tasks:
-  - debug:
-      msg: Debug mode is enabled
-    when: redhat_debug_mode == true
 
+    # Install required packages
+    - name: Install required packages
+      dnf:
+        name:
+          - '@virt'
+          - libvirt
+          - virt-install
+          - libguestfs-tools
+        state: present
 
-##############################
-# Disable hugepage in kernel #
-##############################
+    # Install openvswitch
+    - name: Install openvswitch
+      dnf:
+        name:
+          - "{{ ovs_selinux_rpm_path }}"
+          - "{{ ovs_rpm_path }}"
+        state: present
+      when: redhat_debug_mode == True
 
+    # Install EPEL repositories
+    - name: Install EPEL repositories
+      dnf:
+        name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+        state: present
 
-  - name: Cheking for hugepages in grub step 1
-    shell: "cat /etc/default/grub | grep 'default_hugepagesz=1G'"
-    register: hugepages_found1
-    ignore_errors: True
-  - name: Disable hugepage in kernel config
-    when: hugepages_found1.rc == 0
-    replace:
-      dest: /etc/default/grub
-      regexp: "default_hugepagesz=1G"
-      replace: ""
-  - name: Cheking for hugepages in grub step 2
-    shell: "cat /etc/default/grub | grep 'default_hugepagesz=1G'"
-    register: hugepages_found2
-    ignore_errors: True
-  - name: Disable hugepage in kernel config
-    when: hugepages_found2.rc == 0
-    replace:
-      dest: /etc/default/grub
-      regexp: "hugepagesz=1G"
-      replace: ""
-  - name: Cheking for hugepages in grub step 3
-    shell: "cat /etc/default/grub | grep 'hugepages=32'"
-    register: hugepages_found3
-    ignore_errors: True
-  - name: Disable hugepage in kernel config
-    when: hugepages_found3.rc == 0
-    replace:
-      dest: /etc/default/grub
-      regexp: "hugepages=32"
-      replace: ""
-  - name: Tweak the kernel for hugepages step 1
-    when: hugepages_found1.rc == 0 or hugepages_found2.rc == 0 or hugepages_found3.rc == 0
-    command: "grub2-editenv - unset kernelopts"
-  - name: Tweak the kernel for hugepages step 1
-    when: hugepages_found1.rc == 0 or hugepages_found2.rc == 0 or hugepages_found3.rc == 0
-    command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
+    - name: Install packages from EPEL repo
+      dnf:
+        name: sshpass
+        state: present
 
-#################################
-# Set up tc offload for Netronome #
-#################################
+    - name: Remove EPEL repo to avoid conflict
+      dnf:
+        name: epel-release-7
+        state: absent
 
+    # Python settings
+    - name: Link /usr/bin/python to /usr/bin/python3
+      file:
+        src: "/usr/bin/python3"
+        dest: "/usr/bin/python"
+        state: link
+    - name: Link pip to pip3
+      file:
+        src: "/usr/bin/pip3"
+        dest: "/usr/bin/pip"
+        state: link
 
-  - block:
-    - name: Create the script for select firmware for Netronome step 1
-      shell: echo "change_fm=0;cd /lib/firmware/netronome/" > /tmp/select_fw_nfp.sh
-    - name: Create the script for select firmware for Netronome step 2
-      shell: echo "for FW in *.nffw; do" >> /tmp/select_fw_nfp.sh
-    - name: Create the script for select firmware for Netronome step 3
-      shell: echo "if [ -L \${FW} ]; then" >> /tmp/select_fw_nfp.sh
-    - name: Create the script for select firmware for Netronome step 4
-      shell: echo "if [ x\"\$(readlink \${FW})\" != x\"flower/\${FW}\" ]; then" >> /tmp/select_fw_nfp.sh
-    - name: Create the script for select firmware for Netronome step 5
-      shell: echo "change_fm=1" >> /tmp/select_fw_nfp.sh
-    - name: Create the script for select firmware for Netronome step 6
-      shell: echo "ln -sf flower/\${FW} \${FW}" >> /tmp/select_fw_nfp.sh
-    - name: Create the script for select firmware for Netronome step 7
-      shell: echo "fi" >> /tmp/select_fw_nfp.sh
-    - name: Create the script for select firmware for Netronome step 8
-      shell: echo "fi" >> /tmp/select_fw_nfp.sh
-    - name: Create the script for select firmware for Netronome step 9
-      shell: echo "done" >> /tmp/select_fw_nfp.sh
-    - name: Create the script for select firmware for Netronome step 10
-      shell: echo "[ \$change_fm -eq 0 ] && exit 1 || exit 0" >> /tmp/select_fw_nfp.sh
-    - name: Select the correct firmware for Netronome
-      shell: bash /tmp/select_fw_nfp.sh
-      ignore_errors: True
-      register: nfp_fw_change
-    - name: Run dracut
-      shell: dracut -f -v
-    - name: Reboot the system
-      reboot:
-      when: hugepages_found1.rc == 0 or hugepages_found2.rc == 0 or hugepages_found3.rc == 0 or nfp_fw_change.rc == 0
-    - name: Enable tc offload for hardware
-      shell: ethtool -K {{ dut_interface_1 }} hw-tc-offload on
-    - name: Create VF for card
-      shell: echo 1 > /sys/bus/pci/devices/{{ dut_interface_1_pciid }}/sriov_numvfs
-    - name: Start openvswitch
+    # Disable hugepage settings if exists
+    - name: Cheking if hugepage setting exists
+      shell:
+        cmd: >
+          grep default_hugepagesz=1G /proc/cmdline ||
+          grep hugepagesz=1G /proc/cmdline ||
+          grep hugepages=32 /proc/cmdline
+      failed_when: false
+      ignore_errors: yes
+      register: hugepage_ok
+
+    - name: Remove hugepage settings
+      shell:
+        cmd: >
+          grubby -remove-args="default_hugepagesz" -remove-args="hugepagesz" -remove-args="hugepages" --update-kernel=$(grubby --default-kernel)" &&
+          reboot
+      when: hugepage_ok.rc == 0
+
+    - name: setup tc offload for specific card
+      import_tasks: "{{ tc_offload_card_type }}.yml"
+
+    - name: Start openvswitch service
       service:
         name: openvswitch
         state: started
-    - name: Get VF name
-      shell: ls /sys/bus/pci/devices/{{ dut_interface_1_pciid }}/virtfn0/net
-      register: vf_name
-    - name: Get pci id for vf
-      shell: ethtool -i {{ vf_name.stdout }} | grep bus-info | awk '{print $2}'
-      register: vf_pciiid
-    - name: Delete ovs_pvp_br0 if existed
-      shell: ovs-vsctl --if-exists del-br ovs_pvp_br0
-    - name: Add ovs_pvp_br0
-      shell: ovs-vsctl add-br ovs_pvp_br0
-    - name: Add pf into ovs
-      shell: ovs-vsctl add-port ovs_pvp_br0 {{ dut_interface_1 }} -- set Interface {{ dut_interface_1 }} ofport_request=1
-    - name: Add vf into ovs
-      shell: ovs-vsctl add-port ovs_pvp_br0 {{ vf_name.stdout }} -- set Interface {{ vf_name.stdout }} ofport_request=2
-    - name: Enable offload on ovs
-      shell: ovs-vsctl set Open_vSwitch . other_config:hw-offload=true
-    when: tc_offload_card_type == "Netronome"
 
-##################################
-# Set up tc offload for Mellanox #
-##################################
+    - name: Enable hw-offload and restart openvswitch service
+      shell: >
+        cmd:
+          ovs-vsctl set Open_vSwitch . other_config:hw-offload=true
+          systemctl restart openvswitch
 
-  - block:
-    - name: Reboot the system
-      reboot:
-      when: hugepages_found1.rc == 0 or hugepages_found2.rc == 0 or hugepages_found3.rc == 0
-    - name: Enable tc offload for {{ dut_interface_1 }}
-      shell: ethtool -K {{ dut_interface_1 }} hw-tc-offload on
-    - name: Create vf
-      shell: echo 1 > /sys/class/net/{{ dut_interface_1 }}/device/sriov_numvfs
-    - name: Get VF name
-      shell: ls /sys/bus/pci/devices/{{ dut_interface_1_pciid }}/virtfn0/net
-      register: vf_name
-    - name: Get pci id for vf
-      shell: ethtool -i {{ vf_name.stdout }} | grep bus-info | awk '{print $2}'
-      register: vf_pciiid
-    - name: Get driver for pf
-      shell: ethtool -i {{ dut_interface_1 }} | grep driver | awk '{print $2}'
-      register: dut_nic1_driver
-    - name: Unbind vf from kernel
-      shell: echo {{ vf_pciiid.stdout }} > /sys/bus/pci/drivers/{{ dut_nic1_driver.stdout }}/unbind
-    - name: Change the e-switch mode from legacy
-      shell: devlink dev eswitch set pci/{{ dut_interface_1_pciid }} mode switchdev
-    - name: Bind vf to kernel
-      shell: echo {{ vf_pciiid.stdout }} > /sys/bus/pci/drivers/{{ dut_nic1_driver.stdout }}/bind
-    - name: Get vf name again after change mode
-      shell: ls /sys/bus/pci/devices/{{ vf_pciiid.stdout }}/virtfn0/net
-      register: vf_name
-    - name: Start openvswitch
-      service:
-        name: openvswitch
-        state: started
-    - name: Delete ovs_pvp_br0 if existed
-      shell: ovs-vsctl --if-exists del-br ovs_pvp_br0
-    - name: Add ovs_pvp_br0
-      shell: ovs-vsctl add-br ovs_pvp_br0
-    - name: Add pf into ovs
-      shell: ovs-vsctl add-port ovs_pvp_br0 {{ dut_interface_1 }} set Interface {{ dut_interface_1 }} ofport_request=1
-    - name: Add vf into ovs
-      shell: ovs-vsctl add-port ovs_pvp_br0 {{ vf_name.stdout }} set Interface {{ vf_name.stdout }} ofport_request=2
-    - name: Enable offload on ovs
-      shell: ovs-vsctl set Open_vSwitch . other_config:hw-offload=true
-    when: tc_offload_card_type == "Mellanox"
+    - name: setup OVS bridge
+      shell: >
+        cmd:
+          ovs-vsctl --if-exists del-br ovs_pvp_br0 &&
+          ovs-vsctl add-br ovs_pvp_br0 &&
+          ovs-vsctl add-port ovs_pvp_br0 {{ pf_rep.stdout }} -- set Interface {{ pf_rep.stdout }} ofport_request=1 &&
+          ovs-vsctl add-port ovs_pvp_br0 {{ vf_rep.stdout }} -- set Interface {{ vf_rep.stdout }} ofport_request=2
 
+    # Get needed cpu list #
+    - name: Copy up cpulist script to remote DUT
+      copy:
+        src: get_cpulist.sh
+        dest: /root/get_cpulist.sh
+    - name: Changing perm of "/root/get_cpu_list.sh", adding "+x"
+      file: dest=/root/get_cpulist.sh mode=a+x
+    - name: Get dut_isolated_cpus
+      shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
+      register: dut_isolated_cpus
+    - name: Get vcpu_1
+      shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
+      register: vcpu_1
+    - name: Get vcpu_2
+      shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_2
+      register: vcpu_2
+    - name: Get vcpu_3
+      shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
+      register: vcpu_3
+    - name: Get vcpu_4
+      shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_4
+      register: vcpu_4
 
-#######################
-# get vf_pciid #
-# ####################
+    #   Create vm #
+    - name: Folder for vm image
+      file:
+        state: directory
+        path: /opt/images
+    - name: Copy image to /opt/images
+      copy:
+        src: "{{ rhel_guest_image_path }}"
+        dest: /opt/images/rhel-guest-image-8.0-x86_64-kvm-tc.qcow2
+        remote_src: yes
 
-  - name: Get VF name
-    shell: ls /sys/bus/pci/devices/{{ dut_interface_1_pciid }}/virtfn0/net
-    register: vf_name
-  - name: Get pci id for vf
-    shell: ethtool -i {{ vf_name.stdout }} | grep bus-info | awk '{print $2}'
-    register: vf_pciiid
+    - name: Change passwd to root for vm
+      shell: LIBGUESTFS_BACKEND=direct virt-customize -a /opt/images/rhel-guest-image-8.0-x86_64-kvm-tc.qcow2 --root-password password:root --uninstall cloud-init
 
-############################################
-# Get needed cpu list #
-############################################
+    - name: Create vm
+      shell: virt-install --connect=qemu:///system --network none --host-device {{ vf_pciiid.stdout }},driver_name=vfio --network network=default --name=rhel_loopback_tcflower --disk path=/opt/images/rhel-guest-image-8.0-x86_64-kvm-tc.qcow2,format=qcow2 --ram 8192 --vcpus=4,cpuset={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}  --check-cpu --cpu host,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
 
-  - name: Copy up cpulist script to remote DUT
-    copy:
-      src: get_cpulist.sh
-      dest: /root/get_cpulist.sh
-  - name: Changing perm of "/root/get_cpu_list.sh", adding "+x"
-    file: dest=/root/get_cpulist.sh mode=a+x
-  - name: Get dut_isolated_cpus
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
-    register: dut_isolated_cpus
-  - name: Get vcpu_1
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
-    register: vcpu_1
-  - name: Get vcpu_2
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_2
-    register: vcpu_2
-  - name: Get vcpu_3
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
-    register: vcpu_3
-  - name: Get vcpu_4
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_4
-    register: vcpu_4
+    - name: Wait vm to start
+      pause:
+        seconds: 60
+    - name: copying virsh console script to default location
+      copy:
+        src: ./vm.sh
+        dest: ~/vm.sh
+        mode: "777"
+    #- name: Delete nmcli connection
+    #  shell: ~/vm.sh run_cmd rhel_loopback_tcflower "nmcli c | grep -o --  '[0-9a-fA-F]\{8\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{12\}' | xargs -n 1 nmcli c delete uuid"
+    #- name: Create nmcli connection for ovs-dpdk
+    #  shell: ~/vm.sh run_cmd rhel_loopback_tcflower "nmcli con add con-name ovs-dpdk ifname $(for dev in `find /sys/class/net/ -type l | awk -F'/' '!/lo|sit|usb|ib/{print $5}' | sort -u`; do if ethtool -i $dev | grep driver | grep -q virtio; then continue; else echo $dev;break; fi;done) type ethernet ip4 1.1.1.1/24"
+    #- name: Create nmcli connection for management
+    #  shell: ~/vm.sh run_cmd rhel_loopback_tcflower "nmcli con add con-name management ifname $(for dev in `find /sys/class/net/ -type l | awk -F'/' '!/lo|sit|usb|ib/{print $5}' | sort -u`; do if ethtool -i $dev | grep -q virtio; then echo $dev;break; fi; done) type ethernet"
+    - name: Setting up subscription manager step 1 on rhel_loopback_tcflower
+      shell: ~/vm.sh run_cmd rhel_loopback_tcflower "subscription-manager register --username={{ rh_sub_username }} --password={{ rh_sub_pass }} --baseurl=cdn.stage.redhat.com --serverurl subscription.rhsm.stage.redhat.com"
+      when: not qe_subscription_mode
+    - name: Setting up subscription manager step 2 on rhel_loopback_tcflower
+      shell: ~/vm.sh run_cmd rhel_loopback_tcflower "subscription-manager attach --pool={{ rh_sub_pool_id }}"
+      when: not qe_subscription_mode
+    - name: Using QE Secret sauce to add subscription for repos
+      shell: ~/vm.sh run_cmd rhel_loopback_tcflower "{{ qe_subscription_command }}"
+      when: qe_subscription_mode
+    - name: setting up guest
+      shell: 
+        cmd: >
+          ~/vm.sh login_vm rhel_loopback_tcflower &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms" &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y clean all" &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y install driverctl gcc kernel-devel numactl-devel tuned-profiles-cpu-partitioning wget libibverbs dpdk" &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "grubby --args='default_hugepagesz=1G hugepagesz=1G hugepages=2' --update-kernel=\$(grubby --default-kernel)" &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "echo 'options vfio enable_unsafe_noiommu_mode=1' > /etc/modprobe.d/vfio.conf" &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "echo isolated_cores=1,2,3 >> /etc/tuned/cpu-partitioning-variables.conf" &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "tuned-adm profile cpu-partitioning" &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "systemctl enable tuned" &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "systemctl start tuned"
 
-##############
-# Create vm #
-##############
+    - name: Rebooting vm rhel_loopback_tcflower step 1
+      virt:
+        name: rhel_loopback_tcflower
+        state: shutdown
+    - name: Wait system some time to shutdown
+      pause:
+        seconds: 5
+    - name: Rebooting vm rhel_loopback_tcflower step 2
+      virt:
+        name: rhel_loopback_tcflower
+        state: running
+    - name: Wait vm to start
+      pause:
+        seconds: 60
 
-  - name: Folder for vm image
-    file:
-      state: directory
-      path: /opt/images
-  - name: Copy image to /opt/images
-    copy:
-      src: "{{ rhel_guest_image_path }}"
-      dest: /opt/images/rhel-guest-image-8.0-x86_64-kvm-tc.qcow2
-      remote_src: yes
-  - name: Create vm
-    shell: virt-install --connect=qemu:///system --network none --host-device {{ vf_pciiid.stdout }},driver_name=vfio --network network=default --name=rhel_loopback_tcflower --disk path=/opt/images/rhel-guest-image-8.0-x86_64-kvm-tc.qcow2,format=qcow2 --ram 8192 --vcpus=4,cpuset={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}  --check-cpu --cpu {{ dut_cpu_model }},+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
-  - name: stop rhel guest
-    virt:
-      name: rhel_loopback_tcflower
-      state: shutdown
-  - name: Change passwd to root for vm
-    shell: LIBGUESTFS_BACKEND=direct virt-customize -d rhel_loopback_tcflower --root-password password:root --uninstall cloud-init
-  - name: Starting up VM rhel_loopback_tcflower
-    virt:
-      name: rhel_loopback_tcflower
-      state: running
-  - name: Wait vm to start
-    pause:
-      seconds: 60
-  - name: copying virsh console script to default location
-    copy:
-      src: ./vm.sh
-      dest: ~/vm.sh
-      mode: "777"
-  - name: Logging into vm rhel_loopback_tcflower
-    shell: ~/vm.sh login_vm rhel_loopback_tcflower
-  - name: Delete nmcli connection
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "nmcli c | grep -o --  '[0-9a-fA-F]\{8\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{12\}' | xargs -n 1 nmcli c delete uuid"
-  - name: Create nmcli connection for ovs-dpdk
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "nmcli con add con-name ovs-dpdk ifname $(for dev in `find /sys/class/net/ -type l | awk -F'/' '!/lo|sit|usb|ib/{print $5}' | sort -u`; do if ethtool -i $dev | grep driver | grep -q virtio; then continue; else echo $dev;break; fi;done) type ethernet ip4 1.1.1.1/24"
-  - name: Create nmcli connection for management
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "nmcli con add con-name management ifname $(for dev in `find /sys/class/net/ -type l | awk -F'/' '!/lo|sit|usb|ib/{print $5}' | sort -u`; do if ethtool -i $dev | grep -q virtio; then echo $dev;break; fi; done) type ethernet"
-  - name: Setting up subscription manager step 1 on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "subscription-manager register --username={{ rh_sub_username }} --password={{ rh_sub_pass }} --baseurl=cdn.stage.redhat.com --serverurl subscription.rhsm.stage.redhat.com"
-    when: not qe_subscription_mode
-  - name: Setting up subscription manager step 2 on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "subscription-manager attach --pool={{ rh_sub_pool_id }}"
-    when: not qe_subscription_mode
-  - name: Using QE Secret sauce to add subscription for repos
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "{{ qe_subscription_command }}"
-    when: qe_subscription_mode
-  - name: subscribing to appstream on VM rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms"
-  - name: Running yum commandset step 1 on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y clean all"
-  - name: Running yum commandset step 2 on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y update"
-  - name: Running yum commandset step 3 on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y install driverctl gcc kernel-devel numactl-devel tuned-profiles-cpu-partitioning wget libibverbs dpdk"
-  - name: Running yum commandset step 4 on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y update kernel"
-  - name: Modifying grub for tuning on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "sed -i -e 's/GRUB_CMDLINE_LINUX=\"/GRUB_CMDLINE_LINUX=\"isolcpus=1,2,3 default_hugepagesz=1G hugepagesz=1G hugepages=2 /'  /etc/default/grub"
-  - name: Running grub set command step 1 on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "grub2-editenv - unset kernelopts"
-  - name: Running grub set command step 2 on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "grub2-mkconfig -o /boot/grub2/grub.cfg"
-  - name: Setting vfio options on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "echo 'options vfio enable_unsafe_noiommu_mode=1' > /etc/modprobe.d/vfio.conf"
-  - name: Binding nic to vfio-pci on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "driverctl -v set-override 0000:00:06.0 vfio-pci"
-    when: tc_offload_card_type != "Mellanox"
-  - name: Starting tuned service step 1 on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "systemctl enable tuned"
-  - name: Starting runed service step 2 on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "systemctl start tuned"
-  - name: Setting isolated cores for tuning profile on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "echo isolated_cores=1,2,3 >> /etc/tuned/cpu-partitioning-variables.conf"
-  - name: Starting tuned profile cpu-partitioning on rhel_loopback_tcflower
-    shell: ~/vm.sh run_cmd rhel_loopback_tcflower "tuned-adm profile cpu-partitioning"
-  - name: Rebooting vm rhel_loopback_tcflower step 1
-    virt:
-      name: rhel_loopback_tcflower
-      state: shutdown
-  - name: Rebooting vm rhel_loopback_tcflower step 2
-    virt:
-      name: rhel_loopback_tcflower
-      state: running
-  - name: Wait vm to start
-    pause:
-      seconds: 60
-  - name: Logging into VM rhel_loopback_tcflower
-    shell: ~/vm.sh login_vm rhel_loopback_tcflower
+    - name: bind nic to vfio-pci
+      shell: ~/vm.sh run_cmd rhel_loopback_tcflower "driverctl -v set-override 0000:00:04.0 vfio-pci"
+      when: tc_offload_card_type != "mlx5_core"
+
+    - name: Logging into VM rhel_loopback_tcflower
+      shell: ~/vm.sh login_vm rhel_loopback_tcflower
