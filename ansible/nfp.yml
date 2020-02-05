@@ -1,0 +1,54 @@
+    # Set up tc offload for Netronome #
+- name: Check if FW is for flower
+  shell: ls -l /usr/lib/firmware/netronome/ | grep -e "^l.*" | grep -v '\-> flower/'
+  register: fw_ok
+  failed_when: false
+  ignore_errors: yes
+
+# update firmware to flower
+- block:
+  - name: get firmware file list
+    shell: find /usr/lib/firmware/netronome/ -maxdepth 1 -type l | sed 's/.*\///'
+    register: fw_files
+
+  - name: link FW to flower
+    file:
+      src: "flower/{{ item }}"
+      dest: "/usr/lib/firmware/netronome/{{ item }}"
+      state: link
+    with_items: "{{fw_files.stdout_lines}}"
+
+  - name: dracut
+    shell: dracut -f -v
+
+  - name: reboot system if need
+    reboot:
+  when: fw_ok.rc == 0
+
+- name: Enable tc offload for hardware
+  shell: ethtool -K {{ dut_interface_1 }} hw-tc-offload on
+- name: Create VF for card
+  shell: echo 1 > /sys/bus/pci/devices/{{ dut_interface_1_pciid }}/sriov_numvfs
+
+# Get VF representor
+- name: Get PF rep
+  shell: echo {{ dut_interface_1 }}
+  register: pf_rep
+- name: Get PF's phys_port_name
+  shell: cat /sys/class/net/{{ dut_interface_1 }}/phys_port_name | sed 's/p//'
+  register: pf
+- shell: ls /sys/class/net/
+  register: if_list
+- name: Get VF representor
+  shell: cat /sys/class/net/{{ item }}/phys_port_name | grep "pf{{pf.stdout}}vf0" &>/dev/null && echo "{{item}}" > /tmp/vf_rep.txt
+  ignore_errors: yes
+  with_items: "{{if_list.stdout_lines}}"
+- name: Save VF representor to vf_rep
+  shell: cat /tmp/vf_rep.txt
+  register: vf_rep
+
+# get vf_pciid #
+- name: Get pci id for vf
+  shell: ls -l /sys/class/net/{{ dut_interface_1 }}/device/virtfn0 | sed 's/.*\///'
+  register: vf_pciiid
+
