@@ -452,8 +452,12 @@
 # Generating OVS-DPDK config #
 ##############################
 
-  - name: Setting up OVS-DPDK config step 1
+  - name: Setting up OVS-DPDK config step 1 (x86_64)
+    shell: "ovs-vsctl set Open_vSwitch . other_config:dpdk-socket-mem=4096"
+    when: ansible_architecture == "x86_64"
+  - name: Setting up OVS-DPDK config step 1 (Power)
     shell: "ovs-vsctl set Open_vSwitch . other_config:dpdk-socket-mem=4096,0,0,0,0,0,0,0,4096"
+    when: ansible_architecture == "ppc64le"
   - name: Setting up OVS-DPDK config step 2
     shell: "ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask={{ dut_dpdk_pmd_mask.stdout }}"
   - name: Setting up OVS-DPDK config step 3
