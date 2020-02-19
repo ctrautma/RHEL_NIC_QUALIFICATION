@@ -33,8 +33,8 @@ trex_path: https://trex-tgn.cisco.com/trex/release
 trex_version: v2.72
 
 # T-Rex server NICs
-trex_interface_1_pciid: 0000:58:00.0
-trex_interface_2_pciid: 0000:58:00.1
+trex_interface_1_pciid: "0000:04:00.0"
+trex_interface_2_pciid: "0000:04:00.1"
 
 # T-Rex user mode driver. For most systems this will be vfio-pci. Changes
 # for other cards such as Mellanox may be required.
@@ -60,23 +60,23 @@ trex_intel_iommu_mode: "on"
 # Openvswitch package location. While you can pull this from the fast datapath
 # repository it is recommended to contact your development representative to
 # get the latest version. Then copy this to the DUT and specify its location.
-ovs_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch2.11/2.11.0/9.el8fdp/x86_64/openvswitch2.11-2.11.0-9.el8fdp.x86_64.rpm"
+ovs_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch2.11/2.11.0/47.el8fdp/x86_64/openvswitch2.11-2.11.0-47.el8fdp.x86_64.rpm"
 
 # Openvswitch selinux package location. While you can pull this from the fast
 # datapath repository it is recommended to contact your development
 # representative to get the latest version.  Then copy this to the DUT and
 # specify its location.
-ovs_selinux_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch-selinux-extra-policy/1.0/11.el8fdp/noarch/openvswitch-selinux-extra-policy-1.0-11.el8fdp.noarch.rpm"
+ovs_selinux_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch-selinux-extra-policy/1.0/19.el8fdp/noarch/openvswitch-selinux-extra-policy-1.0-19.el8fdp.noarch.rpm"
 
 # Path to RHEL guest image for PVP tests.  Please download the image from the
 # Red Hat website.  See README for more info. This is the location of the file
 # on the DUT.
-rhel_guest_image_path: /root/rhel-8.0-beta-1-x86_64-kvm.qcow2
+rhel_guest_image_path: /root/rhel-8.1-x86_64-kvm.qcow2
 
 # DUT NICs
-dut_interface_1_pciid: "0000:44:00.0"
-dut_interface_2_pciid: "0000:44:00.1"
-tc_offload_card_type: "Netronome"
+dut_interface_1_pciid: "0000:84:00.0"
+dut_interface_2_pciid: "0000:84:00.1"
+tc_offload_card_type: "i40e"
 
 # DUT user mode driver. For most systems this will be vfio-pci. Changes
 # for other cards such as Mellanox may be required.
