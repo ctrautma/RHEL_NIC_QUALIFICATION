@@ -93,7 +93,7 @@
       shell:
         cmd: |
           mkdir -p "{{ trex_dir }}"
-          [[ -f $(basename "{{ trex_url }}") ]] || wget -nv -N "{{ trex_url }}"
+          [[ -f $(basename "{{ trex_url }}") ]] || wget --no-check-certificate -nv -N "{{ trex_url }}"
           tar xzf $(basename "{{ trex_url }}") -C "{{ trex_dir }}"
           pushd "{{ trex_dir }}/{{ trex_version }}"
           tar -C "{{ ovs_perf_dir }}" --strip 2 -xzf trex_client_*.tar.gz trex_client/interactive/trex
