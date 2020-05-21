@@ -31,42 +31,34 @@
 # Return back isolated CPUs #
 # ###########################
 
-  - name: Checking isolcpus in tuned
-    shell: "cat /etc/tuned/cpu-partitioning-variables.conf | grep isolated_cores={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}"
-    register: tuned_found
-    ignore_errors: True
-  - name: Change isolcpus in tuned
-    when: tuned_found.rc != 0
-    replace:
-      dest: /etc/tuned/cpu-partitioning-variables.conf
-      regexp: 'isolated_cores={{ dut_isolated_cpus.stdout }}'
-      replace: 'isolated_cores={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}'
-
-  - name: Starting cpu-partitioning tuned profile
-    shell: tuned-adm profile cpu-partitioning
-
-  - name: Checking isolcpus in grub
-    shell: "cat /etc/default/grub | grep isolcpus={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}"
-    register: grub_found
-    ignore_errors: True
-  - name: Change isolcpus in grub
-    when: grub_found.rc != 0
-    replace:
-      dest: /etc/default/grub
-      regexp: 'isolcpus={{ dut_isolated_cpus.stdout }}'
-      replace: 'isolcpus={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}'
-
-  - name: Tweak the kernel isolated list
-    command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
-    when: grub_found.rc != 0
-
-###################################################
-# Reboot dut system for settings to take effect #
-###################################################
-
-  - name: REBOOTING DUT SERVER NOW
-    reboot:
-    when: grub_found.rc != 0
+  - name: Checking for isolcpus in grub (Fatal errors are normal here)
+    shell: >
+      grep "nohz_full={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}" /proc/cmdline &&
+      grep "rcu_nocbs={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}" /proc/cmdline &&
+      grep "isolcpus={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}" /proc/cmdline
+    failed_when: false
+    ignore_errors: yes
+    register: isolcpus_ok
+  - block:
+    - name: Adding isolated cpus to tuned
+      lineinfile:
+         path: //etc/tuned/cpu-partitioning-variables.conf
+         regexp: "^isolated_cores=.*"
+         line: "isolated_cores={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}"
+         state: present
+    - name: Starting cpu-partitioning tuned profile
+      shell: tuned-adm profile cpu-partitioning
+    - name: restart service tuned
+      systemd:
+        name: tuned
+        enabled: yes
+        state: restarted
+        daemon_reload: yes
+    - name: Change isolcpus in grub
+      shell: "grubby --args='isolcpus={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}' --update-kernel=$(grubby --default-kernel)"
+    - name: REBOOTING DUT SERVER NOW
+      reboot:
+    when: isolcpus_ok.rc != 0
 
 #######################################
 # Release the DPCK NIC back to kernel #
@@ -86,10 +78,12 @@
       state: stopped
   - name: Unbind nic from dpdk
     shell: driverctl -v unset-override {{ dut_interface_1_pciid }}
-  - name: Start openvswitch
-    service:
+  - name: restart service openvswitch
+    systemd:
       name: openvswitch
-      state: started
+      enabled: no
+      state: restarted
+      daemon_reload: yes
 
 #################
 # Re-config OVS #
@@ -108,41 +102,41 @@
 # Create  VM #
 # #################
 
+  # remove all existing vms
+  - name: list all VMs
+    virt:
+      command: list_vms
+    register: all_vms
+  - name: destroy all vms
+    virt:
+      name: "{{ item }}"
+      command: destroy
+    ignore_errors: True
+    loop: "{{ all_vms.list_vms }}"
+  - name: undefine all vms
+    virt:
+      name: "{{ item }}"
+      command: undefine
+    loop: "{{ all_vms.list_vms }}"
 
-  - name: Shut down rhel_loopback vm
-    virt:
-      name: rhel_loopback
-      state: shutdown
-  - name: Clone vm
-    shell: virt-clone --connect=qemu:///system -o rhel_loopback -n rhel_loopback_kerneldp --auto-clone
-  - name: dump xml
-    shell: "virsh dumpxml rhel_loopback_kerneldp > /tmp/rhel_loopback_kerneldp.xml"
-  - name: Change vhostuser to bridge
-    replace:
-      dest: /tmp/rhel_loopback_kerneldp.xml
-      regexp: "<interface type='vhostuser'>"
-      replace: "<interface type='bridge'>"
-  - name: Change vhost-sock to ovs_pvp_br0
-    replace:
-      dest: /tmp/rhel_loopback_kerneldp.xml
-      regexp: "<source type='unix' path='/tmp/vhost-sock0' mode='server'/>"
-      replace: "<source bridge='ovs_pvp_br0'/>"
-  - name: Add virtualport
-    replace:
-      dest: /tmp/rhel_loopback_kerneldp.xml
-      regexp: "<driver queues='2'/>"
-      replace: "<virtualport type='openvswitch'/>"
-  - name: Shut down rhel_loopback_kerneldp vm
-    virt:
-      name: rhel_loopback_kerneldp
-      state: destroyed
-    ignore_errors: True
-  - name: Undefine rhel_loopback_kerneldp
-    shell: virsh undefine rhel_loopback_kerneldp
-    ignore_errors: True
-  - name: Define rhel_loopback_kerneldp vm
-    shell: virsh define /tmp/rhel_loopback_kerneldp.xml
-  - name: Start VM rhel_loopback_kerneldp
-    virt:
-      name: rhel_loopback_kerneldp
-      state: running
+  #set static IP address 192.168.122.123 for internet access in guest g1
+  - shell: virsh net-list | grep default || virsh net-define /usr/share/libvirt/networks/default.xml
+  - shell: virsh net-autostart default
+  - shell: virsh net-list | grep default | grep active || virsh net-start default
+  - shell: >
+      virsh net-dumpxml default | grep "mac='52:54:00:01:02:03'" &&
+      virsh net-update default modify ip-dhcp-host "<host mac='52:54:00:01:02:03' ip='192.168.122.5'/>" --live --config ||
+      virsh net-update default add ip-dhcp-host "<host mac='52:54:00:01:02:03' ip='192.168.122.5'/>" --live --config
+
+  - name: create VM
+    shell: virt-install --connect=qemu:///system --network bridge=ovs_pvp_br0,virtualport_type=openvswitch,model=virtio --network network=default,mac=52:54:00:01:02:03 --name=rhel_loopback_kerneldp --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0 --vcpus=4,cpuset={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }} --check-cpu --cpu mode=host-passthrough,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
+
+  - name: Wait vm to start
+    pause:
+      seconds: 60
+
+  - name: bind nic to vfio-pci
+    shell: >
+      ~/vm.sh run_cmd rhel_loopback_kerneldp "modprobe vfio-pci" &&
+      ~/vm.sh run_cmd rhel_loopback_kerneldp "driverctl -v set-override 0000:00:02.0 vfio-pci"
+

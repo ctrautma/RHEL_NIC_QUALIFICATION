@@ -3,6 +3,18 @@
   vars_files:
     - ./test_settings.yml
   tasks:
+    #################################################
+    # Check for nic to make sure its seen by kernel #
+    #################################################
+    - stat: path=/sys/class/net/{{ dut_interface_1 }}
+      register: st
+    - block:
+      - name: "Checking nic to be seen by kernel"
+        debug:
+          msg: "exiting as nic {{ dut_interface_1 }} cannot be seen by the kernel.  Please check settings or unbind the nic from a dpdk driver using driverctl"
+
+      - meta: end_play
+      when: not st.stat.exists
 
     # Install required packages
     - name: Install required packages
@@ -12,7 +24,15 @@
           - libvirt
           - virt-install
           - libguestfs-tools
+          - python3
+          - expect
+          - sysstat
         state: present
+
+    - name: Start libvirtd service
+      service:
+        name: libvirtd
+        state: started
 
     # Install openvswitch
     - name: Install openvswitch
@@ -26,7 +46,7 @@
     # Install EPEL repositories
     - name: Install EPEL repositories
       dnf:
-        name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+        name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm
         state: present
 
     - name: Install packages from EPEL repo
@@ -36,7 +56,7 @@
 
     - name: Remove EPEL repo to avoid conflict
       dnf:
-        name: epel-release-7
+        name: epel-release
         state: absent
 
     # Python settings
@@ -62,15 +82,19 @@
       ignore_errors: yes
       register: hugepage_ok
 
-    - name: Remove hugepage settings
-      shell:
-        cmd: >
-          grubby -remove-args="default_hugepagesz" -remove-args="hugepagesz" -remove-args="hugepages" --update-kernel=$(grubby --default-kernel)" &&
-          reboot
+    - block:
+      - name: Remove hugepage settings
+        shell: grubby --remove-args="default_hugepagesz" --remove-args="hugepagesz" --remove-args="hugepages" --update-kernel=$(grubby --default-kernel)
+      - name: REBOOTING DUT SERVER NOW
+        reboot:
       when: hugepage_ok.rc == 0
 
+    - name: get driver
+      shell: "ethtool -i {{ dut_interface_1 }} | sed -n '/driver: / s/driver: //p'"
+      register: nic_driver
+
     - name: setup tc offload for specific card
-      import_tasks: "{{ tc_offload_card_type }}.yml"
+      include_tasks: "{{ nic_driver.stdout }}.yml"
 
     - name: Start openvswitch service
       service:
@@ -128,8 +152,39 @@
     - name: Change passwd to root for vm
       shell: LIBGUESTFS_BACKEND=direct virt-customize -a /opt/images/rhel-guest-image-8.0-x86_64-kvm-tc.qcow2 --root-password password:root --uninstall cloud-init
 
+     #set static IP address 192.168.122.5 for internet access in guest g1
+    - name: define network default
+      shell: virsh net-list | grep default || virsh net-define /usr/share/libvirt/networks/default.xml
+    - name: net-autostart default
+      shell: virsh net-autostart default
+    - name: net-start default
+      shell: virsh net-list | grep default | grep active || virsh net-start default
+    - name: set IP address to 192.168.122.5 for ssh access to the guest
+      shell: >
+        virsh net-dumpxml default | grep "mac='52:54:00:01:02:03'" &&
+        virsh net-update default modify ip-dhcp-host "<host mac='52:54:00:01:02:03' ip='192.168.122.5'/>" --live --config ||
+        virsh net-update default add ip-dhcp-host "<host mac='52:54:00:01:02:03' ip='192.168.122.5'/>" --live --config
+
+    # remove all existing vms
+    - name: list all VMs
+      virt:
+        command: list_vms
+      register: all_vms
+
+    - name: destroy all vms
+      virt:
+        name: "{{ item }}"
+        command: destroy
+      ignore_errors: yes
+      loop: "{{ all_vms.list_vms }}"
+    - name: undefine all vms
+      virt:
+        name: "{{ item }}"
+        command: undefine
+      loop: "{{ all_vms.list_vms }}"
+
     - name: Create vm
-      shell: virt-install --connect=qemu:///system --network none --host-device {{ vf_pciiid.stdout }},driver_name=vfio --network network=default --name=rhel_loopback_tcflower --disk path=/opt/images/rhel-guest-image-8.0-x86_64-kvm-tc.qcow2,format=qcow2 --ram 8192 --vcpus=4,cpuset={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}  --check-cpu --cpu host,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
+      shell: virt-install --connect=qemu:///system --network none --host-device {{ vf_pciiid.stdout }},driver_name=vfio --network network=default,mac=52:54:00:01:02:03 --name=rhel_loopback_tcflower --disk path=/opt/images/rhel-guest-image-8.0-x86_64-kvm-tc.qcow2,format=qcow2 --ram 8192 --vcpus=4,cpuset={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}  --check-cpu --cpu host,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
 
     - name: Wait vm to start
       pause:
@@ -158,9 +213,10 @@
       shell: 
         cmd: >
           ~/vm.sh login_vm rhel_loopback_tcflower &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y install {{ dpdk_rpm_path }} {{ dpdk_tools_rpm_path }}" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y clean all" &&
-          ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y install driverctl gcc kernel-devel numactl-devel tuned-profiles-cpu-partitioning wget libibverbs dpdk" &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y install driverctl gcc kernel-devel numactl-devel tuned-profiles-cpu-partitioning wget" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "grubby --args='default_hugepagesz=1G hugepagesz=1G hugepages=2' --update-kernel=\$(grubby --default-kernel)" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "echo 'options vfio enable_unsafe_noiommu_mode=1' > /etc/modprobe.d/vfio.conf" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "echo isolated_cores=1,2,3 >> /etc/tuned/cpu-partitioning-variables.conf" &&
@@ -185,7 +241,10 @@
 
     - name: bind nic to vfio-pci
       shell: ~/vm.sh run_cmd rhel_loopback_tcflower "driverctl -v set-override 0000:00:04.0 vfio-pci"
-      when: tc_offload_card_type != "mlx5_core"
+      when: nic_driver.stdout != "mlx5_core"
+    - name: modprobe ib_uverbs for mxl5_core
+      shell: ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y install libibverbs && modprobe ib_uverbs"
+      when: nic_driver.stdout == "mlx5_core"
 
     - name: Logging into VM rhel_loopback_tcflower
       shell: ~/vm.sh login_vm rhel_loopback_tcflower

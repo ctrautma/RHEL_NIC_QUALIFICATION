@@ -5,8 +5,6 @@
     ovs_perf_dir: /root/ovs_perf
     xena_lib_url: https://github.com/fleitner/XenaPythonLib
     xena_lib_dir: /root/XenaPythonLib
-    trex_dir: /root/trex/
-    trex_url : "{{ trex_path }}/{{ trex_version }}.tar.gz"
   vars_files:
     - ./test_settings.yml
   tasks:
@@ -29,6 +27,7 @@
           - tar
           - wget
           - net-tools
+          - libibverbs
 
     # Install EPEL repositories
     - name: Install EPEL repositories
@@ -45,7 +44,7 @@
 
     - name: Remove EPEL repo to avoid conflict
       dnf:
-        name: epel-release-{{ ansible_distribution_major_version }}
+        name: epel-release-7
         state: absent
 
     # Python settings
@@ -87,18 +86,17 @@
       args:
         chdir: "{{ xena_lib_dir }}"
 
-
     # Install T-Rex
     - name: Download T-Rex
       shell:
-        cmd: |
-          mkdir -p "{{ trex_dir }}"
-          [[ -f $(basename "{{ trex_url }}") ]] || wget --no-check-certificate -nv -N "{{ trex_url }}"
-          tar xzf $(basename "{{ trex_url }}") -C "{{ trex_dir }}"
-          pushd "{{ trex_dir }}/{{ trex_version }}"
-          tar -C "{{ ovs_perf_dir }}" --strip 2 -xzf trex_client_*.tar.gz trex_client/interactive/trex
-          tar -C "{{ ovs_perf_dir }}/trex" --strip 1 -xzf trex_client_*.tar.gz trex_client/external_libs
-          python dpdk_setup_ports.py -c {{trex_interface_1_pciid}} {{trex_interface_2_pciid}} --force-mac -o /etc/trex_cfg.yaml
+        cmd: >
+          mkdir -p "trex" &&
+          [[ -f $(basename "{{ trex_url }}") ]] || wget -nv -N "{{ trex_url }}" &&
+          tar xzf $(basename "{{ trex_url }}") -C trex/ &&
+          pushd trex/$(basename -s '.tar.gz' "{{ trex_url }}") &&
+          tar -C "{{ ovs_perf_dir }}" --strip 2 -xzf trex_client_*.tar.gz trex_client/interactive/trex &&
+          tar -C "{{ ovs_perf_dir }}/trex" --strip 1 -xzf trex_client_*.tar.gz trex_client/external_libs &&
+          python dpdk_setup_ports.py -c {{trex_interface_1}} {{trex_interface_2}} --force-mac -o /etc/trex_cfg.yaml &&
           popd
 
     # Setting bootargs for iommu and hugepages

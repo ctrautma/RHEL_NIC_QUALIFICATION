@@ -7,66 +7,32 @@
       msg: Debug mode is enabled
     when: redhat_debug_mode == true
 
-
 ##########################
 # Start to set up #
 ##########################
 
+  - name: Install required packages
+    dnf:
+      name:
+        - git
+        - python3
+        - kernel-headers
+        - kernel-debuginfo
+        - gnuplot
+        - perf
+        - iproute-tc
+      state: present
 
-
-  - name: stop openvswitch
-    service:
-      name: openvswitch
-      state: stopped
-  - name: Shutdown vm rhel_loopback
-    virt:
-      name: rhel_loopback
-      state: shutdown
-  - stat: path=RHEL_NIC_QUALIFICATION
-    register: st
-  - name: Clone repo RHEL_NIC_QUALIFICATION
+  - name: Git clone perf-flower
     git:
       repo: https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
       dest: ~/RHEL_NIC_QUALIFICATION
       track_submodules: yes
       force: yes
-    when: not st.stat.exists
-  - name: Install needed modules step 1
-    yum:
-      name: perf,gnuplot,kernel-debuginfo
-  - name: Install needed modules step 2
-    yum:
-      name: git,make,gcc,flex,bison,libdwarf-devel
-  - name: Install needed modules step 3
-    yum:
-      name: python36-devel,elfutils-devel,ncurses-devel,xz-devel
-  - name: Install needed modules step 4
-    yum:
-      name: elfutils-libelf-devel,pcre2-devel,binutils-devel,numactl-devel
-  - name: Install needed modules step 5
-    yum:
-      name: slang-devel,zlib-devel,audit-libs-devel,asciidoc
-  - name: Install needed modules step 6
-    yum:
-      name: xmlto,openssl-devel,perl-ExtUtils-Embed
-  - name: Git clone perf from upstream
-    git:
-      repo: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-      clone: yes
-      dest: linux
-      depth: 1
-  - name: Build perf package
-    make:
-      chdir: linux/tools/perf
-      target: install
-      params:
-        PYTHON: /usr/bin/python3.6
-  - name: Get kernel version
-    shell: uname -r
-    register: kernel_version
-  - name: Uncompress cls_flower folder
-    shell: unxz /lib/modules/{{ kernel_version.stdout }}/kernel/net/sched/cls_flower.ko.xz
-  - name: Running depmod to complete install
-    shell: depmod -a
-  - name: Mv kernel folder to bak
-    shell: mv /usr/src/kernels/{{ kernel_version.stdout }} /usr/src/kernels/{{ kernel_version.stdout }}.bak
+
+  - name: replace kmalloc with __kmalloc in run.sh
+    replace:
+      path: ~/RHEL_NIC_QUALIFICATION/perf-flower/rule-install-rate/run.sh
+      regexp: 'kmalloc'
+      replace: '__kmalloc'
+
