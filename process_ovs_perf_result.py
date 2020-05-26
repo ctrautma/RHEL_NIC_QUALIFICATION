@@ -6,7 +6,12 @@ import os
 import re
 import sys
 import tarfile
-import xlsxwriter
+from openpyxl import Workbook
+from openpyxl import load_workbook
+from openpyxl.drawing import image
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font
+from openpyxl.styles import colors
 
 if sys.version_info[0] == 3:
     raw_input = input
@@ -67,18 +72,34 @@ class ResultsSheet(object):
         :param args: arguments parse object from command line output
         """
         self._args = args
-        self._workbook = xlsxwriter.Workbook(self._args.output)
         self.result_tar_file = args.result_tar_file
-        self.worksheet_name = self.result_tar_file.split(".")[0]
-        self.worksheet = self._workbook.add_worksheet(self.worksheet_name)
-        self.row = 0
+        self.sheet_name = self.result_tar_file.split(".")[0]
+        self.worksheet = None
+        output_file = self._args.output
+        if os.path.exists(output_file):
+            self.workbook = load_workbook(output_file)
+            self.save_file = output_file
+        elif os.path.exists(os.getcwd() + os.sep + output_file):
+            cur_path = os.getcwd() + os.sep + output_file
+            self.workbook = load_workbook(cur_path)
+            self.save_file = cur_path
+        else:
+            self.workbook = Workbook()
+            self.workbook.save(output_file)
+            self.save_file = output_file
+            self.worksheet = self.workbook.active
+        if None == self.worksheet:
+            self.worksheet = self.workbook.create_sheet(self.sheet_name)
+        self.row = 1
+        self.workbook.save(self.save_file)
 
     def close_workbook(self):
         """
         Close the workbook
         :return: None
         """
-        self._workbook.close()
+        self.workbook.save(self.save_file)
+        self.workbook.close()
 
     def process_pvp_results(self):
         """
@@ -88,33 +109,33 @@ class ResultsSheet(object):
         tar = tarfile.open(self.result_tar_file,"r:*")
         if 'dpdk' in self.result_tar_file:
             if "l2" in self.result_tar_file:
-                if self.write_pvp_worksheet(tar, 'test_results_l2.csv',
+                if self.write_pvp_worksheet(tar, f'{self.sheet_name}/test_results_l2.csv',
                                             self.worksheet, DPDK_L2_PVP_PNGS):
-                    self.worksheet.name = self.worksheet.name + ' (FAIL)'
+                    self.worksheet.title = self.sheet_name + ' (FAIL)'
                 else:
-                    self.worksheet.name = self.worksheet.name + ' (PASS)'
+                    self.worksheet.title = self.sheet_name + ' (PASS)'
             elif "l3" in self.result_tar_file:
-                if self.write_pvp_worksheet(tar, 'test_results_l3.csv',
+                if self.write_pvp_worksheet(tar, f'{self.sheet_name}/test_results_l3.csv',
                                             self.worksheet, DPDK_L3_PVP_PNGS):
-                    self.worksheet.name = self.worksheet.name + ' (FAIL)'
+                    self.worksheet.title = self.sheet_name + ' (FAIL)'
                 else:
-                    self.worksheet.name = self.worksheet.name + ' (PASS)'
+                    self.worksheet.title = self.sheet_name + ' (PASS)'
             else:
                 pass
         # find the kernel result file and process it
         elif 'kernel' in self.result_tar_file:
             if "l2" in self.result_tar_file:
-                if self.write_pvp_worksheet(tar, 'test_results_l2.csv',
+                if self.write_pvp_worksheet(tar, f'{self.sheet_name}/test_results_l2.csv',
                                             self.worksheet, KERNEL_L2_PVP_PNGS):
-                    self.worksheet.name = self.worksheet.name + ' (FAIL)'
+                    self.worksheet.title = self.sheet_name + ' (FAIL)'
                 else:
-                    self.worksheet.name = self.worksheet.name + ' (PASS)'
+                    self.worksheet.title = self.sheet_name + ' (PASS)'
             elif "l3" in self.result_tar_file:
-                if self.write_pvp_worksheet(tar, 'test_results_l3.csv',
+                if self.write_pvp_worksheet(tar, f'{self.sheet_name}/test_results_l3.csv',
                                             self.worksheet, KERNEL_L3_PVP_PNGS):
-                    self.worksheet.name = self.worksheet.name + ' (FAIL)'
+                    self.worksheet.title = self.sheet_name + ' (FAIL)'
                 else:
-                    self.worksheet.name = self.worksheet.name + ' (PASS)'
+                    self.worksheet.title = self.sheet_name + ' (PASS)'
             else:
                 pass
         # find the tc_flower result file and process it
@@ -124,20 +145,20 @@ class ResultsSheet(object):
             # optional.
             #
             if "l2" in self.result_tar_file:
-                if self.write_pvp_worksheet(tar, 'test_results_l2.csv',self.worksheet, TC_L2_PVP_PNGS):
-                    self.worksheet.name = self.worksheet.name + ' (FAIL)'
+                if self.write_pvp_worksheet(tar, f'{self.sheet_name}/test_results_l2.csv',self.worksheet, TC_L2_PVP_PNGS):
+                    self.worksheet.title = self.sheet_name + ' (FAIL)'
                 else:
-                    self.worksheet.name = self.worksheet.name + ' (PASS)'
+                    self.worksheet.title = self.sheet_name + ' (PASS)'
             elif "l3" in self.result_tar_file:
-                if self.write_pvp_worksheet(tar, 'test_results_l3.csv',self.worksheet, TC_L3_PVP_PNGS):
-                    self.worksheet.name = self.worksheet.name + ' (FAIL)'
+                if self.write_pvp_worksheet(tar, f'{self.sheet_name}/test_results_l3.csv',self.worksheet, TC_L3_PVP_PNGS):
+                    self.worksheet.title = self.sheet_name + ' (FAIL)'
                 else:
-                    self.worksheet.name = self.worksheet.name + ' (PASS)'
+                    self.worksheet.title = self.sheet_name + ' (PASS)'
             elif "flower" in self.result_tar_file:
-                if self.write_tc_throughput_worksheet(tar,'test_results_l3.csv'):
-                    self.worksheet.name = self.worksheet.name + ' (FAIL)'
+                if self.write_tc_throughput_worksheet(tar,f'{self.sheet_name}/test_results_l3.csv'):
+                    self.worksheet.title = self.sheet_name + ' (FAIL)'
                 else:
-                    self.worksheet.name = self.worksheet.name + ' (PASS)'
+                    self.worksheet.title = self.sheet_name + ' (PASS)'
             else:
                 pass
 
@@ -153,10 +174,10 @@ class ResultsSheet(object):
         fh = io.StringIO(tar_file.extractfile(csv_file).read().decode('ascii'))
         reader = csv.reader(fh, delimiter=',', quotechar='|')
         test_fail = False
-        max_column = 0
-        self.row = 0
+        max_column = 1
+        self.row = 1
         for row in reader:
-            column = 0
+            column = 1
             try:
                 if len(row) > 0 and 'cpu' not in row[0]:
                     for i in range(len(row)):
@@ -167,18 +188,25 @@ class ResultsSheet(object):
                                 test_fail = True
                         except ValueError:
                             entry = row[i]
-                        worksheet.write_string(self.row, column, str(entry))
+                        temp_cell = worksheet.cell(self.row,column)
+                        temp_cell.value = str(entry)
                         column += 1
                     self.row += 1
                     max_column = column if column > max_column else max_column
             except IndexError:
                 continue
+        self.workbook.save(self.save_file)
         for png in png_list[1:2]:
             tar_file.extractall()
-            worksheet.insert_image(self.row, 0, png)
+            img = image.Image(self.sheet_name + "/" + png)
+            img.anchor = worksheet.cell(self.row,1).coordinate
+            worksheet.add_image(img)
+        self.workbook.save(self.save_file)
 
-        worksheet.set_column(0, max_column, 30)
-        self.row = 0
+        for col in range(1,max_column):
+            worksheet.column_dimensions[get_column_letter(col)].width = 30
+        self.row = 1
+        self.workbook.save(self.save_file)
         return test_fail
 
     def write_tc_throughput_worksheet(self, tar_file, csv_file):
@@ -262,50 +290,48 @@ class ResultsSheet(object):
         #
         # Write default workbook layout
         #
-        self.worksheet.set_column(0, 3, 16)
+        for col in range(1,3):
+            self.worksheet.column_dimensions[get_column_letter(col)].width = 16
 
-        bold_format = self._workbook.add_format()
-        red_format = self._workbook.add_format()
-        bold_format.set_bold()
-        red_format.set_color('red')
+        bold_font = Font(bold=True)
 
-        self.worksheet.write_string(0, 0,
-            "PVP test for 10K TC Flower rules with NIC speed of {} Gbps".
-            format(nic_speed),
-            bold_format)
+        self.worksheet.cell(1,1).value = "PVP test for 10K TC Flower rules with NIC speed of {} Gbps".format(nic_speed)
+        self.worksheet.cell(1,1).font = bold_font
 
-        self.worksheet.write_string(2, 0, "Packet Size", bold_format)
-        self.worksheet.write_string(2, 1, "pps", bold_format)
-        self.worksheet.write_string(2, 2, "pass criteria pps",
-                                              bold_format)
+        self.worksheet.cell(2,1).value = "Packet Size"
+        self.worksheet.cell(2,1).font = bold_font
+
+        self.worksheet(2,2).value = "pps"
+        self.worksheet(2,2).font = bold_font
+
+        self.worksheet(2,3).value = "pass criteria pps"
+        self.worksheet(2,3).font = bold_font
 
         #
         # Write results, and check pass/fail criteria
         #
+        red_font = Font(color=colors.RED)
         results = dict(list(zip(packet_sizes, tenK_results)))
         pass_table = speed_pass_table[nic_speed]
         all_packet_sizes = sorted(list(set(packet_sizes + list(pass_table.keys()))))
 
         for i, pkt_size in enumerate(all_packet_sizes):
-            self.worksheet.write_string(i + 3, 0, str(pkt_size))
+            self.worksheet.cell(3,1).value = str(pkt_size)
             try:
-                self.worksheet.write_string(i + 3, 1,
-                                                      str(results[pkt_size]))
+                self.worksheet.cell(3,2).value =  str(results[pkt_size])
             except KeyError:
-                self.worksheet.write_string(i + 3, 1, "N/A")
+                self.worksheet.cell(3,2).value =  "N/A"
             try:
-                if pkt_size not in results or \
-                   results[pkt_size] < pass_table[pkt_size]:
+                if pkt_size not in results or results[pkt_size] < pass_table[pkt_size]:
                     failure = True
-                    self.worksheet.write_string(
-                        i + 3, 2, str(pass_table[pkt_size]), red_format)
+                    self.worksheet.cell(i+3,2).value = str(pass_table[pkt_size])
+                    self.worksheet.cell(i+3,2).font = red_font
                 else:
-                    self.worksheet.write_string(
-                        i + 3, 2, str(pass_table[pkt_size]))
-
+                    self.worksheet.cell(i+3,2).value = str(pass_table[pkt_size])
             except KeyError:
-                self.worksheet.write_string(i + 3, 2, "-")
+                self.worksheet.cell(i+3,2).value = "-"
 
+        self.workbook.save(self.save_file)
         return failure
 
 def main():
@@ -335,10 +361,10 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--result_tar_file', type=str, required=True,
                         help='result tar file name')
     args = parser.parse_args()
-    if os.path.isfile(args.output):
-        ans = yes_no("Output file {} already exists. Overwrite?".format(args.output))
-        if not ans:
-            sys.exit()
+    # if os.path.isfile(args.output):
+    #     ans = yes_no("Output file {} already exists. Overwrite?".format(args.output))
+    #     if not ans:
+    #         sys.exit()
     if os.path.isfile(args.result_tar_file) == False:
         print("Result tar file do not exist. Check your arguments.")
     main()
