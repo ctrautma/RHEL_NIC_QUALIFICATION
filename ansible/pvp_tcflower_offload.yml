@@ -125,6 +125,9 @@
     - name: Get dut_isolated_cpus
       shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
       register: dut_isolated_cpus
+    - name: Get vcpu_0
+      shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_0
+      register: vcpu_0
     - name: Get vcpu_1
       shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
       register: vcpu_1
@@ -134,9 +137,6 @@
     - name: Get vcpu_3
       shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
       register: vcpu_3
-    - name: Get vcpu_4
-      shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_4
-      register: vcpu_4
 
     #   Create vm #
     - name: Folder for vm image
@@ -184,7 +184,7 @@
       loop: "{{ all_vms.list_vms }}"
 
     - name: Create vm
-      shell: virt-install --connect=qemu:///system --network none --host-device {{ vf_pciiid.stdout }},driver_name=vfio --network network=default,mac=52:54:00:01:02:03 --name=rhel_loopback_tcflower --disk path=/opt/images/rhel-guest-image-8.0-x86_64-kvm-tc.qcow2,format=qcow2 --ram 8192 --vcpus=4,cpuset={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}  --check-cpu --cpu host,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
+      shell: virt-install --connect=qemu:///system --network none --host-device {{ vf_pciiid.stdout }},driver_name=vfio --network network=default,mac=52:54:00:01:02:03 --name=rhel_loopback_tcflower --disk path=/opt/images/rhel-guest-image-8.0-x86_64-kvm-tc.qcow2,format=qcow2 --ram 8192 --vcpus=4,cpuset={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }}  --check-cpu --cpu host,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
 
     - name: Wait vm to start
       pause:

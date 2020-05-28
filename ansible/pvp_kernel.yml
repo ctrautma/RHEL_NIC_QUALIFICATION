@@ -14,6 +14,9 @@
   - name: Get dut_isolated_cpus
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
     register: dut_isolated_cpus
+  - name: Get vcpu_0
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_0
+    register: vcpu_0
   - name: Get vcpu_1
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
     register: vcpu_1
@@ -23,9 +26,6 @@
   - name: Get vcpu_3
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
     register: vcpu_3
-  - name: Get vcpu_4
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_4
-    register: vcpu_4
 
 #############################
 # Return back isolated CPUs #
@@ -33,9 +33,9 @@
 
   - name: Checking for isolcpus in grub (Fatal errors are normal here)
     shell: >
-      grep "nohz_full={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}" /proc/cmdline &&
-      grep "rcu_nocbs={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}" /proc/cmdline &&
-      grep "isolcpus={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}" /proc/cmdline
+      grep "nohz_full={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }}" /proc/cmdline &&
+      grep "rcu_nocbs={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }}" /proc/cmdline &&
+      grep "isolcpus={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }}" /proc/cmdline
     failed_when: false
     ignore_errors: yes
     register: isolcpus_ok
@@ -44,7 +44,7 @@
       lineinfile:
          path: //etc/tuned/cpu-partitioning-variables.conf
          regexp: "^isolated_cores=.*"
-         line: "isolated_cores={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}"
+         line: "isolated_cores={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }}"
          state: present
     - name: Starting cpu-partitioning tuned profile
       shell: tuned-adm profile cpu-partitioning
@@ -55,7 +55,7 @@
         state: restarted
         daemon_reload: yes
     - name: Change isolcpus in grub
-      shell: "grubby --args='isolcpus={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }}' --update-kernel=$(grubby --default-kernel)"
+      shell: "grubby --args='isolcpus={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }}' --update-kernel=$(grubby --default-kernel)"
     - name: REBOOTING DUT SERVER NOW
       reboot:
     when: isolcpus_ok.rc != 0
@@ -129,7 +129,7 @@
       virsh net-update default add ip-dhcp-host "<host mac='52:54:00:01:02:03' ip='192.168.122.5'/>" --live --config
 
   - name: create VM
-    shell: virt-install --connect=qemu:///system --network bridge=ovs_pvp_br0,virtualport_type=openvswitch,model=virtio --network network=default,mac=52:54:00:01:02:03 --name=rhel_loopback_kerneldp --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0 --vcpus=4,cpuset={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }} --check-cpu --cpu mode=host-passthrough,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
+    shell: virt-install --connect=qemu:///system --network bridge=ovs_pvp_br0,virtualport_type=openvswitch,model=virtio --network network=default,mac=52:54:00:01:02:03 --name=rhel_loopback_kerneldp --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0 --vcpus=4,cpuset={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }} --check-cpu --cpu mode=host-passthrough,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
 
   - name: Wait vm to start
     pause:

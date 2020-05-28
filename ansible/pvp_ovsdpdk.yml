@@ -176,6 +176,12 @@
   - debug:
       var: dut_pmd_rxq_affinity
     when: redhat_debug_mode == true
+  - name: Get vcpu_0
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_0
+    register: vcpu_0
+  - debug:
+      var: vcpu_0
+    when: redhat_debug_mode == true
   - name: Get vcpu_1
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
     register: vcpu_1
@@ -193,12 +199,6 @@
     register: vcpu_3
   - debug:
       var: vcpu_3
-    when: redhat_debug_mode == true
-  - name: Get vcpu_4
-    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_4
-    register: vcpu_4
-  - debug:
-      var: vcpu_4
     when: redhat_debug_mode == true
   - name: Get dut_dpdk_lcore_mask
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_dpdk_lcore_mask
@@ -351,19 +351,19 @@
       virsh net-update default add ip-dhcp-host "<host mac='52:54:00:01:02:03' ip='192.168.122.5'/>" --live --config
 
   - name: Running virt-install
-    shell: virt-install --connect=qemu:///system --network vhostuser,source_type=unix,source_path=/tmp/vhost-sock0,source_mode=server,model=virtio,driver_queues=2 --network network=default,mac=52:54:00:01:02:03 --name=rhel_loopback --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0 --vcpus=4,cpuset={{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }},{{ vcpu_4.stdout }} --check-cpu --cpu mode=host-passthrough,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
+    shell: virt-install --connect=qemu:///system --network vhostuser,source_type=unix,source_path=/tmp/vhost-sock0,source_mode=server,model=virtio,driver_queues=2 --network network=default,mac=52:54:00:01:02:03 --name=rhel_loopback --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0 --vcpus=4,cpuset={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }} --check-cpu --cpu mode=host-passthrough,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
   - name: Setting permissions on vhost socket folder
     file:
        path: /tmp/vhost-sock0
        mode: 777
   - name: Setting cpu pin for vcpu 0
-    shell: virsh vcpupin rhel_loopback 0 {{ vcpu_1.stdout }}
+    shell: virsh vcpupin rhel_loopback 0 {{ vcpu_0.stdout }}
   - name: Setting cpu pin for vcpu 1
-    shell: virsh vcpupin rhel_loopback 1 {{ vcpu_2.stdout }}
+    shell: virsh vcpupin rhel_loopback 1 {{ vcpu_1.stdout }}
   - name: Setting cpu pin for vcpu 2
-    shell: virsh vcpupin rhel_loopback 2 {{ vcpu_3.stdout }}
+    shell: virsh vcpupin rhel_loopback 2 {{ vcpu_2.stdout }}
   - name: Setting cpu pin for vcpu 3
-    shell: virsh vcpupin rhel_loopback 3 {{ vcpu_4.stdout }}
+    shell: virsh vcpupin rhel_loopback 3 {{ vcpu_3.stdout }}
   - name: Setting emulator pin for guest
     shell: virsh emulatorpin rhel_loopback {{ vcpu_emulator.stdout }}
   - name: stop rhel guest
