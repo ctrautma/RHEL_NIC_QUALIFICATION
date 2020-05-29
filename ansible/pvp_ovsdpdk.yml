@@ -317,7 +317,7 @@
       path: /opt/images
       state: directory
     when: not st.stat.exists
-  - stat: path=/opt/images/{{ rhel_guest_image_path }}
+  - stat: path=/opt/images/{{ rhel_guest_image_path | basename }}
     register: st
   - name: Copy image to /opt/images
     copy:
@@ -325,6 +325,8 @@
       dest: /opt/images/rhel_guest_image_pvp.qcow2
       remote_src: yes
     when: not st.stat.exists
+  - name: Configuring VM
+    shell: LIBGUESTFS_BACKEND=direct virt-customize -a /opt/images/rhel_guest_image_pvp.qcow2 --root-password password:root --uninstall cloud-init
   - name: Checking status of rhel_loopback image
     virt:
       command: list_vms
@@ -335,7 +337,8 @@
   - name: Stopping rhel_loopback if its started
     virt:
       name: rhel_loopback
-      state: destroyed
+      command: destroy
+    ignore_errors: yes
     when: '"rhel_loopback" in all_vms.list_vms'
   - name: Undefining rhel_loopback if needed
     shell: virsh undefine rhel_loopback
@@ -352,6 +355,9 @@
 
   - name: Running virt-install
     shell: virt-install --connect=qemu:///system --network vhostuser,source_type=unix,source_path=/tmp/vhost-sock0,source_mode=server,model=virtio,driver_queues=2 --network network=default,mac=52:54:00:01:02:03 --name=rhel_loopback --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0 --vcpus=4,cpuset={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }} --check-cpu --cpu mode=host-passthrough,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
+  - name: Wait vm to start
+    pause:
+      seconds: 60
   - name: Setting permissions on vhost socket folder
     file:
        path: /tmp/vhost-sock0
@@ -366,34 +372,6 @@
     shell: virsh vcpupin rhel_loopback 3 {{ vcpu_3.stdout }}
   - name: Setting emulator pin for guest
     shell: virsh emulatorpin rhel_loopback {{ vcpu_emulator.stdout }}
-  - name: stop rhel guest
-    virt:
-      name: rhel_loopback
-      state: shutdown
-  - name: dump xml
-    shell: "virsh dumpxml rhel_loopback > /tmp/rhel_loopback.xml"
-  - replace:
-      dest: /tmp/rhel_loopback.xml
-      regexp: "unit='KiB'/>"
-      replace: "unit='KiB' memAccess='shared'/>"
-  - name: Undefining rhel_loopback
-    virt:
-      command: undefine
-      name: rhel_loopback
-  - name: Redefining rhel_loopback with new xml modifications
-    shell: virsh define /tmp/rhel_loopback.xml
-#  - name: Shutdown VM
-#    virt:
-#      name: rhel_loopback
-#      command: destroy
-#  - name: Configuring VM for network manager
-#    shell: LIBGUESTFS_BACKEND=direct virt-customize -d rhel_loopback --root-password password:root --uninstall cloud-init --firstboot-command 'nmcli c | grep -o --  "[0-9a-fA-F]\{8\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{12\}" | xargs -n 1 nmcli c delete uuid' --firstboot-command 'nmcli con add con-name ovs-dpdk ifname ens2 type ethernet ip4 1.1.1.1/24' --firstboot-command 'nmcli con add con-name management ifname ens3 type ethernet' --firstboot-command 'reboot'
-  - name: Configuring VM for network manager
-    shell: LIBGUESTFS_BACKEND=direct virt-customize -d rhel_loopback --root-password password:root --uninstall cloud-init
-  - name: Starting up VM rhel_loopback
-    virt:
-      name: rhel_loopback
-      state: running
   - name: copying virsh console script to default location
     copy:
       src: ./vm.sh
@@ -441,11 +419,17 @@
   - name: Rebooting vm rhel_loopback step 1
     virt:
       name: rhel_loopback
-      state: destroyed
+      state: shutdown
+  - name: Wait system some time to shutdown
+    pause:
+      seconds: 5
   - name: Rebooting vm rhel_loopback step 2
     virt:
       name: rhel_loopback
       state: running
+  - name: Wait vm to start
+    pause:
+      seconds: 60
   - name: Logging into VM rhel_loopback
     shell: ~/vm.sh login_vm rhel_loopback
   - name: Logging into vm rhel_loopback

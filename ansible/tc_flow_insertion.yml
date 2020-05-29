@@ -33,6 +33,6 @@
   - name: replace kmalloc with __kmalloc in run.sh
     replace:
       path: ~/RHEL_NIC_QUALIFICATION/perf-flower/rule-install-rate/run.sh
-      regexp: 'kmalloc'
+      regexp: '\bkmalloc'
       replace: '__kmalloc'
 
