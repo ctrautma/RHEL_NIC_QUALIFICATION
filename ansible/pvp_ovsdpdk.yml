@@ -399,11 +399,7 @@
   - name: Running yum commandset step 4 on rhel_loopback
     shell: ~/vm.sh run_cmd rhel_loopback "yum -y update kernel"
   - name: Modifying grub for tuning on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "sed -i -e 's/GRUB_CMDLINE_LINUX=\"/GRUB_CMDLINE_LINUX=\"isolcpus=1,2,3 default_hugepagesz=1G hugepagesz=1G hugepages=2 /'  /etc/default/grub"
-  - name: Running grub set command step 1 on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "grub2-editenv - unset kernelopts"
-  - name: Running grub set command step 2 on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "grub2-mkconfig -o /boot/grub2/grub.cfg"
+    shell: ~/vm.sh run_cmd rhel_loopback "grubby --args='disolcpus=1,2,3 default_hugepagesz=1G hugepagesz=1G hugepages=2' --update-kernel=ALL"
   - name: Setting vfio options on rhel_loopback
     shell: ~/vm.sh run_cmd rhel_loopback "echo 'options vfio enable_unsafe_noiommu_mode=1' > /etc/modprobe.d/vfio.conf"
   - name: Binding nic to vfio-pci on rhel_loopback
