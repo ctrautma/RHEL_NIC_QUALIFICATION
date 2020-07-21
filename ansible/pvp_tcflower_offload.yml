@@ -214,7 +214,7 @@
         cmd: >
           ~/vm.sh login_vm rhel_loopback_tcflower &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y install {{ dpdk_rpm_path }} {{ dpdk_tools_rpm_path }}" &&
-          ~/vm.sh run_cmd rhel_loopback_tcflower "subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms" &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "subscription-manager repos --enable rhel-8-for-x86_64-appstream*-rpms" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y clean all" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y install driverctl gcc kernel-devel numactl-devel tuned-profiles-cpu-partitioning wget" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "grubby --args='default_hugepagesz=1G hugepagesz=1G hugepages=2' --update-kernel=\$(grubby --default-kernel)" &&
