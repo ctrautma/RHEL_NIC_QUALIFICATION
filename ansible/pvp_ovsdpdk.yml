@@ -389,7 +389,7 @@
     shell: ~/vm.sh run_cmd rhel_loopback "{{ qe_subscription_command }}"
     when: qe_subscription_mode
   - name: subscribing to appstream on VM rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "subscription-manager repos --enable rhel-8-for-x86_64-appstream*-rpms"
+    shell: ~/vm.sh run_cmd rhel_loopback "subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms"
   - name: Running yum commandset step 1 on rhel_loopback
     shell: ~/vm.sh run_cmd rhel_loopback "yum -y clean all"
   - name: Running yum commandset step 2 on rhel_loopback
