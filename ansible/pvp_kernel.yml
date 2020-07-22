@@ -78,6 +78,8 @@
       state: stopped
   - name: Unbind nic from dpdk
     shell: driverctl -v unset-override {{ dut_interface_1_pciid }}
+  - name: enable nic
+    shell: ip link set {{ dut_interface_1 }} up
   - name: restart service openvswitch
     systemd:
       name: openvswitch
