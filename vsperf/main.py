@@ -18,135 +18,22 @@ import xmltool
 from tee import StderrTee as errtee , StdoutTee as outtee
 import xml.etree.ElementTree as xml
 
+from beaker_cmd import (bash, enter_phase, log, log_and_run, pushd, run,
+                        send_command, set_check,rl_fail,sync_set,sync_wait)
+
 def get_env(var_name):
     return os.environ.get(var_name)
 
-case_path = get_env("CASE_PATH")
-system_version_id = int(get_env("SYSTEM_VERSION_ID"))
+case_path = os.environ.get("CASE_PATH")
+system_version_id = int(os.environ.get("SYSTEM_VERSION_ID"))
 my_tool = tools.Tools()
 xml_tool = xmltool.XmlTool()
-work_pipe = get_env("work_pipe")
-notify_pipe = get_env("notify_pipe")
-
 image_dir = "/root/"
 
-def set_check(ret):
-    def my_wrap(f):
-        @wraps(f)
-        def log_f_as_called(*args, **kwargs):
-            #cur_time = time.asctime()
-            my_command = f'{f.__name__} {args} {kwargs}'
-            cmd = f""":: [  BEGIN   ] :: Running '{my_command}'"""
-            log(cmd)
-            value = f(*args, **kwargs)
-            #cur_time = time.asctime()
-            cmd = f""":: [  END   ] :: Running '{my_command}' RETURN {value}"""
-            log(cmd)
-            return value
-        return log_f_as_called
-    return my_wrap    
-
-def send_command(cmd):
-    cmd = cmd + os.linesep
-    try:
-        with open(notify_pipe,"r") as rfd:
-            rfd.read()
-            with open(work_pipe,"w") as fd:
-                fd.write(cmd)
-                fd.flush()
-    except IOError as e:
-        print("*"*80)
-        print("error find")
-        print(cmd)
-        print(e)
-        print("*"*80)
-    pass
-
-def send_all_command(cmds):
-    cmd_list = str(cmds).split(os.linesep)
-    for cmd in cmd_list:
-        send_command(cmd)
-    pass
-
-def log(str_log):
-    logs = str(str_log).split(os.linesep)
-    for cmd in logs:
-        cmd = f""" rlLog "{cmd}" """
-        send_command(cmd)
-
-
-def sh_run(cmd, str_ret_val="0"):
-    cmd = """ rlRun  "{}" "{}" """.format(cmd, str_ret_val)
-    send_command(cmd)
-    pass
-
-def sh_run_log(cmd, str_ret_val="0"):
-    cmd = """ rlRun -l "{}" "{}" """.format(cmd, str_ret_val)
-    send_command(cmd)
-    pass
-
-def run(cmd, str_ret_val="0"):
-    cmds = cmd.split(os.linesep)
-    cmds = [ i.strip() for i in cmds ]
-    for cmd in cmds:
-        if len(cmd) > 0:
-            sh_run(cmd, str_ret_val)
-        else:
-            sh_run("echo")
-    pass
-
-def runlog(cmd, str_ret_val="0"):
-    cmds = cmd.split(os.linesep)
-    cmds = [ i.strip() for i in cmds ]
-    for cmd in cmds:
-        if len(cmd) > 0:
-            sh_run_log(cmd, str_ret_val)
-        else:
-            sh_run("echo")
-    pass
-    
-def log_and_run(cmd, str_ret_val="0"):
-    log(cmd)
-    run(cmd,str_ret_val)
-    pass
-
-def shpushd(path):
-    #cmd = f"""rlRun "pushd {path}" """
-    log(f"Enter dir: {path}")
-    cmd = f"""pushd {path} > /dev/null"""
-    send_command(cmd)
-    pass
-
-
-def shpopd():
-    cmd = "popd > /dev/null"
-    send_command(cmd)
-    pass
-
-@contextlib.contextmanager
-def pushd(path):
-    shpushd(path)
-    try:
-        yield
-    finally:
-        shpopd()
-
-@contextlib.contextmanager
-def enter_phase(str):
-    cmd = f""" rlPhaseStartTest '{str}' """
-    send_command(cmd)
-    time.sleep(3)
-    try:
-        yield
-    finally:
-        send_command("rlPhaseEnd")
-        time.sleep(3)
-
 ###############################################################################################
 ###############################################################################################
 ###############################################################################################
 ###############################################################################################
-
 
 def check_install(pkg_name):
     run("rpm -q {} || yum -y install {}".format(pkg_name, pkg_name))
@@ -290,7 +177,8 @@ def hugepage_checks():
 
 
 def check_env_var(str_name):
-    if get_env(str_name) != None:
+    env_var = get_env(str_name)
+    if env_var != None and len(str(env_var).strip()) > 0:
         return True
     else:
         return False
@@ -1332,7 +1220,7 @@ def usage():
 def exit_with_error(str):
     print(f"Exit with {str}")
     log(f"""Exit with {str}""")
-    send_command("sriov-github-vsperf")
+    send_command("sriov-github-vsperf-quit-string")
     pass
 
 def main(test_list="ALL"):
