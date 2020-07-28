@@ -387,6 +387,8 @@
     when: not qe_subscription_mode
   - name: Using QE Secret sauce to add subscription for repos
     shell: ~/vm.sh run_cmd rhel_loopback "{{ qe_subscription_command }}"
+    retries: 5
+    delay: 3
     when: qe_subscription_mode
   - name: subscribing to appstream on VM rhel_loopback
     shell: ~/vm.sh run_cmd rhel_loopback "subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms || subscription-manager repos --enable rhel-8-for-x86_64-appstream*-rpms"
