@@ -72,22 +72,22 @@
         state: link
 
     # Disable hugepage settings if exists
-    - name: Cheking if hugepage setting exists
-      shell:
-        cmd: >
-          grep default_hugepagesz=1G /proc/cmdline ||
-          grep hugepagesz=1G /proc/cmdline ||
-          grep hugepages=32 /proc/cmdline
-      failed_when: false
-      ignore_errors: yes
-      register: hugepage_ok
+    #- name: Cheking if hugepage setting exists
+    #  shell:
+    #    cmd: >
+    #      grep default_hugepagesz=1G /proc/cmdline ||
+    #      grep hugepagesz=1G /proc/cmdline ||
+    #      grep hugepages=32 /proc/cmdline
+    #  failed_when: false
+    #  ignore_errors: yes
+    #  register: hugepage_ok
 
-    - block:
-      - name: Remove hugepage settings
-        shell: grubby --remove-args="default_hugepagesz" --remove-args="hugepagesz" --remove-args="hugepages" --update-kernel=$(grubby --default-kernel)
-      - name: REBOOTING DUT SERVER NOW
-        reboot:
-      when: hugepage_ok.rc == 0
+    #- block:
+    #  - name: Remove hugepage settings
+    #    shell: grubby --remove-args="default_hugepagesz" --remove-args="hugepagesz" --remove-args="hugepages" --update-kernel=$(grubby --default-kernel)
+    #  - name: REBOOTING DUT SERVER NOW
+    #    reboot:
+    #  when: hugepage_ok.rc == 0
 
     - name: get driver
       shell: "ethtool -i {{ dut_interface_1 }} | sed -n '/driver: / s/driver: //p'"
@@ -106,6 +106,11 @@
         cmd:
           ovs-vsctl set Open_vSwitch . other_config:hw-offload=true
           systemctl restart openvswitch
+
+    - name: enable interface
+      shell: |
+        ip link set {{ pf_rep.stdout }} up
+        ip link set {{ vf_rep.stdout }} up
 
     - name: setup OVS bridge
       shell: >
