@@ -255,11 +255,18 @@ def rpm_check():
     log("Please make sure qemu-kvm qemu-kvm-tools version >= 2.12 !!!!")
     log("Please make sure qemu-kvm qemu-kvm-tools version >= 2.12 !!!!")
     log("Please make sure qemu-kvm qemu-kvm-tools version >= 2.12 !!!!")
-    if bash("rpm -qa | grep qemu-kvm-tools").value() == "":
-        log("Please install qemu-kvm-tools rpm ")
-        return 1
+    if system_version_id < 80:
+        if bash("rpm -qa | grep qemu-kvm-tools").value() == "":
+            log("Please install qemu-kvm-tools rpm ")
+            return 1
+        else:
+            log("qemu-kvm-tools check OK")
     else:
-        log("qemu-kvm-tools check OK")
+        if bash("rpm -qa | grep kernel-tools").value() == "":
+            log("Please install kernel-tools rpm ")
+            return 1
+        else:
+            log("kernel-tools check OK")
 
     if bash("rpm -qa | grep qemu-img").value() == "":
         log("Please install qemu-img rpm ")
