@@ -123,9 +123,9 @@
 		<memballoon model="virtio">
 			<address bus="0x06" domain="0x0000" function="0x0" slot="0x00" type="pci" />
 		</memballoon>
-		<iommu model="intel">
+		<!-- <iommu model="intel">
 			<driver caching_mode="on" intremap="on" iotlb="on" />
-		</iommu>
+		</iommu> -->
 	</devices>
 	<seclabel model="selinux" relabel="yes" type="dynamic" />
 </domain>
