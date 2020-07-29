@@ -41,6 +41,10 @@ sys.path.append('./v2.59/automation/trex_control_plane/stf/trex_stf_lib/')
 sys.path.append("./v2.71/automation/trex_control_plane/interactive/trex/examples/")
 sys.path.append("./v2.71/automation/trex_control_plane/interactive/trex/examples/stl")
 sys.path.append("./v2.71/automation/trex_control_plane/stf/trex_stf_lib/")
+sys.path.append("./v2.82/automation/trex_control_plane/interactive/trex/examples/")
+sys.path.append("./v2.82/automation/trex_control_plane/interactive/trex/examples/stl")
+sys.path.append("./v2.82/automation/trex_control_plane/stf/trex_stf_lib/")
+
 
 import trex_client
 import trex_status

@@ -125,6 +125,7 @@ install_python_and_init_env()
 	#https://pypi.org/project/ripdb/
 	pip install ripdb
 	pip install scapy
+    pip install lxml
     deactivate
     popd
 }

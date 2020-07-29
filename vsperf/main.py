@@ -35,6 +35,24 @@ image_dir = "/root/"
 ###############################################################################################
 ###############################################################################################
 
+def py3_run(cmd,str_ret_val="0"):
+    run(f"source {case_path}/venv/bin/activate")
+    run(cmd,str_ret_val)
+    run("deactivate")
+    pass
+
+@contextlib.contextmanager
+def enter_py3_env():
+    enter_cmd = f""" source {case_path}/venv/bin/activate """
+    out_cmd = f""" deactivate """
+    send_command(enter_cmd)
+    time.sleep(1)
+    try:
+        yield
+    finally:
+        send_command(out_cmd)
+        time.sleep(1)
+
 def check_install(pkg_name):
     run("rpm -q {} || yum -y install {}".format(pkg_name, pkg_name))
     pass
@@ -755,7 +773,9 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
             log_and_run(cmd)
         import time
         time.sleep(3)
-        log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
+        # log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
+        cmd = f""" python ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """
+        py3_run(cmd)
     return 0
 
 def attach_sriov_vf_to_vm(xml_file,vm,vlan_id=0):
