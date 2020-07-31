@@ -755,6 +755,7 @@ def clear_env():
     log_and_run("ip link show")
     return 0
 
+
 def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
     trex_server_ip = get_env("TRAFFICGEN_TREX_HOST_IP_ADDR")
     with pushd(case_path):
@@ -777,6 +778,52 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
         cmd = f""" python ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """
         py3_run(cmd)
     return 0
+
+#Wtih binary_search version
+# def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
+#     trex_server_ip = get_env("TRAFFICGEN_TREX_HOST_IP_ADDR")
+#     trex_url = get_env("TREX_URL")
+#     trex_dir = os.path.basename(trex_url).replace(".tar.gz","")
+#     trex_name = os.path.basename(trex_url)
+#     #init trex package and lua traffic generator 
+#     with pushd("/opt"):
+#         cmd = f"""
+#         [ -e trafficgen ] || git clone https://github.com/atheurer/trafficgen.git
+#         mkdir -p trex
+#         pushd trex &>/dev/null
+#         if [ ! -f $(basename {trex_url}) ]
+#         then
+#                 wget -nv -N {trex_url}
+#                 tar xf $(basename {trex_url})
+#                 ln -sf $(ls -d v*) current
+#                 ls -l
+#         fi
+#         popd &>/dev/null
+#         chmod 777 /opt/trex -R
+#         """
+#         log_and_run(cmd)
+#         pass
+#     with pushd(case_path):
+#         ret = bash(f"ping {trex_server_ip} -c 3")
+#         if ret.code != 0:
+#             log("Trex server {} not up please check ".format(trex_server_ip))
+#         pass
+#     with pushd("/opt/trafficgen"):
+#         cmd = f"""
+#         ./binary-search.py \
+#         --traffic-generator=trex-txrx \
+#         --frame-size={pkt_size} \
+#         --dst-macs={dst_mac_one},{dst_mac_one} \
+#         --run-bidirec=1 \
+#         --search-granularity=5 \
+#         --search-runtime={t_time} \
+#         --validation-runtime=10 \
+#         --max-loss-pct=0.0
+#         """
+#         log(cmd)
+#         py3_run(cmd)
+#     return 0
+
 
 def attach_sriov_vf_to_vm(xml_file,vm,vlan_id=0):
     vf1_bus_info = my_tool.get_bus_from_name(get_env("NIC1_VF"))
