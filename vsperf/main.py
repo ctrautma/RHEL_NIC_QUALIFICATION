@@ -1388,5 +1388,5 @@ if __name__ == "__main__":
     main()
     send_command("rlJournalPrintText")
     send_command("rlJournalEnd")
-    send_command("sriov-github-vsperf")
+    send_command("sriov-github-vsperf-quit-string")
     pass
