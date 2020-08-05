@@ -56,7 +56,7 @@ import argparse
 class TrexTest(object):
     def __init__(self, trex_host,pkt_size=64,duration=10,max_try=10,vlan_flag=False,dst_mac=None):
         self.trex_host = trex_host
-        self.pkt_size = pkt_size
+        self.pkt_size = pkt_size - 4
         self.duration = duration
         self.max_try = max_try         
         self.vlan_flag = vlan_flag
@@ -129,7 +129,8 @@ class TrexTest(object):
             for port in all_ports:
                 for stream in all_stream:
                     self.client.reset(all_ports)
-                    self.client.set_port_attr(ports=all_ports, promiscuous=False)
+                    # self.client.set_port_attr(ports=all_ports, promiscuous=False)
+                    self.client.set_port_attr(ports=all_ports, promiscuous=True)
                     self.client.acquire(ports=all_ports, force=True)
                     self.client.add_streams(stream, ports=port)
                     print("start test conn test with 1pps duration 10s ")

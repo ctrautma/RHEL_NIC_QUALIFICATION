@@ -32,6 +32,7 @@ init_main_perf_env()
     source /etc/os-release
     SYSTEM_VERSION_ID=`echo $VERSION_ID | tr -d '.'`
     source $CASE_PATH/Perf-Verify.conf
+    source $CASE_PATH/env.sh
     set +a
 
     set -a

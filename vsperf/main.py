@@ -1194,6 +1194,12 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
 
 def run_tests(test_list):
     print(os.environ)
+    SKIP_SRIOV = int(os.environ.get("SKIP_SRIOV"))
+    SKIP_1Q = int(os.environ.get("SKIP_1Q"))
+    SKIP_2Q = int(os.environ.get("SKIP_2Q"))
+    SKIP_JUMBO = int(os.environ.get("SKIP_JUMBO"))
+    SKIP_KERNEL = int(os.environ.get("SKIP_KERNEL"))
+
     if test_list == "pvp_cont":
         with enter_phase("PVP-1500-BYTES-CONT-1Q-2PMD-TEST"):
             data = """
@@ -1207,72 +1213,89 @@ def run_tests(test_list):
             pass
     
     if test_list == "ALL" or test_list == "SRIOV":
-        with enter_phase("SRIOV 64/1500 Bytes SR-IOV TEST"):
+        if SKIP_SRIOV == 1:
             data = """
             ************************************************
-            Running 64/1500 Bytes SR-IOV VSPerf TEST
+            SKIP Running 64/1500 Bytes SR-IOV VSPerf TEST
             ************************************************
             """
             log(data)
-            sriov_pci_passthrough_test(1,64,30)
-            sriov_pci_passthrough_test(2,1500,30)
-            pass
+        else:
+            with enter_phase("SRIOV 64/1500 Bytes SR-IOV TEST"):
+                data = """
+                ************************************************
+                Running 64/1500 Bytes SR-IOV VSPerf TEST
+                ************************************************
+                """
+                log(data)
+                sriov_pci_passthrough_test(1,64,30)
+                sriov_pci_passthrough_test(2,1500,30)
+                pass
 
     if test_list == "ALL" or test_list == "1Q":
-        with enter_phase("Running 64/1500 Byte PVP verify check FOR 1Q AND 2PMD TEST"):
-            data = """
-            *************************************************************
-            Running 1500 Byte PVP verify check
-            For 1Q 2PMD Test
-            *************************************************************
-            """
-            log(data)
-            ovs_dpdk_pvp_test(1,64,64,30)
-            log("***************************************************************************************")
-            # import time
-            # time.sleep(10000)
-            ovs_dpdk_pvp_test(1,1500,1500,30)
-            pass
-
+        if SKIP_1Q == 1:
+            log("SKIP running 1500 Byte PVP verify check For 1Q 2PMD Test")
+        else:
+            with enter_phase("Running 64/1500 Byte PVP verify check FOR 1Q AND 2PMD TEST"):
+                data = """
+                *************************************************************
+                Running 1500 Byte PVP verify check
+                For 1Q 2PMD Test
+                *************************************************************
+                """
+                log(data)
+                ovs_dpdk_pvp_test(1,64,64,30)
+                log("***************************************************************************************")
+                # import time
+                # time.sleep(10000)
+                ovs_dpdk_pvp_test(1,1500,1500,30)
+                pass
 
     if test_list == "ALL" or test_list == "2Q":
-        with enter_phase("Running 64/1500 Byte PVP verify check FOR 2Q AND 4PMD TEST"):
-            data = """
-            *************************************************************
-            Running 1500 Byte PVP verify check
-            For 2Q 4PMD Test
-            *************************************************************
-            """
-            log(data)
-            ovs_dpdk_pvp_test(2,64,64,30)
-            ovs_dpdk_pvp_test(2,1500,1500,30)
-            pass
+        if SKIP_2Q == 1:
+            log("SKIP running 1500 Byte PVP verify check For 2Q 4PMD Test")
+        else:
+            with enter_phase("Running 64/1500 Byte PVP verify check FOR 2Q AND 4PMD TEST"):
+                data = """
+                *************************************************************
+                Running 1500 Byte PVP verify check
+                For 2Q 4PMD Test
+                *************************************************************
+                """
+                log(data)
+                ovs_dpdk_pvp_test(2,64,64,30)
+                ovs_dpdk_pvp_test(2,1500,1500,30)
+                pass
 
     if test_list == "ALL" or test_list == "Jumbo":
-        with enter_phase("Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST"):
-            data = """
-            *************************************************************
-            Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST
-            *************************************************************
-            """
-            log(data)
-            ovs_dpdk_pvp_test(1,2000,2000,30)
-            ovs_dpdk_pvp_test(2,9000,9000,30)
-            pass
-
+        if SKIP_JUMBO == 1:
+            log("SKIP running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST")
+        else:
+            with enter_phase("Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST"):
+                data = """
+                *************************************************************
+                Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST
+                *************************************************************
+                """
+                log(data)
+                ovs_dpdk_pvp_test(1,2000,2000,30)
+                ovs_dpdk_pvp_test(2,9000,9000,30)
+                pass
 
     if test_list == "ALL" or test_list == "Kernel":
-        with enter_phase("Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST"):
-            data = """
-            ************************************************************
-            Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST
-            ************************************************************
-            """
-            log(data)
-            ovs_kernel_datapath_test(1,64,30)
-            ovs_kernel_datapath_test(2,1500,30)
-            pass
-    
+        if SKIP_KERNEL == 1:
+            log("skip running 64/1500 Bytes PVP OVS Kernel VSPerf TEST")
+        else:
+            with enter_phase("Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST"):
+                data = """
+                ************************************************************
+                Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST
+                ************************************************************
+                """
+                log(data)
+                ovs_kernel_datapath_test(1,64,30)
+                ovs_kernel_datapath_test(2,1500,30)
+                pass
 
     return 0
 
