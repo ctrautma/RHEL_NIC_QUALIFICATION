@@ -658,7 +658,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     nic1_name = get_env("NIC1")
     nic1_driver = my_tool.get_nic_driver_from_name(nic1_name)
     dpdk_ver = get_env("DPDK_VER")
-    if nic1_name == "mlx5_core":
+    if nic1_driver == "mlx5_core":
         cmd = f"""
         /root/one_gig_hugepages.sh 1
         rpm -ivh /root//{dpdk_ver}/dpdk*.rpm
