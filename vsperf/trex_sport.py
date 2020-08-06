@@ -158,7 +158,7 @@ class TrexTest(object):
                     'tx_pps': 0.9904077472165227,
                     'tx_util': 6.9724695280194286e-06}}
                     """
-                    if ret_stat["total"]["ipackets"] >= ret_stat["total"]["opackets"]:
+                    if ret_stat["total"]["ipackets"] >= ret_stat["total"]["opackets"] and ret_stat["total"]["ipackets"] > 0:
                         print("***********************************************************************")
                         print("Port info {}".format(port))
                         print(self.client.get_port_attr(port))

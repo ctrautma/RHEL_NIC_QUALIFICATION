@@ -29,6 +29,8 @@ system_version_id = int(os.environ.get("SYSTEM_VERSION_ID"))
 my_tool = tools.Tools()
 xml_tool = xmltool.XmlTool()
 image_dir = "/root/"
+nic1_name = get_env("NIC1")
+nic1_driver = my_tool.get_nic_driver_from_name(nic1_name)
 
 ###############################################################################################
 ###############################################################################################
@@ -655,8 +657,6 @@ def check_guest_testpmd_result():
 #rpm -ivh /root/dpdkrpms/{dpdk_ver}/dpdk*.rpm
 # {modprobe  vfio enable_unsafe_noiommu_mode=1}
 def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_len,fwd_mode):
-    nic1_name = get_env("NIC1")
-    nic1_driver = my_tool.get_nic_driver_from_name(nic1_name)
     dpdk_ver = get_env("DPDK_VER")
     if nic1_driver == "mlx5_core":
         cmd = f"""
