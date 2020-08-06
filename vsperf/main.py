@@ -789,7 +789,7 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
         import time
         time.sleep(3)
         # log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
-        cmd = f""" python ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """
+        cmd = f""" python -u ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """
         py3_run(cmd)
     return 0
 
@@ -1103,6 +1103,11 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     log("start and config guest Now")
     start_guest(new_xml)
     configure_guest()
+    log("show vm xml")
+    cmd = f"""
+    virsh dumpxml gg
+    """
+    log_and_run(cmd)
 
     log("guest start testpmd test Now")
     if q_num == 1:
