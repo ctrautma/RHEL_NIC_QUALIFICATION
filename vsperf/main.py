@@ -659,6 +659,7 @@ def check_guest_testpmd_result():
 def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_len,fwd_mode):
     dpdk_ver = get_env("DPDK_VER")
     cmd = fr"""
+    stty rows 24 cols 120
     /root/one_gig_hugepages.sh 1
     rpm -ivh /root//{dpdk_ver}/dpdk*.rpm
     echo "options vfio enable_unsafe_noiommu_mode=1" > /etc/modprobe.d/vfio.conf
@@ -679,6 +680,9 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     pts = bash("virsh ttyconsole gg").value()
     ret = my_tool.run_cmd_get_output(pts, cmd)
     log(ret)
+    print("**********************************")
+    print(ret)
+    print("**********************************")
 
     num_core = 2
     if queue_num == 1:
@@ -725,6 +729,9 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     log(cmd_test)
     ret = my_tool.run_cmd_get_output(pts,cmd_test,"testpmd>")
     log(ret)
+    print("***********************************")
+    print(ret)
+    print("***********************************")
     return 0
 
 @set_check(0)

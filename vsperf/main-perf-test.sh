@@ -257,7 +257,7 @@ start_main_process()
     pushd $CASE_PATH
     echo "Begin Start python process"
     source venv/bin/activate
-    python main.py
+    python -u main.py
     deactivate
     sleep 3
     popd
