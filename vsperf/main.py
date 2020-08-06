@@ -655,26 +655,40 @@ def check_guest_testpmd_result():
 #rpm -ivh /root/dpdkrpms/{dpdk_ver}/dpdk*.rpm
 # {modprobe  vfio enable_unsafe_noiommu_mode=1}
 def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_len,fwd_mode):
+    nic1_name = get_env("NIC1")
+    nic1_driver = my_tool.get_nic_driver_from_name(nic1_name)
     dpdk_ver = get_env("DPDK_VER")
-    cmd = f"""
-    /root/one_gig_hugepages.sh 1
-    rpm -ivh /root//{dpdk_ver}/dpdk*.rpm
-    echo "options vfio enable_unsafe_noiommu_mode=1" > /etc/modprobe.d/vfio.conf
-    modprobe -r vfio_iommu_type1
-    modprobe -r vfio-pci
-    modprobe -r vfio
-    modprobe  vfio
-    modprobe vfio-pci
-    ip link set eth1 down
-    ip link set eth2 down
-    ip link show
-    dpdk-devbind -b vfio-pci 0000:03:00.0
-    dpdk-devbind -b vfio-pci 0000:04:00.0
-    dpdk-devbind --status
-    """
-    pts = bash("virsh ttyconsole gg").value()
-    ret = my_tool.run_cmd_get_output(pts, cmd)
-    log(ret)
+    if nic1_name == "mlx5_core":
+        cmd = f"""
+        /root/one_gig_hugepages.sh 1
+        rpm -ivh /root//{dpdk_ver}/dpdk*.rpm
+        ip link set eth1 down
+        ip link set eth2 down
+        ip link show
+        """
+        pts = bash("virsh ttyconsole gg").value()
+        ret = my_tool.run_cmd_get_output(pts, cmd)
+        log(ret)
+    else:
+        cmd = f"""
+        /root/one_gig_hugepages.sh 1
+        rpm -ivh /root//{dpdk_ver}/dpdk*.rpm
+        echo "options vfio enable_unsafe_noiommu_mode=1" > /etc/modprobe.d/vfio.conf
+        modprobe -r vfio_iommu_type1
+        modprobe -r vfio-pci
+        modprobe -r vfio
+        modprobe  vfio
+        modprobe vfio-pci
+        ip link set eth1 down
+        ip link set eth2 down
+        ip link show
+        dpdk-devbind -b vfio-pci 0000:03:00.0
+        dpdk-devbind -b vfio-pci 0000:04:00.0
+        dpdk-devbind --status
+        """
+        pts = bash("virsh ttyconsole gg").value()
+        ret = my_tool.run_cmd_get_output(pts, cmd)
+        log(ret)
 
     num_core = 2
     if queue_num == 1:
