@@ -679,7 +679,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     """
     pts = bash("virsh ttyconsole gg").value()
     ret = my_tool.run_cmd_get_output(pts, cmd)
-    log(ret)
+    # log(ret)
     print("**********************************")
     print(ret)
     print("**********************************")
@@ -728,7 +728,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     """
     log(cmd_test)
     ret = my_tool.run_cmd_get_output(pts,cmd_test,"testpmd>")
-    log(ret)
+    # log(ret)
     print("***********************************")
     print(ret)
     print("***********************************")
