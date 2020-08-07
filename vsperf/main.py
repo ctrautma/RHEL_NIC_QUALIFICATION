@@ -621,14 +621,17 @@ def check_guest_kernel_bridge_result():
     pass
 
 def guest_start_kernel_bridge():
+    # brctl addbr br0
+    # brctl addif br0 eth1
+    # brctl addif br0 eth2
     cmd = f"""
-    brctl addbr br0
+    ip link add br0 type bridge
     ip addr add 192.168.1.2/24 dev eth1
     ip link set dev eth1 up
-    brctl addif br0 eth1
+    ip link set eth1 master br0
     ip addr add 192.168.1.3/24 dev eth2
     ip link set dev eth2 up
-    brctl addif br0 eth2
+    ip link set eth2 master br0
     ip addr add 1.1.1.5/16 dev br0
     ip link set dev br0 up
     # arp -s 1.1.1.10 3c:fd:fe:ad:bc:e8
@@ -637,7 +640,7 @@ def guest_start_kernel_bridge():
     yum install -y tuna
     tuned-adm profile network-latency
     sysctl -w net.ipv4.conf.all.rp_filter=0
-    sysctl -w net.ipv4.conf.eth0.rp_filter=0
+    # sysctl -w net.ipv4.conf.eth0.rp_filter=0
     """
     pts = bash("virsh ttyconsole gg").value()
     ret = my_tool.run_cmd_get_output(pts, cmd)
