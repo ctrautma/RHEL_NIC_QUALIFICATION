@@ -678,6 +678,8 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     echo "Diver is"$driver
     grep "mlx" <<< $driver || driverctl -v set-override 0000:03:00.0 vfio-pci
     grep "mlx" <<< $driver || driverctl -v set-override 0000:04:00.0 vfio-pci
+    grep "mlx" <<< $driver && driverctl -v unset-override 0000:03:00.0
+    grep "mlx" <<< $driver && driverctl -v unset-override 0000:04:00.0
     dpdk-devbind --status
     """
     pts = bash("virsh ttyconsole gg").value()
