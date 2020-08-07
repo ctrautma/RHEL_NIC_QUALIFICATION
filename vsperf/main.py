@@ -1046,12 +1046,21 @@ def update_xml_vnet_port(xml_file):
 
 def update_xml_vhostuser(xml_file,q_num):
     xml_tool.remove_item_from_xml(xml_file,"./devices/interface[@type='vhostuser']")
+    # item = """
+    #     <interface type='vhostuser'>
+    #         <mac address='{}'/>
+    #         <source type='unix' path='{}' mode='server'/>
+    #         <model type='virtio'/>
+    #         <driver name='vhost' iommu='on' ats='on' queues="{}"/>
+    #         <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
+    #     </interface>
+    # """
     item = """
         <interface type='vhostuser'>
             <mac address='{}'/>
             <source type='unix' path='{}' mode='server'/>
             <model type='virtio'/>
-            <driver name='vhost' iommu='on' ats='on' queues="{}"/>
+            <driver name='vhost' queues="{}"/>
             <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
         </interface>
     """
