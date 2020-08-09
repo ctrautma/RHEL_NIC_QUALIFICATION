@@ -335,7 +335,10 @@ def download_VNF_image():
         two_queue_image = get_env("TWO_QUEUE_IMAGE")
         one_queue_image_name = os.path.basename(one_queue_image)
         two_queue_image_name = os.path.basename(two_queue_image)
-        if os.path.exists(f"{image_dir}/{one_queue_image_name}"):
+        one_queue_image_backup_name = "backup_" + one_queue_image_name
+        two_queue_image_backup_name = "backup_" + two_queue_image_name
+        #for one queue image backup
+        if os.path.exists(f"{image_dir}/{one_queue_image_backup_name}"):
             pass
         else:
             log_info = """
@@ -348,9 +351,14 @@ def download_VNF_image():
             wget -P {image_dir} {one_queue_image} > /dev/null 2>&1
             """
             log_and_run(cmd)
+            with pushd(f"{image_dir}"):
+                cmd = f"""
+                mv {one_queue_image_name} {one_queue_image_backup_name}
+                """
             pass
 
-        if os.path.exists(f"{image_dir}/{two_queue_image_name}"):
+        #for two queue image backup
+        if os.path.exists(f"{image_dir}/{two_queue_image_backup_name}"):
             pass
         else:
             log_info = """
@@ -363,7 +371,39 @@ def download_VNF_image():
             wget -P {image_dir} {two_queue_image} > /dev/null 2>&1
             """
             log_and_run(cmd)
-            pass
+            with pushd(f"{image_dir}"):
+                cmd = f"""
+                mv {two_queue_image_name} {two_queue_image_backup_name}
+                """
+        #config a new image from backup image
+        if os.path.exists(f"{image_dir}/{one_queue_image_name}"):
+            with pushd(f"{image_dir}"):
+                cmd = f"""
+                rm -f {one_queue_image_name}
+                cp {one_queue_image_backup_name} {one_queue_image_name}
+                """
+                log_and_run(cmd)
+        else:
+            with pushd(f"{image_dir}"):
+                cmd = f"""
+                cp {one_queue_image_backup_name} {one_queue_image_name}
+                """
+                log_and_run(cmd)
+
+        #config a new two queue image from backup image
+        if os.path.exists(f"{image_dir}/{two_queue_image_name}"):
+            with pushd(f"{image_dir}"):
+                cmd = f"""
+                rm -f {two_queue_image_name}
+                cp {two_queue_image_backup_name} {two_queue_image_name}
+                """
+                log_and_run(cmd)
+        else:
+            with pushd(f"{image_dir}"):
+                cmd = f"""
+                cp {two_queue_image_backup_name} {two_queue_image_name}
+                """
+                log_and_run(cmd)
 
         udev_file = "60-persistent-net.rules"
         data = """
