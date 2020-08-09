@@ -346,7 +346,7 @@ def download_VNF_image():
             """
             log(log_info)
             cmd = f"""
-            wget -P {image_dir} {one_queue_image} -O {one_queue_image_backup_name}> /dev/null 2>&1
+            wget  {one_queue_image} -O {image_dir}/{one_queue_image_backup_name} > /dev/null 2>&1
             """
             log_and_run(cmd)
 
@@ -359,7 +359,7 @@ def download_VNF_image():
             """
             log(log_info)
             cmd = f"""
-            wget -P {image_dir} {two_queue_image} -O {two_queue_image_backup_name}> /dev/null 2>&1
+            wget  {two_queue_image} -O {image_dir}/{two_queue_image_backup_name}> /dev/null 2>&1
             """
             log_and_run(cmd)
 
