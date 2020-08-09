@@ -701,7 +701,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     modprobe vfio-pci
     ip link set eth1 down
     ip link set eth2 down
-    ip link show
+    ip -d link show
     driver=$(lspci -s 0000:03:00.0 -v | grep Kernel | grep modules | awk '{{print $NF}}')
     echo "Diver is"$driver
     grep "mlx" <<< $driver || driverctl -v set-override 0000:03:00.0 vfio-pci
