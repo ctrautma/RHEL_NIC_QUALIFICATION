@@ -338,9 +338,7 @@ def download_VNF_image():
         one_queue_image_backup_name = "backup_" + one_queue_image_name
         two_queue_image_backup_name = "backup_" + two_queue_image_name
         #for one queue image backup
-        if os.path.exists(f"{image_dir}/{one_queue_image_backup_name}"):
-            pass
-        else:
+        if not os.path.exists(f"{image_dir}/{one_queue_image_backup_name}"):
             log_info = """
             ***********************************************************************
             Downloading and decompressing VNF image. This may take a while!
@@ -348,19 +346,12 @@ def download_VNF_image():
             """
             log(log_info)
             cmd = f"""
-            wget -P {image_dir} {one_queue_image} > /dev/null 2>&1
+            wget -P {image_dir} {one_queue_image} -O {one_queue_image_backup_name}> /dev/null 2>&1
             """
             log_and_run(cmd)
-            with pushd(f"{image_dir}"):
-                cmd = f"""
-                mv {one_queue_image_name} {one_queue_image_backup_name}
-                """
-            pass
 
         #for two queue image backup
-        if os.path.exists(f"{image_dir}/{two_queue_image_backup_name}"):
-            pass
-        else:
+        if not os.path.exists(f"{image_dir}/{two_queue_image_backup_name}"):
             log_info = """
             ***********************************************************************
             Downloading and decompressing VNF image. This may take a while!
@@ -368,13 +359,10 @@ def download_VNF_image():
             """
             log(log_info)
             cmd = f"""
-            wget -P {image_dir} {two_queue_image} > /dev/null 2>&1
+            wget -P {image_dir} {two_queue_image} -O {two_queue_image_backup_name}> /dev/null 2>&1
             """
             log_and_run(cmd)
-            with pushd(f"{image_dir}"):
-                cmd = f"""
-                mv {two_queue_image_name} {two_queue_image_backup_name}
-                """
+
         #config a new image from backup image
         if os.path.exists(f"{image_dir}/{one_queue_image_name}"):
             with pushd(f"{image_dir}"):
