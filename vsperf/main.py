@@ -642,6 +642,8 @@ def check_guest_kernel_bridge_result():
     cmd = f"""
     ip -d link show br0
     ifconfig br0
+    ifconfig eth1
+    ifconfig eth2
     """
     pts = bash("virsh ttyconsole gg").value()
     ret = my_tool.run_cmd_get_output(pts, cmd)
@@ -846,16 +848,30 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
         if ret.code != 0:
             log("Trex server {} not up please check ".format(trex_server_ip))
         pass
+    # cmd = f"""
+    # ./binary-search.py \
+    # --trex-host={trex_server_ip} \
+    # --traffic-generator=trex-txrx \
+    # --frame-size={pkt_size} \
+    # --dst-macs={dst_mac_one},{dst_mac_two} \
+    # --traffic-direction=bidirectional \
+    # --search-granularity=5 \
+    # --search-runtime={t_time} \
+    # --validation-runtime=10 \
+    # --max-loss-pct=0.0 \
+    # --rate-unit=% \
+    # --rate=100
+    # """
+    # --search-granularity=1 \
     with pushd("/opt/trafficgen"):
         cmd = f"""
         ./binary-search.py \
         --trex-host={trex_server_ip} \
         --traffic-generator=trex-txrx \
         --frame-size={pkt_size} \
-        --dst-macs={dst_mac_one},{dst_mac_two} \
         --traffic-direction=bidirectional \
-        --search-granularity=5 \
         --search-runtime={t_time} \
+        --search-granularity=0.5 \
         --validation-runtime=10 \
         --max-loss-pct=0.0 \
         --rate-unit=% \
