@@ -857,7 +857,9 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
         --search-granularity=5 \
         --search-runtime={t_time} \
         --validation-runtime=10 \
-        --max-loss-pct=0.0
+        --max-loss-pct=0.0 \
+        --rate-unit=% \
+        --rate=100
         """
         log(cmd)
         py3_run(cmd)
