@@ -771,11 +771,11 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
 def clear_dpdk_interface():
     if bash("rpm -qa | grep dpdk-tools").value():
         bus_list = bash(r"dpdk-devbind -s | grep  -E drv=vfio-pci\|drv=igb | awk '{print $1}'").value()
-        print(bus_list)
+        # print(bus_list)
         for i in str(bus_list).split(os.linesep):
-            print("*************************************************************")
-            print(i)
-            print("*********************************************************")
+            # print("*************************************************************")
+            # print(i)
+            # print("*********************************************************")
             if len(i.strip()) > 0:
                 kernel_driver = bash(f"lspci -s {i} -v | grep Kernel  | grep modules  | awk '{{print $NF}}'").value()
                 log_and_run(f"dpdk-devbind -b {kernel_driver} {i}")
@@ -791,10 +791,10 @@ def clear_env():
     ip tuntap del tap0 mode tap
     ip tuntap del tap1 mode tap
     """
-    log_and_run(cmd,"0,1")
+    run(cmd,"0,1")
     clear_dpdk_interface()
     clear_hugepage()
-    log_and_run("ip link show")
+    # log_and_run("ip link show")
     log_and_run("sleep 10")
     log_and_run("ip link show")
     return 0
