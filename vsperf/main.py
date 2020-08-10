@@ -834,13 +834,7 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
         [ -e trafficgen ] || git clone https://github.com/atheurer/trafficgen.git
         mkdir -p trex
         pushd trex &>/dev/null
-        if [ ! -f {trex_name} ]; \
-        then \
-            wget -nv -N {trex_url}; \
-            tar xf {trex_name}; \
-            ln -sf {trex_name} current; \
-            ls -l; \
-        fi
+        [ -f {trex_name} ] || wget -nv -N {trex_url};tar xf {trex_name};ln -sf {trex_name} current; ls -l;
         popd &>/dev/null
         chmod 777 /opt/trex -R
         """
