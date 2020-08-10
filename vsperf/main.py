@@ -799,74 +799,74 @@ def clear_env():
     log_and_run("ip link show")
     return 0
 
-
-def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
-    trex_server_ip = get_env("TRAFFICGEN_TREX_HOST_IP_ADDR")
-    with pushd(case_path):
-        ret = bash(f"ping {trex_server_ip} -c 3")
-        if ret.code != 0:
-            log("Trex server {} not up please check ".format(trex_server_ip))
-        
-        trex_url = get_env("TREX_URL")
-        trex_dir = os.path.basename(trex_url).replace(".tar.gz","")
-        trex_name = os.path.basename(trex_url)
-        if not os.path.exists(trex_dir):
-            cmd = f"""
-            wget {trex_url} > /dev/null 2>&1
-            tar -xvf {trex_name} > /dev/null 2>&1
-            """
-            log_and_run(cmd)
-        import time
-        time.sleep(3)
-        # log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
-        cmd = f""" python -u ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """
-        py3_run(cmd)
-    return 0
-
-#Wtih binary_search version
 # def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
 #     trex_server_ip = get_env("TRAFFICGEN_TREX_HOST_IP_ADDR")
-#     trex_url = get_env("TREX_URL")
-#     trex_dir = os.path.basename(trex_url).replace(".tar.gz","")
-#     trex_name = os.path.basename(trex_url)
-#     #init trex package and lua traffic generator 
-#     with pushd("/opt"):
-#         cmd = f"""
-#         [ -e trafficgen ] || git clone https://github.com/atheurer/trafficgen.git
-#         mkdir -p trex
-#         pushd trex &>/dev/null
-#         if [ ! -f $(basename {trex_url}) ]
-#         then
-#                 wget -nv -N {trex_url}
-#                 tar xf $(basename {trex_url})
-#                 ln -sf $(ls -d v*) current
-#                 ls -l
-#         fi
-#         popd &>/dev/null
-#         chmod 777 /opt/trex -R
-#         """
-#         log_and_run(cmd)
-#         pass
 #     with pushd(case_path):
 #         ret = bash(f"ping {trex_server_ip} -c 3")
 #         if ret.code != 0:
 #             log("Trex server {} not up please check ".format(trex_server_ip))
-#         pass
-#     with pushd("/opt/trafficgen"):
-#         cmd = f"""
-#         ./binary-search.py \
-#         --traffic-generator=trex-txrx \
-#         --frame-size={pkt_size} \
-#         --dst-macs={dst_mac_one},{dst_mac_one} \
-#         --run-bidirec=1 \
-#         --search-granularity=5 \
-#         --search-runtime={t_time} \
-#         --validation-runtime=10 \
-#         --max-loss-pct=0.0
-#         """
-#         log(cmd)
+
+#         trex_url = get_env("TREX_URL")
+#         trex_dir = os.path.basename(trex_url).replace(".tar.gz","")
+#         trex_name = os.path.basename(trex_url)
+#         if not os.path.exists(trex_dir):
+#             cmd = f"""
+#             wget {trex_url} > /dev/null 2>&1
+#             tar -xvf {trex_name} > /dev/null 2>&1
+#             """
+#             log_and_run(cmd)
+#         import time
+#         time.sleep(3)
+#         # log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
+#         cmd = f""" python -u ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """
 #         py3_run(cmd)
 #     return 0
+
+#Wtih binary_search version
+def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
+    trex_server_ip = get_env("TRAFFICGEN_TREX_HOST_IP_ADDR")
+    trex_url = get_env("TREX_URL")
+    trex_dir = os.path.basename(trex_url).replace(".tar.gz","")
+    trex_name = os.path.basename(trex_url)
+    #init trex package and lua traffic generator
+    with pushd("/opt"):
+        cmd = fr"""
+        [ -e trafficgen ] || git clone https://github.com/atheurer/trafficgen.git
+        mkdir -p trex
+        pushd trex &>/dev/null
+        if [ ! -f {trex_name} ]; \
+        then \
+            wget -nv -N {trex_url}; \
+            tar xf {trex_name}; \
+            ln -sf {trex_name} current; \
+            ls -l; \
+        fi
+        popd &>/dev/null
+        chmod 777 /opt/trex -R
+        """
+        log_and_run(cmd)
+        pass
+    with pushd(case_path):
+        ret = bash(f"ping {trex_server_ip} -c 3")
+        if ret.code != 0:
+            log("Trex server {} not up please check ".format(trex_server_ip))
+        pass
+    with pushd("/opt/trafficgen"):
+        cmd = f"""
+        ./binary-search.py \
+        --trex-host={trex_server_ip} \
+        --traffic-generator=trex-txrx \
+        --frame-size={pkt_size} \
+        --dst-macs={dst_mac_one},{dst_mac_one} \
+        --run-bidirec=1 \
+        --search-granularity=5 \
+        --search-runtime={t_time} \
+        --validation-runtime=10 \
+        --max-loss-pct=0.0
+        """
+        log(cmd)
+        py3_run(cmd)
+    return 0
 
 
 def attach_sriov_vf_to_vm(xml_file,vm,vlan_id=0):
@@ -1164,6 +1164,13 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
 
     return 0
 
+def ovs_dpdk_pvp_test_wrap(q_num,mtu_val,pkt_size,cont_time):
+    pmd_num = q_num * 2
+    with enter_phase(f"OVS-DPDK-PVP-{pkt_size}-BYTES-{q_num}Q-{pmd_num}PMD-TEST"):
+        ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time)
+        pass
+    pass
+
 def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
     clear_env()
     nic1_name = get_env("NIC1")
@@ -1204,6 +1211,13 @@ def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
     check_guest_kernel_bridge_result()
 
     return 0
+
+def ovs_kernel_datapath_test_wrap(q_num,pkt_size,cont_time):
+    pmd_num = q_num * 2
+    with enter_phase(f"OVS-KERNEL-DATAPATH-PVP-{pkt_size}-Bytes-{q_num}Q-{pmd_num}PMD-TEST"):
+        ovs_kernel_datapath_test(q_num,pkt_size,cont_time)
+        pass
+    pass
 
 def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
     clear_env()
@@ -1249,6 +1263,12 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
 
     return 0
 
+def sriov_pci_passthrough_test_wrap(q_num,pkt_size,cont_time):
+    pmd_num = q_num * 2
+    with enter_phase(f"SRIOV-VF-PCI-PASSTHROUGH-{pkt_size}-Bytes-{q_num}Q-{pmd_num}PMD-TEST"):
+        sriov_pci_passthrough_test(q_num,pkt_size,cont_time)
+        pass
+    pass
 
 def run_tests(test_list):
     print(os.environ)
@@ -1259,16 +1279,7 @@ def run_tests(test_list):
     SKIP_KERNEL = int(os.environ.get("SKIP_KERNEL"))
 
     if test_list == "pvp_cont":
-        with enter_phase("PVP-1500-BYTES-CONT-1Q-2PMD-TEST"):
-            data = """
-            *************************************************************
-            Running 1500 Byte PVP verify check
-            For 1Q 2PMD Test
-            *************************************************************
-            """
-            log(data)
-            ovs_dpdk_pvp_test(1,1500,1500,30)
-            pass
+        ovs_dpdk_pvp_test_wrap(1,1500,1500,30)
     
     if test_list == "ALL" or test_list == "SRIOV":
         if SKIP_SRIOV == 1:
@@ -1279,84 +1290,42 @@ def run_tests(test_list):
             """
             log(data)
         else:
-            with enter_phase("SRIOV 64/1500 Bytes SR-IOV TEST"):
-                data = """
-                ************************************************
-                Running 64/1500 Bytes SR-IOV VSPerf TEST
-                ************************************************
-                """
-                log(data)
-                sriov_pci_passthrough_test(1,64,30)
-                sriov_pci_passthrough_test(2,1500,30)
-                pass
+            sriov_pci_passthrough_test_wrap(1,64,30)
+            sriov_pci_passthrough_test_wrap(2,1500,30)
+            pass
 
     if test_list == "ALL" or test_list == "1Q":
         if SKIP_1Q == 1:
             log("SKIP running 1500 Byte PVP verify check For 1Q 2PMD Test")
         else:
-            with enter_phase("Running 64/1500 Byte PVP verify check FOR 1Q AND 2PMD TEST"):
-                data = """
-                *************************************************************
-                Running 1500 Byte PVP verify check
-                For 1Q 2PMD Test
-                *************************************************************
-                """
-                log(data)
-                ovs_dpdk_pvp_test(1,64,64,30)
-                log("***************************************************************************************")
-                # import time
-                # time.sleep(10000)
-                ovs_dpdk_pvp_test(1,1500,1500,30)
-                pass
+            ovs_dpdk_pvp_test_wrap(1,64,64,30)
+            ovs_dpdk_pvp_test_wrap(1,1500,1500,30)
+            pass
 
     if test_list == "ALL" or test_list == "2Q":
         if SKIP_2Q == 1:
             log("SKIP running 1500 Byte PVP verify check For 2Q 4PMD Test")
         else:
-            with enter_phase("Running 64/1500 Byte PVP verify check FOR 2Q AND 4PMD TEST"):
-                data = """
-                *************************************************************
-                Running 1500 Byte PVP verify check
-                For 2Q 4PMD Test
-                *************************************************************
-                """
-                log(data)
-                ovs_dpdk_pvp_test(2,64,64,30)
-                ovs_dpdk_pvp_test(2,1500,1500,30)
-                pass
+            ovs_dpdk_pvp_test_wrap(2,64,64,30)
+            ovs_dpdk_pvp_test_wrap(2,1500,1500,30)
+            pass
 
     if test_list == "ALL" or test_list == "Jumbo":
         if SKIP_JUMBO == 1:
             log("SKIP running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST")
         else:
-            with enter_phase("Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST"):
-                data = """
-                *************************************************************
-                Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST
-                *************************************************************
-                """
-                log(data)
-                ovs_dpdk_pvp_test(1,2000,2000,30)
-                ovs_dpdk_pvp_test(2,9000,9000,30)
-                pass
+            ovs_dpdk_pvp_test_wrap(1,2000,2000,30)
+            ovs_dpdk_pvp_test_wrap(2,9000,9000,30)
+            pass
 
     if test_list == "ALL" or test_list == "Kernel":
         if SKIP_KERNEL == 1:
             log("skip running 64/1500 Bytes PVP OVS Kernel VSPerf TEST")
         else:
-            with enter_phase("Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST"):
-                data = """
-                ************************************************************
-                Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST
-                ************************************************************
-                """
-                log(data)
-                ovs_kernel_datapath_test(1,64,30)
-                ovs_kernel_datapath_test(2,1500,30)
-                pass
-
+            ovs_kernel_datapath_test_wrap(1,64,30)
+            ovs_kernel_datapath_test_wrap(2,1500,30)
+            pass
     return 0
-
 
 def copy_config_files_to_log_folder():
     log_folder = get_env("NIC_LOG_FOLDER")

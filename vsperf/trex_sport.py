@@ -327,7 +327,9 @@ class TrexTest(object):
         trex.start_stateless()
         #trex.get_trex_config()
         print("After Starting, TRex status is: {},{}".format(trex.is_running(), trex.get_running_status()))
-        print("Is TRex running? {},{}".format(trex.is_running(), trex.get_running_status()))
+        # import time
+        # time.sleep(5)
+        # print("Is TRex running? {},{}".format(trex.is_running(), trex.get_running_status()))
         self.trex = trex 
         self.trex_config = trex.get_trex_config()
         return self.trex
