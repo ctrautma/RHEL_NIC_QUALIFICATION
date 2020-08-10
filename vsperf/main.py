@@ -852,7 +852,7 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
         --trex-host={trex_server_ip} \
         --traffic-generator=trex-txrx \
         --frame-size={pkt_size} \
-        --dst-macs={dst_mac_one},{dst_mac_one} \
+        --dst-macs={dst_mac_one},{dst_mac_two} \
         --traffic-direction=bidirectional \
         --search-granularity=5 \
         --search-runtime={t_time} \
