@@ -873,6 +873,7 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
         --search-runtime={t_time} \
         --search-granularity=0.5 \
         --validation-runtime=10 \
+        --negative-packet-loss=fail \
         --max-loss-pct=0.0 \
         --rate-unit=% \
         --rate=100
