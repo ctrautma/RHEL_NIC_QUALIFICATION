@@ -27,6 +27,12 @@ class Tools(object):
         self.default_code = sys.getdefaultencoding()
         pass
 
+    def get_nic_driver_from_name(self, name):
+        if name:
+            return ethtool.get_module(name)
+        else:
+            return ""
+
     def get_bus_from_name(self, name):
         if name:
             return ethtool.get_businfo(name)

@@ -38,6 +38,13 @@ sys.path.append('./v2.49/automation/trex_control_plane/stf/trex_stf_lib/')
 sys.path.append('./v2.59/automation/trex_control_plane/interactive/trex/examples')
 sys.path.append('./v2.59/automation/trex_control_plane/interactive/trex/examples/stl')
 sys.path.append('./v2.59/automation/trex_control_plane/stf/trex_stf_lib/')
+sys.path.append("./v2.71/automation/trex_control_plane/interactive/trex/examples/")
+sys.path.append("./v2.71/automation/trex_control_plane/interactive/trex/examples/stl")
+sys.path.append("./v2.71/automation/trex_control_plane/stf/trex_stf_lib/")
+sys.path.append("./v2.82/automation/trex_control_plane/interactive/trex/examples/")
+sys.path.append("./v2.82/automation/trex_control_plane/interactive/trex/examples/stl")
+sys.path.append("./v2.82/automation/trex_control_plane/stf/trex_stf_lib/")
+
 
 import trex_client
 import trex_status
@@ -49,7 +56,7 @@ import argparse
 class TrexTest(object):
     def __init__(self, trex_host,pkt_size=64,duration=10,max_try=10,vlan_flag=False,dst_mac=None):
         self.trex_host = trex_host
-        self.pkt_size = pkt_size
+        self.pkt_size = pkt_size - 4
         self.duration = duration
         self.max_try = max_try         
         self.vlan_flag = vlan_flag
@@ -122,7 +129,8 @@ class TrexTest(object):
             for port in all_ports:
                 for stream in all_stream:
                     self.client.reset(all_ports)
-                    self.client.set_port_attr(ports=all_ports, promiscuous=False)
+                    # self.client.set_port_attr(ports=all_ports, promiscuous=False)
+                    self.client.set_port_attr(ports=all_ports, promiscuous=True)
                     self.client.acquire(ports=all_ports, force=True)
                     self.client.add_streams(stream, ports=port)
                     print("start test conn test with 1pps duration 10s ")
@@ -150,7 +158,7 @@ class TrexTest(object):
                     'tx_pps': 0.9904077472165227,
                     'tx_util': 6.9724695280194286e-06}}
                     """
-                    if ret_stat["total"]["ipackets"] >= ret_stat["total"]["opackets"]:
+                    if ret_stat["total"]["ipackets"] >= ret_stat["total"]["opackets"] and ret_stat["total"]["ipackets"] > 0:
                         print("***********************************************************************")
                         print("Port info {}".format(port))
                         print(self.client.get_port_attr(port))
@@ -286,7 +294,8 @@ class TrexTest(object):
         print("x"*100)
 
     def start_trex_server(self):
-        trex = trex_client.CTRexClient(self.trex_host)
+        trex = trex_client.CTRexClient(self.trex_host,trex_args="--no-ofed-check")
+        #trex = trex_client.CTRexClient(self.trex_host)
         trex.force_kill(confirm=False)
         time.sleep(3)
         print("Before Running, TRex status is: {}".format(trex.is_running()))
@@ -314,11 +323,13 @@ class TrexTest(object):
         """
         core_num = len(t_config_obj[0]['platform']['dual_if'][0]['threads'])
         #t_config_obj["platform"]["dual_if"]["threads"].len()
-        trex.trex_args = "-c {}".format(core_num)
+        trex.trex_args = "-c {} {}".format(core_num,"--no-ofed-check")
         trex.start_stateless()
         #trex.get_trex_config()
         print("After Starting, TRex status is: {},{}".format(trex.is_running(), trex.get_running_status()))
-        print("Is TRex running? {},{}".format(trex.is_running(), trex.get_running_status()))
+        # import time
+        # time.sleep(5)
+        # print("Is TRex running? {},{}".format(trex.is_running(), trex.get_running_status()))
         self.trex = trex 
         self.trex_config = trex.get_trex_config()
         return self.trex

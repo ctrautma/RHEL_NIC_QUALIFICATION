@@ -18,138 +18,42 @@ import xmltool
 from tee import StderrTee as errtee , StdoutTee as outtee
 import xml.etree.ElementTree as xml
 
+from beaker_cmd import (bash, enter_phase, log, log_and_run, pushd, run,
+                        send_command, set_check,rl_fail,sync_set,sync_wait)
+
 def get_env(var_name):
     return os.environ.get(var_name)
 
-case_path = get_env("CASE_PATH")
-system_version_id = int(get_env("SYSTEM_VERSION_ID"))
+case_path = os.environ.get("CASE_PATH")
+system_version_id = int(os.environ.get("SYSTEM_VERSION_ID"))
 my_tool = tools.Tools()
 xml_tool = xmltool.XmlTool()
-work_pipe = get_env("work_pipe")
-notify_pipe = get_env("notify_pipe")
-# print(work_pipe)
-# print(notify_pipe)
+image_dir = "/root/"
+# nic1_name = get_env("NIC1")
+# nic1_driver = my_tool.get_nic_driver_from_name(nic1_name)
 
-def set_check(ret):
-    def my_wrap(f):
-        @wraps(f)
-        def log_f_as_called(*args, **kwargs):
-            #cur_time = time.asctime()
-            my_command = f'{f.__name__} {args} {kwargs}'
-            cmd = f""":: [  BEGIN   ] :: Running '{my_command}'"""
-            log(cmd)
-            value = f(*args, **kwargs)
-            #cur_time = time.asctime()
-            cmd = f""":: [  END   ] :: Running '{my_command}' RETURN {value}"""
-            log(cmd)
-            return value
-        return log_f_as_called
-    return my_wrap    
+###############################################################################################
+###############################################################################################
+###############################################################################################
+###############################################################################################
 
-def send_command(cmd):
-    cmd = cmd + os.linesep
-    # import ripdb
-    # ripdb.set_trace()
-    try:
-        with open(notify_pipe,"r") as rfd:
-            rfd.read()
-            with open(work_pipe,"w") as fd:
-                fd.write(cmd)
-                fd.flush()
-    except IOError as e:
-        print("*"*80)
-        print("error find")
-        print(cmd)
-        print(e)
-        print("*"*80)
-    pass
-
-def send_all_command(cmds):
-    cmd_list = str(cmds).split(os.linesep)
-    for cmd in cmd_list:
-        send_command(cmd)
-    pass
-
-def log(str_log):
-    logs = str(str_log).split(os.linesep)
-    for cmd in logs:
-        cmd = f""" rlLog "{cmd}" """
-        send_command(cmd)
-
-
-def sh_run(cmd, str_ret_val="0"):
-    cmd = """ rlRun  "{}" "{}" """.format(cmd, str_ret_val)
-    send_command(cmd)
-    pass
-
-def sh_run_log(cmd, str_ret_val="0"):
-    cmd = """ rlRun -l "{}" "{}" """.format(cmd, str_ret_val)
-    send_command(cmd)
-    pass
-
-def run(cmd, str_ret_val="0"):
-    cmds = cmd.split(os.linesep)
-    cmds = [ i.strip() for i in cmds ]
-    for cmd in cmds:
-        if len(cmd) > 0:
-            sh_run(cmd, str_ret_val)
-        else:
-            sh_run("echo")
-    pass
-
-def runlog(cmd, str_ret_val="0"):
-    cmds = cmd.split(os.linesep)
-    cmds = [ i.strip() for i in cmds ]
-    for cmd in cmds:
-        if len(cmd) > 0:
-            sh_run_log(cmd, str_ret_val)
-        else:
-            sh_run("echo")
-    pass
-    
-def log_and_run(cmd, str_ret_val="0"):
-    log(cmd)
+def py3_run(cmd,str_ret_val="0"):
+    run(f"source {case_path}/venv/bin/activate")
     run(cmd,str_ret_val)
-    pass
-
-def shpushd(path):
-    #cmd = f"""rlRun "pushd {path}" """
-    log(f"Enter dir: {path}")
-    cmd = f"""pushd {path} > /dev/null"""
-    send_command(cmd)
-    pass
-
-
-def shpopd():
-    #cmd = "rlRun popd"
-    cmd = "popd > /dev/null"
-    send_command(cmd)
+    run("deactivate")
     pass
 
 @contextlib.contextmanager
-def pushd(path):
-    shpushd(path)
+def enter_py3_env():
+    enter_cmd = f""" source {case_path}/venv/bin/activate """
+    out_cmd = f""" deactivate """
+    send_command(enter_cmd)
+    time.sleep(1)
     try:
         yield
     finally:
-        shpopd()
-
-@contextlib.contextmanager
-def enter_phase(str):
-    cmd = f""" rlPhaseStartTest '{str}' """
-    send_command(cmd)
-    time.sleep(3)
-    try:
-        yield
-    finally:
-        send_command("rlPhaseEnd")
-        time.sleep(3)
-
-###############################################################################################
-###############################################################################################
-###############################################################################################
-###############################################################################################
-
+        send_command(out_cmd)
+        time.sleep(1)
 
 def check_install(pkg_name):
     run("rpm -q {} || yum -y install {}".format(pkg_name, pkg_name))
@@ -293,7 +197,8 @@ def hugepage_checks():
 
 
 def check_env_var(str_name):
-    if get_env(str_name) != None:
+    env_var = get_env(str_name)
+    if env_var != None and len(str(env_var).strip()) > 0:
         return True
     else:
         return False
@@ -314,16 +219,27 @@ def config_file_checks():
         VCPU3
         VCPU4
         VCPU5
+        TXD_SIZE
+        RXD_SIZE
+        SRIOV_TXD_SIZE
+        SRIOV_RXD_SIZE
         TRAFFICGEN_TREX_HOST_IP_ADDR
         TRAFFICGEN_TREX_PORT1
         TRAFFICGEN_TREX_PORT2
+        NIC1_VF
+        NIC2_VF
+        ONE_QUEUE_IMAGE
+        TWO_QUEUE_IMAGE
+        DPDK_VER
+        DPDK_URL
+        DPDK_TOOL_URL
+        TREX_URL
         """.split()
         for name in str_all_name:
             if False == check_env_var(name):
                 log(f"Please set the config Var {name} in Perf-Verify.conf file")
                 return 1
         return 0
-
 
 def nic_card_check():
     log("Now Checking for NIC cards")
@@ -338,7 +254,7 @@ def nic_card_check():
 def rpm_check():
     log("*** Checking for installed RPMS ***")
 
-    if bash("rpm -qa | grep ^openvswitch-[0-9]").value() == "":
+    if bash("rpm -qa | grep ^openvswitch").value() == "":
         log("Openvswitch rpm" "Please install Openvswitch rpm")
         return 1
     else:
@@ -356,11 +272,21 @@ def rpm_check():
     else:
         log("dpdk package check OK")
 
-    if bash("rpm -qa | grep qemu-kvm-tools").value() == "":
-        log("Please install qemu-kvm-tools rpm ")
-        return 1
+    log("Please make sure qemu-kvm qemu-kvm-tools version >= 2.12 !!!!")
+    log("Please make sure qemu-kvm qemu-kvm-tools version >= 2.12 !!!!")
+    log("Please make sure qemu-kvm qemu-kvm-tools version >= 2.12 !!!!")
+    if system_version_id < 80:
+        if bash("rpm -qa | grep qemu-kvm-tools").value() == "":
+            log("Please install qemu-kvm-tools rpm ")
+            return 1
+        else:
+            log("qemu-kvm-tools check OK")
     else:
-        log("qemu-kvm-tools check OK")
+        if bash("rpm -qa | grep kernel-tools").value() == "":
+            log("Please install kernel-tools rpm ")
+            return 1
+        else:
+            log("kernel-tools check OK")
 
     if bash("rpm -qa | grep qemu-img").value() == "":
         log("Please install qemu-img rpm ")
@@ -399,48 +325,73 @@ def ovs_running_check():
         log("ovs-vswitchd and ovsdb-server check OK")
     return 0
 
-
 def download_VNF_image():
+    cmd = f"""
+    chmod 777 {image_dir}
+    """
+    log_and_run(cmd)
     with pushd(case_path):
-        one_queue_image = get_env("one_queue_image")
-        two_queue_image = get_env("two_queue_image")
-        if os.path.exists(f"{case_path}/{one_queue_image}"):
-            pass
-        else:
+        one_queue_image = get_env("ONE_QUEUE_IMAGE")
+        two_queue_image = get_env("TWO_QUEUE_IMAGE")
+        one_queue_image_name = os.path.basename(one_queue_image)
+        two_queue_image_name = os.path.basename(two_queue_image)
+        one_queue_image_backup_name = "backup_" + one_queue_image_name
+        two_queue_image_backup_name = "backup_" + two_queue_image_name
+        #for one queue image backup
+        if not os.path.exists(f"{image_dir}/{one_queue_image_backup_name}"):
             log_info = """
             ***********************************************************************
             Downloading and decompressing VNF image. This may take a while!
             ***********************************************************************
             """
             log(log_info)
-            one_queue_zip = get_env("one_queue_zip")
             cmd = f"""
-            wget http://netqe-bj.usersys.redhat.com/share/tli/vsperf_img/{one_queue_image} > /dev/null 2>&1
-            #wget people.redhat.com/ctrautma/{one_queue_zip} > /dev/null 2>&1
-            #lrzip -d {one_queue_zip}
-            #rm -f {one_queue_zip}
+            wget  {one_queue_image} -O {image_dir}/{one_queue_image_backup_name} > /dev/null 2>&1
             """
             log_and_run(cmd)
-            pass
 
-        if os.path.exists(f"{case_path}/{two_queue_image}"):
-            pass
-        else:
+        #for two queue image backup
+        if not os.path.exists(f"{image_dir}/{two_queue_image_backup_name}"):
             log_info = """
             ***********************************************************************
             Downloading and decompressing VNF image. This may take a while!
             ***********************************************************************
             """
             log(log_info)
-            two_queue_zip = get_env("two_queue_zip")
             cmd = f"""
-            wget http://netqe-bj.usersys.redhat.com/share/tli/vsperf_img/{two_queue_image} > /dev/null 2>&1
-            # wget people.redhat.com/ctrautma/{two_queue_zip} > /dev/null 2>&1
-            # lrzip -d {two_queue_zip}
-            # rm -f {two_queue_zip}
+            wget  {two_queue_image} -O {image_dir}/{two_queue_image_backup_name}> /dev/null 2>&1
             """
             log_and_run(cmd)
-            pass
+
+        #config a new image from backup image
+        if os.path.exists(f"{image_dir}/{one_queue_image_name}"):
+            with pushd(f"{image_dir}"):
+                cmd = f"""
+                rm -f {one_queue_image_name}
+                cp {one_queue_image_backup_name} {one_queue_image_name}
+                """
+                log_and_run(cmd)
+        else:
+            with pushd(f"{image_dir}"):
+                cmd = f"""
+                cp {one_queue_image_backup_name} {one_queue_image_name}
+                """
+                log_and_run(cmd)
+
+        #config a new two queue image from backup image
+        if os.path.exists(f"{image_dir}/{two_queue_image_name}"):
+            with pushd(f"{image_dir}"):
+                cmd = f"""
+                rm -f {two_queue_image_name}
+                cp {two_queue_image_backup_name} {two_queue_image_name}
+                """
+                log_and_run(cmd)
+        else:
+            with pushd(f"{image_dir}"):
+                cmd = f"""
+                cp {two_queue_image_backup_name} {two_queue_image_name}
+                """
+                log_and_run(cmd)
 
         udev_file = "60-persistent-net.rules"
         data = """
@@ -453,26 +404,25 @@ def download_VNF_image():
 
 
     cmd = f"""
-    virt-copy-in -a {case_path}/{one_queue_image} {udev_file} /etc/udev/rules.d/
-    virt-copy-in -a {case_path}/{two_queue_image} {udev_file} /etc/udev/rules.d/
+    virt-copy-in -a {image_dir}/{one_queue_image_name} {udev_file} /etc/udev/rules.d/
+    virt-copy-in -a {image_dir}/{two_queue_image_name} {udev_file} /etc/udev/rules.d/
     """
     log_and_run(cmd)
 
-    dpdk_url = get_env("dpdk_url")
-    dpdk_tool_url = get_env("dpdk_tool_url")
-    dpdk_ver = get_env("dpdk_ver")
+    dpdk_url = get_env("DPDK_URL")
+    dpdk_tool_url = get_env("DPDK_TOOL_URL")
+    dpdk_ver = get_env("DPDK_VER")
 
     cmd =  f"""
     rm -rf /root/{dpdk_ver}
     mkdir -p /root/{dpdk_ver}
     wget -P /root/{dpdk_ver}/ {dpdk_url} > /dev/null 2>&1
     wget -P /root/{dpdk_ver}/ {dpdk_tool_url} > /dev/null 2>&1
-    virt-copy-in -a {case_path}/{one_queue_image} /root/{dpdk_ver} /root/
-    virt-copy-in -a {case_path}/{two_queue_image} /root/{dpdk_ver} /root/
+    virt-copy-in -a {image_dir}/{one_queue_image_name} /root/{dpdk_ver} /root/
+    virt-copy-in -a {image_dir}/{two_queue_image_name} /root/{dpdk_ver} /root/
     sleep 5
     """
     log_and_run(cmd)
-    
     return 0
 
 
@@ -641,47 +591,47 @@ def destroy_guest():
 
 def configure_guest():
     cmd = """
-        stty rows 24 cols 120
-        nmcli dev set eth1 managed no
-        nmcli dev set eth2 managed no
-        systemctl stop firewalld
-        iptables -t filter -P INPUT ACCEPT
-        iptables -t filter -P FORWARD ACCEPT
-        iptables -t filter -P OUTPUT ACCEPT
-        iptables -t mangle -P PREROUTING ACCEPT
-        iptables -t mangle -P INPUT ACCEPT
-        iptables -t mangle -P FORWARD ACCEPT
-        iptables -t mangle -P OUTPUT ACCEPT
-        iptables -t mangle -P POSTROUTING ACCEPT
-        iptables -t nat -P PREROUTING ACCEPT
-        iptables -t nat -P INPUT ACCEPT
-        iptables -t nat -P OUTPUT ACCEPT
-        iptables -t nat -P POSTROUTING ACCEPT
-        iptables -t filter -F
-        iptables -t filter -X
-        iptables -t mangle -F
-        iptables -t mangle -X
-        iptables -t nat -F
-        iptables -t nat -X
-        ip6tables -t filter -P INPUT ACCEPT
-        ip6tables -t filter -P FORWARD ACCEPT
-        ip6tables -t filter -P OUTPUT ACCEPT
-        ip6tables -t mangle -P PREROUTING ACCEPT
-        ip6tables -t mangle -P INPUT ACCEPT
-        ip6tables -t mangle -P FORWARD ACCEPT
-        ip6tables -t mangle -P OUTPUT ACCEPT
-        ip6tables -t mangle -P POSTROUTING ACCEPT
-        ip6tables -t nat -P PREROUTING ACCEPT
-        ip6tables -t nat -P INPUT ACCEPT
-        ip6tables -t nat -P OUTPUT ACCEPT
-        ip6tables -t nat -P POSTROUTING ACCEPT
-        ip6tables -t filter -F
-        ip6tables -t filter -X
-        ip6tables -t mangle -F
-        ip6tables -t mangle -X
-        ip6tables -t nat -F
-        ip6tables -t nat -X
-        ip -d addr show
+    stty rows 24 cols 120
+    nmcli dev set eth1 managed no
+    nmcli dev set eth2 managed no
+    systemctl stop firewalld
+    iptables -t filter -P INPUT ACCEPT
+    iptables -t filter -P FORWARD ACCEPT
+    iptables -t filter -P OUTPUT ACCEPT
+    iptables -t mangle -P PREROUTING ACCEPT
+    iptables -t mangle -P INPUT ACCEPT
+    iptables -t mangle -P FORWARD ACCEPT
+    iptables -t mangle -P OUTPUT ACCEPT
+    iptables -t mangle -P POSTROUTING ACCEPT
+    iptables -t nat -P PREROUTING ACCEPT
+    iptables -t nat -P INPUT ACCEPT
+    iptables -t nat -P OUTPUT ACCEPT
+    iptables -t nat -P POSTROUTING ACCEPT
+    iptables -t filter -F
+    iptables -t filter -X
+    iptables -t mangle -F
+    iptables -t mangle -X
+    iptables -t nat -F
+    iptables -t nat -X
+    ip6tables -t filter -P INPUT ACCEPT
+    ip6tables -t filter -P FORWARD ACCEPT
+    ip6tables -t filter -P OUTPUT ACCEPT
+    ip6tables -t mangle -P PREROUTING ACCEPT
+    ip6tables -t mangle -P INPUT ACCEPT
+    ip6tables -t mangle -P FORWARD ACCEPT
+    ip6tables -t mangle -P OUTPUT ACCEPT
+    ip6tables -t mangle -P POSTROUTING ACCEPT
+    ip6tables -t nat -P PREROUTING ACCEPT
+    ip6tables -t nat -P INPUT ACCEPT
+    ip6tables -t nat -P OUTPUT ACCEPT
+    ip6tables -t nat -P POSTROUTING ACCEPT
+    ip6tables -t filter -F
+    ip6tables -t filter -X
+    ip6tables -t mangle -F
+    ip6tables -t mangle -X
+    ip6tables -t nat -F
+    ip6tables -t nat -X
+    ip -d addr show
     """
     pts = bash("virsh ttyconsole gg").value()
     ret = my_tool.run_cmd_get_output(pts, cmd)
@@ -692,6 +642,8 @@ def check_guest_kernel_bridge_result():
     cmd = f"""
     ip -d link show br0
     ifconfig br0
+    ifconfig eth1
+    ifconfig eth2
     """
     pts = bash("virsh ttyconsole gg").value()
     ret = my_tool.run_cmd_get_output(pts, cmd)
@@ -699,14 +651,17 @@ def check_guest_kernel_bridge_result():
     pass
 
 def guest_start_kernel_bridge():
+    # brctl addbr br0
+    # brctl addif br0 eth1
+    # brctl addif br0 eth2
     cmd = f"""
-    brctl addbr br0
+    ip link add br0 type bridge
     ip addr add 192.168.1.2/24 dev eth1
     ip link set dev eth1 up
-    brctl addif br0 eth1
+    ip link set eth1 master br0
     ip addr add 192.168.1.3/24 dev eth2
     ip link set dev eth2 up
-    brctl addif br0 eth2
+    ip link set eth2 master br0
     ip addr add 1.1.1.5/16 dev br0
     ip link set dev br0 up
     # arp -s 1.1.1.10 3c:fd:fe:ad:bc:e8
@@ -715,7 +670,7 @@ def guest_start_kernel_bridge():
     yum install -y tuna
     tuned-adm profile network-latency
     sysctl -w net.ipv4.conf.all.rp_filter=0
-    sysctl -w net.ipv4.conf.eth0.rp_filter=0
+    # sysctl -w net.ipv4.conf.eth0.rp_filter=0
     """
     pts = bash("virsh ttyconsole gg").value()
     ret = my_tool.run_cmd_get_output(pts, cmd)
@@ -732,12 +687,13 @@ def check_guest_testpmd_result():
     log(ret)
     return 0
 
+#rpm -ivh /root/dpdkrpms/{dpdk_ver}/dpdk*.rpm
 # {modprobe  vfio enable_unsafe_noiommu_mode=1}
 def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_len,fwd_mode):
-    dpdk_ver = get_env("dpdk_ver")
-    cmd = f"""
+    dpdk_ver = get_env("DPDK_VER")
+    cmd = fr"""
+    stty rows 24 cols 120
     /root/one_gig_hugepages.sh 1
-    rpm -ivh /root/dpdkrpms/{dpdk_ver}/dpdk*.rpm
     rpm -ivh /root//{dpdk_ver}/dpdk*.rpm
     echo "options vfio enable_unsafe_noiommu_mode=1" > /etc/modprobe.d/vfio.conf
     modprobe -r vfio_iommu_type1
@@ -747,16 +703,21 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     modprobe vfio-pci
     ip link set eth1 down
     ip link set eth2 down
-    ip link show
-    dpdk-devbind -b vfio-pci 0000:03:00.0
-    dpdk-devbind -b vfio-pci 0000:04:00.0
+    ip -d link show
+    driver=$(lspci -s 0000:03:00.0 -v | grep Kernel | grep modules | awk '{{print $NF}}')
+    echo "Diver is"$driver
+    grep "mlx" <<< $driver || driverctl -v set-override 0000:03:00.0 vfio-pci
+    grep "mlx" <<< $driver || driverctl -v set-override 0000:04:00.0 vfio-pci
+    grep "mlx" <<< $driver && driverctl -v unset-override 0000:03:00.0
+    grep "mlx" <<< $driver && driverctl -v unset-override 0000:04:00.0
     dpdk-devbind --status
     """
     pts = bash("virsh ttyconsole gg").value()
     ret = my_tool.run_cmd_get_output(pts, cmd)
-    log(ret)
-    # from remote_pdb import set_trace
-    # set_trace() 
+    # log(ret)
+    print("**********************************")
+    print(ret)
+    print("**********************************")
 
     num_core = 2
     if queue_num == 1:
@@ -767,7 +728,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     hw_vlan_flag = ""
     legacy_mem = ""
 
-    dpdk_version = int(get_env("dpdk_ver").split('-')[0])
+    dpdk_version = int(get_env("DPDK_VER").split('-')[0])
     if dpdk_version >= 1811:
         legacy_mem = " --legacy-mem "
         hw_vlan_flag = ""
@@ -779,7 +740,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     if fwd_mode == "mac":
         port0_peer_mac = get_env("TRAFFICGEN_TREX_PORT1")
         port1_peer_mac = get_env("TRAFFICGEN_TREX_PORT2")
-        extra_parameter = f"--eth-peer=0,{port0_peer_mac} --eth-peer=1,{port1_peer_mac}"
+        extra_parameter = f""" --eth-peer=0,{port0_peer_mac} --eth-peer=1,{port1_peer_mac} """
 
     cmd_test = f"""testpmd -l {guest_cpu_list}  \
     --socket-mem 1024 \
@@ -800,19 +761,23 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     {extra_parameter} \
     --auto-start
     """
+    log(cmd_test)
     ret = my_tool.run_cmd_get_output(pts,cmd_test,"testpmd>")
-    log(ret)
+    # log(ret)
+    print("***********************************")
+    print(ret)
+    print("***********************************")
     return 0
 
 @set_check(0)
 def clear_dpdk_interface():
     if bash("rpm -qa | grep dpdk-tools").value():
         bus_list = bash(r"dpdk-devbind -s | grep  -E drv=vfio-pci\|drv=igb | awk '{print $1}'").value()
-        print(bus_list)
+        # print(bus_list)
         for i in str(bus_list).split(os.linesep):
-            print("*************************************************************")
-            print(i)
-            print("*********************************************************")
+            # print("*************************************************************")
+            # print(i)
+            # print("*********************************************************")
             if len(i.strip()) > 0:
                 kernel_driver = bash(f"lspci -s {i} -v | grep Kernel  | grep modules  | awk '{{print $NF}}'").value()
                 log_and_run(f"dpdk-devbind -b {kernel_driver} {i}")
@@ -828,37 +793,96 @@ def clear_env():
     ip tuntap del tap0 mode tap
     ip tuntap del tap1 mode tap
     """
-    log_and_run(cmd,"0,1")
+    run(cmd,"0,1")
     clear_dpdk_interface()
     clear_hugepage()
-    log_and_run("ip link show")
+    # log_and_run("ip link show")
     log_and_run("sleep 10")
     log_and_run("ip link show")
     return 0
 
+# def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
+#     trex_server_ip = get_env("TRAFFICGEN_TREX_HOST_IP_ADDR")
+#     with pushd(case_path):
+#         ret = bash(f"ping {trex_server_ip} -c 3")
+#         if ret.code != 0:
+#             log("Trex server {} not up please check ".format(trex_server_ip))
+
+#         trex_url = get_env("TREX_URL")
+#         trex_dir = os.path.basename(trex_url).replace(".tar.gz","")
+#         trex_name = os.path.basename(trex_url)
+#         if not os.path.exists(trex_dir):
+#             cmd = f"""
+#             wget {trex_url} > /dev/null 2>&1
+#             tar -xvf {trex_name} > /dev/null 2>&1
+#             """
+#             log_and_run(cmd)
+#         import time
+#         time.sleep(3)
+#         # log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
+#         cmd = f""" python -u ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """
+#         py3_run(cmd)
+#     return 0
+
+#Wtih binary_search version
 def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
     trex_server_ip = get_env("TRAFFICGEN_TREX_HOST_IP_ADDR")
+    trex_url = get_env("TREX_URL")
+    trex_dir = os.path.basename(trex_url).replace(".tar.gz","")
+    trex_name = os.path.basename(trex_url)
+    #init trex package and lua traffic generator
+    # [ -e trafficgen ] || git clone https://github.com/atheurer/trafficgen.git
+    # [ -e trafficgen ] || git clone https://github.com/wanghekai/trafficgen.git
+    with pushd("/opt"):
+        cmd = fr"""
+        [ -e trafficgen ] || git clone https://github.com/atheurer/trafficgen.git
+        mkdir -p trex
+        pushd trex &>/dev/null
+        [ -f {trex_name} ] || wget -nv -N {trex_url};tar xf {trex_name};ln -sf {trex_dir} current; ls -l;
+        popd &>/dev/null
+        chmod 777 /opt/trex -R
+        """
+        log_and_run(cmd)
+        pass
     with pushd(case_path):
         ret = bash(f"ping {trex_server_ip} -c 3")
         if ret.code != 0:
             log("Trex server {} not up please check ".format(trex_server_ip))
-        
-        trex_url = "http://netqe-bj.usersys.redhat.com/share/wanghekai/v2.59.tar.gz"
-        trex_dir = os.path.basename(trex_url).replace(".tar.gz","")
-        trex_name = os.path.basename(trex_url)
-        if not os.path.exists(trex_dir):
-            cmd = f"""
-            wget {trex_url} > /dev/null 2>&1
-            tar -xvf {trex_name} > /dev/null 2>&1
-            """
-            log_and_run(cmd)
-        import time
-        time.sleep(3)
-        # trex_port_1 = get_env("TRAFFICGEN_TREX_PORT1")
-        # trex_port_2 = get_env("TRAFFICGEN_TREX_PORT2")
-        # log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{trex_port_1} {trex_port_2}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
-        log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
+        pass
+    # cmd = f"""
+    # ./binary-search.py \
+    # --trex-host={trex_server_ip} \
+    # --traffic-generator=trex-txrx \
+    # --frame-size={pkt_size} \
+    # --dst-macs={dst_mac_one},{dst_mac_two} \
+    # --traffic-direction=bidirectional \
+    # --search-granularity=5 \
+    # --search-runtime={t_time} \
+    # --validation-runtime=10 \
+    # --max-loss-pct=0.0 \
+    # --rate-unit=% \
+    # --rate=100
+    # """
+    # --search-granularity=1 \
+    with pushd("/opt/trafficgen"):
+        cmd = f"""
+        ./binary-search.py \
+        --trex-host={trex_server_ip} \
+        --traffic-generator=trex-txrx \
+        --frame-size={pkt_size} \
+        --traffic-direction=bidirectional \
+        --search-runtime={t_time} \
+        --search-granularity=0.5 \
+        --validation-runtime=10 \
+        --negative-packet-loss=fail \
+        --max-loss-pct=0.0 \
+        --rate-unit=% \
+        --rate=100
+        """
+        log(cmd)
+        py3_run(cmd)
     return 0
+
 
 def attach_sriov_vf_to_vm(xml_file,vm,vlan_id=0):
     vf1_bus_info = my_tool.get_bus_from_name(get_env("NIC1_VF"))
@@ -1067,12 +1091,21 @@ def update_xml_vnet_port(xml_file):
 
 def update_xml_vhostuser(xml_file,q_num):
     xml_tool.remove_item_from_xml(xml_file,"./devices/interface[@type='vhostuser']")
+    # item = """
+    #     <interface type='vhostuser'>
+    #         <mac address='{}'/>
+    #         <source type='unix' path='{}' mode='server'/>
+    #         <model type='virtio'/>
+    #         <driver name='vhost' iommu='on' ats='on' queues="{}"/>
+    #         <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
+    #     </interface>
+    # """
     item = """
         <interface type='vhostuser'>
             <mac address='{}'/>
             <source type='unix' path='{}' mode='server'/>
             <model type='virtio'/>
-            <driver name='vhost' iommu='on' ats='on' queues="{}"/>
+            <driver name='vhost' queues="{}"/>
             <address type='pci' domain='{}' bus='{}' slot='{}' function='{}'/>
         </interface>
     """
@@ -1113,14 +1146,22 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     vcpupin_in_xml(numa_node,"guest.xml",new_xml,vcpu_list)
     update_xml_vhostuser(new_xml,q_num)
 
+    one_queue_image_name = os.path.basename(get_env("ONE_QUEUE_IMAGE"))
+    two_queue_image_name = os.path.basename(get_env("TWO_QUEUE_IMAGE"))
+
     if q_num == 1:
-        xml_tool.update_image_source(new_xml,case_path + "/" + get_env("one_queue_image"))
+        xml_tool.update_image_source(new_xml,image_dir + "/" + one_queue_image_name)
     else:
-        xml_tool.update_image_source(new_xml,case_path + "/" + get_env("two_queue_image"))
+        xml_tool.update_image_source(new_xml,image_dir + "/" + two_queue_image_name)
     
     log("start and config guest Now")
     start_guest(new_xml)
     configure_guest()
+    log("show vm xml")
+    cmd = f"""
+    virsh dumpxml gg
+    """
+    log_and_run(cmd)
 
     log("guest start testpmd test Now")
     if q_num == 1:
@@ -1137,6 +1178,13 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
     check_guest_testpmd_result()
 
     return 0
+
+def ovs_dpdk_pvp_test_wrap(q_num,mtu_val,pkt_size,cont_time):
+    pmd_num = q_num * 2
+    with enter_phase(f"OVS-DPDK-PVP-{pkt_size}-BYTES-{q_num}Q-{pmd_num}PMD-TEST"):
+        ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time)
+        pass
+    pass
 
 def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
     clear_env()
@@ -1155,10 +1203,14 @@ def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
     vcpupin_in_xml(numa_node,"guest.xml",new_xml,vcpu_list) 
     update_xml_vnet_port(new_xml)
 
+    one_queue_image_name = os.path.basename(get_env("ONE_QUEUE_IMAGE"))
+    two_queue_image_name = os.path.basename(get_env("TWO_QUEUE_IMAGE"))
+
     if q_num == 1:
-        xml_tool.update_image_source(new_xml,case_path + "/" + get_env("one_queue_image"))
+        xml_tool.update_image_source(new_xml,image_dir + "/" + one_queue_image_name)
     else:
-        xml_tool.update_image_source(new_xml,case_path + "/" + get_env("two_queue_image"))
+        xml_tool.update_image_source(new_xml,image_dir + "/" + two_queue_image_name)
+
 
     start_guest(new_xml)
 
@@ -1175,6 +1227,13 @@ def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
 
     return 0
 
+def ovs_kernel_datapath_test_wrap(q_num,pkt_size,cont_time):
+    pmd_num = q_num * 2
+    with enter_phase(f"OVS-KERNEL-DATAPATH-PVP-{pkt_size}-Bytes-{q_num}Q-{pmd_num}PMD-TEST"):
+        ovs_kernel_datapath_test(q_num,pkt_size,cont_time)
+        pass
+    pass
+
 def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
     clear_env()
     numa_node = bash("cat /sys/class/net/{}/device/numa_node".format(get_env("NIC1_VF"))).value()
@@ -1188,12 +1247,15 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
     # Here because of the limit of p35 archtechture , I can not add two vf into vm at the same time 
     # So , make a workaround , add vf with virsh attach-device two times
 
-    #start vm
+    one_queue_image_name = os.path.basename(get_env("ONE_QUEUE_IMAGE"))
+    two_queue_image_name = os.path.basename(get_env("TWO_QUEUE_IMAGE"))
+
     if q_num == 1:
-        xml_tool.update_image_source(new_xml,case_path + "/" + get_env("one_queue_image"))
+        xml_tool.update_image_source(new_xml,image_dir + "/" + one_queue_image_name)
     else:
-        xml_tool.update_image_source(new_xml,case_path + "/" + get_env("two_queue_image"))
-    
+        xml_tool.update_image_source(new_xml,image_dir + "/" + two_queue_image_name)
+
+
     start_guest(new_xml)
 
     #Here attach vf to vm 
@@ -1216,91 +1278,69 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
 
     return 0
 
+def sriov_pci_passthrough_test_wrap(q_num,pkt_size,cont_time):
+    pmd_num = q_num * 2
+    with enter_phase(f"SRIOV-VF-PCI-PASSTHROUGH-{pkt_size}-Bytes-{q_num}Q-{pmd_num}PMD-TEST"):
+        sriov_pci_passthrough_test(q_num,pkt_size,cont_time)
+        pass
+    pass
 
 def run_tests(test_list):
     print(os.environ)
+    SKIP_SRIOV = int(os.environ.get("SKIP_SRIOV"))
+    SKIP_1Q = int(os.environ.get("SKIP_1Q"))
+    SKIP_2Q = int(os.environ.get("SKIP_2Q"))
+    SKIP_JUMBO = int(os.environ.get("SKIP_JUMBO"))
+    SKIP_KERNEL = int(os.environ.get("SKIP_KERNEL"))
+
     if test_list == "pvp_cont":
-        with enter_phase("PVP-1500-BYTES-CONT-1Q-2PMD-TEST"):
-            data = """
-            *************************************************************
-            Running 1500 Byte PVP verify check
-            For 1Q 2PMD Test
-            *************************************************************
-            """
-            log(data)
-            ovs_dpdk_pvp_test(1,1500,1500,30)
-            pass
+        ovs_dpdk_pvp_test_wrap(1,1500,1500,30)
     
     if test_list == "ALL" or test_list == "SRIOV":
-        with enter_phase("SRIOV 64/1500 Bytes SR-IOV TEST"):
+        if SKIP_SRIOV == 1:
             data = """
             ************************************************
-            Running 64/1500 Bytes SR-IOV VSPerf TEST
+            SKIP Running 64/1500 Bytes SR-IOV VSPerf TEST
             ************************************************
             """
             log(data)
-            sriov_pci_passthrough_test(1,64,30)
-            sriov_pci_passthrough_test(2,1500,30)
+        else:
+            sriov_pci_passthrough_test_wrap(1,64,30)
+            sriov_pci_passthrough_test_wrap(2,1500,30)
             pass
 
     if test_list == "ALL" or test_list == "1Q":
-        with enter_phase("Running 64/1500 Byte PVP verify check FOR 1Q AND 2PMD TEST"):
-            data = """
-            *************************************************************
-            Running 1500 Byte PVP verify check
-            For 1Q 2PMD Test
-            *************************************************************
-            """
-            log(data)
-            ovs_dpdk_pvp_test(1,64,64,30)
-            log("***************************************************************************************")
-            # import time
-            # time.sleep(10000)
-            ovs_dpdk_pvp_test(1,1500,1500,30)
+        if SKIP_1Q == 1:
+            log("SKIP running 1500 Byte PVP verify check For 1Q 2PMD Test")
+        else:
+            ovs_dpdk_pvp_test_wrap(1,64,64,30)
+            ovs_dpdk_pvp_test_wrap(1,1500,1500,30)
             pass
 
-
     if test_list == "ALL" or test_list == "2Q":
-        with enter_phase("Running 64/1500 Byte PVP verify check FOR 2Q AND 4PMD TEST"):
-            data = """
-            *************************************************************
-            Running 1500 Byte PVP verify check
-            For 2Q 4PMD Test
-            *************************************************************
-            """
-            log(data)
-            ovs_dpdk_pvp_test(2,64,64,30)
-            ovs_dpdk_pvp_test(2,1500,1500,30)
+        if SKIP_2Q == 1:
+            log("SKIP running 1500 Byte PVP verify check For 2Q 4PMD Test")
+        else:
+            ovs_dpdk_pvp_test_wrap(2,64,64,30)
+            ovs_dpdk_pvp_test_wrap(2,1500,1500,30)
             pass
 
     if test_list == "ALL" or test_list == "Jumbo":
-        with enter_phase("Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST"):
-            data = """
-            *************************************************************
-            Running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST
-            *************************************************************
-            """
-            log(data)
-            ovs_dpdk_pvp_test(1,2000,2000,30)
-            ovs_dpdk_pvp_test(2,9000,9000,30)
+        if SKIP_JUMBO == 1:
+            log("SKIP running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST")
+        else:
+            ovs_dpdk_pvp_test_wrap(1,2000,2000,30)
+            ovs_dpdk_pvp_test_wrap(2,9000,9000,30)
             pass
-
 
     if test_list == "ALL" or test_list == "Kernel":
-        with enter_phase("Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST"):
-            data = """
-            ************************************************************
-            Running 64/1500 Bytes PVP OVS Kernel VSPerf TEST
-            ************************************************************
-            """
-            log(data)
-            ovs_kernel_datapath_test(1,64,30)
-            ovs_kernel_datapath_test(2,1500,30)
+        if SKIP_KERNEL == 1:
+            log("skip running 64/1500 Bytes PVP OVS Kernel VSPerf TEST")
+        else:
+            ovs_kernel_datapath_test_wrap(1,64,30)
+            ovs_kernel_datapath_test_wrap(2,1500,30)
             pass
-    
-
     return 0
-
 
 def copy_config_files_to_log_folder():
     log_folder = get_env("NIC_LOG_FOLDER")
@@ -1319,7 +1359,7 @@ def usage():
 def exit_with_error(str):
     print(f"Exit with {str}")
     log(f"""Exit with {str}""")
-    send_command("sriov-github-vsperf")
+    send_command("sriov-github-vsperf-quit-string")
     pass
 
 def main(test_list="ALL"):
@@ -1390,5 +1430,5 @@ if __name__ == "__main__":
     main()
     send_command("rlJournalPrintText")
     send_command("rlJournalEnd")
-    send_command("sriov-github-vsperf")
+    send_command("sriov-github-vsperf-quit-string")
     pass
