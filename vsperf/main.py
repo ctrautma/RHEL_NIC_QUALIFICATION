@@ -832,9 +832,10 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
     trex_name = os.path.basename(trex_url)
     #init trex package and lua traffic generator
     # [ -e trafficgen ] || git clone https://github.com/atheurer/trafficgen.git
+    # [ -e trafficgen ] || git clone https://github.com/wanghekai/trafficgen.git
     with pushd("/opt"):
         cmd = fr"""
-        [ -e trafficgen ] || git clone https://github.com/wanghekai/trafficgen.git
+        [ -e trafficgen ] || git clone https://github.com/atheurer/trafficgen.git
         mkdir -p trex
         pushd trex &>/dev/null
         [ -f {trex_name} ] || wget -nv -N {trex_url};tar xf {trex_name};ln -sf {trex_dir} current; ls -l;
