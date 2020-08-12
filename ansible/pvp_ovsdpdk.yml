@@ -241,12 +241,21 @@
       daemon_reload: yes
 
 ###################################################
-# Reboot t-rex system for settings to take effect #
+# Reboot DUT system for settings to take effect #
 ###################################################
+  - block:
+    - name: set BootNext for UEFI
+      shell: |
+        efibootmgr -v && efibootmgr -n $(efibootmgr -v | grep BootCurrent | sed 's/.*: //') || true
 
-  - name: REBOOTING DUT SERVER NOW
-    reboot:
+    - name: reboot
+      reboot:
     when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0 or isolcpus_needed.rc !=0
+
+  - name: check hugepage
+    shell: |
+      (($(cat /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages) == 0)) && echo 32 > /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages || true
+      grep -i huge /proc/meminfo
 
 ####################
 # Getting NIC info #
@@ -258,6 +267,9 @@
   - name: Getting pci address of NIC 1
     shell: "ethtool -i {{ dut_interface_1 }} | grep bus-info | awk '{print $2}'"
     register: dut_nic1_pci_address
+  - name: Getting pci address of NIC 2
+    shell: "ethtool -i {{ dut_interface_2 }} | grep bus-info | awk '{print $2}'"
+    register: dut_nic2_pci_address
   - name: finding numa node of nic
     shell: cat /sys/class/net/{{ dut_interface_1}}/device/numa_node
     register: nic1_numa
@@ -265,7 +277,9 @@
       var: dut_nic1_pci_address
     when: redhat_debug_mode == true
   - name: Binding nic {{ dut_interface_1 }} to driver {{ dut_driver }}
-    shell: "driverctl -v set-override {{ dut_nic1_pci_address.stdout }} {{ dut_driver }}"
+    shell: |
+      driverctl -v set-override {{ dut_nic1_pci_address.stdout }} {{ dut_driver }}
+      driverctl -v set-override {{ dut_nic2_pci_address.stdout }} {{ dut_driver }}
     ignore_errors: True
     when: nic_driver.stdout != 'mlx5_core'
 

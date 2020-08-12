@@ -151,12 +151,14 @@
         daemon_reload: yes
 
     # reboot system if need
-    - name: reboot T-Rex server if need
-      reboot:
-      when: >
-        iommu_ok.rc != 0 or
-        hugepage_ok.rc != 0 or
-        tuned_ok.rc != 0
+    - block:
+      - name: set BootNext for UEFI
+        shell: |
+          efibootmgr -v && efibootmgr -n $(efibootmgr -v | grep BootCurrent | sed 's/.*: //') || true
+
+      - name: reboot
+        reboot:
+      when: iommu_ok.rc != 0 or hugepage_ok.rc != 0 or tuned_ok.rc != 0
 
     # Create pvp results folder
     - name: Create pvp results folder

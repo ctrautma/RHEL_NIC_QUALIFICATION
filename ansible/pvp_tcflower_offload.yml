@@ -220,11 +220,10 @@
       shell: 
         cmd: >
           ~/vm.sh login_vm rhel_loopback_tcflower &&
-          ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y install {{ dpdk_rpm_path }} {{ dpdk_tools_rpm_path }}" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms || subscription-manager repos --enable rhel-8-for-x86_64-appstream*-rpms" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y clean all" &&
-          ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y install driverctl gcc kernel-devel numactl-devel tuned-profiles-cpu-partitioning wget" &&
-          ~/vm.sh run_cmd rhel_loopback_tcflower "grubby --args='default_hugepagesz=1G hugepagesz=1G hugepages=2' --update-kernel=\$(grubby --default-kernel)" &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y install driverctl gcc kernel-devel numactl-devel tuned-profiles-cpu-partitioning wget libibverbs dpdk-tools" &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "grubby --args='default_hugepagesz=1G hugepagesz=1G hugepages=2' --update-kernel=ALL" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "echo 'options vfio enable_unsafe_noiommu_mode=1' > /etc/modprobe.d/vfio.conf" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "echo isolated_cores=1,2,3 >> /etc/tuned/cpu-partitioning-variables.conf" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "tuned-adm profile cpu-partitioning" &&
