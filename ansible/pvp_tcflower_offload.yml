@@ -225,7 +225,7 @@
           ~/vm.sh run_cmd rhel_loopback_tcflower "yum -y install driverctl gcc kernel-devel numactl-devel tuned-profiles-cpu-partitioning wget libibverbs dpdk-tools" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "grubby --args='default_hugepagesz=1G hugepagesz=1G hugepages=2' --update-kernel=ALL" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "echo 'options vfio enable_unsafe_noiommu_mode=1' > /etc/modprobe.d/vfio.conf" &&
-          ~/vm.sh run_cmd rhel_loopback_tcflower "echo isolated_cores=1,2,3 >> /etc/tuned/cpu-partitioning-variables.conf" &&
+          ~/vm.sh run_cmd rhel_loopback_tcflower "grep -e '^isolated_cores=1,2,3' /etc/tuned/cpu-partitioning-variables.conf || echo isolated_cores=1,2,3 >> /etc/tuned/cpu-partitioning-variables.conf" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "tuned-adm profile cpu-partitioning" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "systemctl enable tuned" &&
           ~/vm.sh run_cmd rhel_loopback_tcflower "systemctl start tuned"

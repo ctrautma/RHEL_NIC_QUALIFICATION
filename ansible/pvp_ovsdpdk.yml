@@ -425,7 +425,7 @@
   - name: Starting runed service step 2 on rhel_loopback
     shell: ~/vm.sh run_cmd rhel_loopback "systemctl start tuned"
   - name: Setting isolated cores for tuning profile on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "echo isolated_cores=1,2,3 >> /etc/tuned/cpu-partitioning-variables.conf"
+    shell: ~/vm.sh run_cmd rhel_loopback "grep -e '^isolated_cores=1,2,3' /etc/tuned/cpu-partitioning-variables.conf || echo isolated_cores=1,2,3 >> /etc/tuned/cpu-partitioning-variables.conf"
   - name: Starting tuned profile cpu-partitioning on rhel_loopback
     shell: ~/vm.sh run_cmd rhel_loopback "tuned-adm profile cpu-partitioning"
   - name: Rebooting vm rhel_loopback step 1

@@ -26,9 +26,13 @@
   - name: Get vcpu_3
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
     register: vcpu_3
+  - name: Get vcpu_emulator
+    shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_emulator
+    register: vcpu_emulator
+
 
 #############################
-# Return back isolated CPUs #
+# setting isolated CPUs #
 # ###########################
 
   - name: Checking for isolcpus in grub (Fatal errors are normal here)
@@ -56,12 +60,17 @@
         daemon_reload: yes
     - name: Change isolcpus in grub
       shell: "grubby --args='isolcpus={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }}' --update-kernel=$(grubby --default-kernel)"
-    - name: REBOOTING DUT SERVER NOW
-      reboot:
+
+    - block: 
+      - name: set BootNext for UEFI
+        shell: |
+          efibootmgr -v && efibootmgr -n $(efibootmgr -v | grep BootCurrent | sed 's/.*: //') || true
+      - name: REBOOTING DUT SERVER NOW 
+        reboot:
     when: isolcpus_ok.rc != 0
 
 #######################################
-# Release the DPCK NIC back to kernel #
+# Release the DPDK NIC back to kernel #
 # #####################################
 
   - name: Start openvswitch
@@ -137,8 +146,79 @@
     pause:
       seconds: 60
 
-  - name: bind nic to vfio-pci
-    shell: >
-      ~/vm.sh run_cmd rhel_loopback_kerneldp "modprobe vfio-pci" &&
-      ~/vm.sh run_cmd rhel_loopback_kerneldp "driverctl -v set-override 0000:00:02.0 vfio-pci"
+  - name: Setting cpu pin for vcpu 0
+    shell: virsh vcpupin rhel_loopback_kerneldp 0 {{ vcpu_0.stdout }}
+  - name: Setting cpu pin for vcpu 1
+    shell: virsh vcpupin rhel_loopback_kerneldp 1 {{ vcpu_1.stdout }}
+  - name: Setting cpu pin for vcpu 2
+    shell: virsh vcpupin rhel_loopback_kerneldp 2 {{ vcpu_2.stdout }}
+  - name: Setting cpu pin for vcpu 3
+    shell: virsh vcpupin rhel_loopback_kerneldp 3 {{ vcpu_3.stdout }}
+  - name: Setting emulator pin for guest
+    shell: virsh emulatorpin rhel_loopback_kerneldp {{ vcpu_emulator.stdout }}
+  - name: copying virsh console script to default location
+    copy:
+      src: ./vm.sh
+      dest: ~/vm.sh
+      mode: "777"
+  - name: Logging into vm rhel_loopback_kerneldp
+    shell: ~/vm.sh login_vm rhel_loopback_kerneldp
+  - name: Setting up subscription manager step 1 on rhel_loopback_kerneldp
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "subscription-manager register --username={{ rh_sub_username }} --password={{ rh_sub_pass }}"
+    when: not qe_subscription_mode
+  - name: Setting up subscription manager step 2 on rhel_loopback_kerneldp
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "subscription-manager attach --pool={{ rh_sub_pool_id }}"
+    when: not qe_subscription_mode
+  - name: Using QE Secret sauce to add subscription for repos
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "{{ qe_subscription_command }}"
+    retries: 5
+    delay: 3
+    when: qe_subscription_mode
+  - name: subscribing to appstream on VM rhel_loopback_kerneldp
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms || subscription-manager repos --enable rhel-8-for-x86_64-appstream*-rpms"
+  - name: Running yum commandset step 1 on rhel_loopback_kerneldp
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "yum -y clean all"
+  - name: Running yum commandset step 2 on rhel_loopback_kerneldp
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "yum -y update"
+  - name: Running yum commandset step 3 on rhel_loopback_kerneldp
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "yum -y install driverctl gcc kernel-devel numactl-devel tuned-profiles-cpu-partitioning wget libibverbs dpdk-tools"
+  - name: Running yum commandset step 4 on rhel_loopback_kerneldp
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "yum -y update kernel"
+  - name: Modifying grub for tuning on rhel_loopback_kerneldp
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "grubby --args='isolcpus=1,2,3 default_hugepagesz=1G hugepagesz=1G hugepages=2' --update-kernel=ALL"
+  - name: Setting vfio options on rhel_loopback_kerneldp
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "echo 'options vfio enable_unsafe_noiommu_mode=1' > /etc/modprobe.d/vfio.conf"
+  - name: Binding nic to vfio-pci on rhel_loopback_kerneldp
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "driverctl -v set-override 0000:00:02.0 vfio-pci"
+  - name: Starting tuned service step 1 on rhel_loopback_kerneldp
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "systemctl enable tuned"
+  - name: Starting runed service step 2 on rhel_loopback_kerneldp
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "systemctl start tuned"
+  - name: Setting isolated cores for tuning profile on rhel_loopback_kerneldp
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "grep -e '^isolated_cores=1,2,3' /etc/tuned/cpu-partitioning-variables.conf || echo isolated_cores=1,2,3 >> /etc/tuned/cpu-partitioning-variables.conf"
+  - name: Starting tuned profile cpu-partitioning on rhel_loopback_kerneldp
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "tuned-adm profile cpu-partitioning"
+  - name: Rebooting vm rhel_loopback_kerneldp step 1
+    virt:
+      name: rhel_loopback_kerneldp
+      state: shutdown
+  - name: Wait system some time to shutdown
+    pause:
+      seconds: 5
+  - name: Rebooting vm rhel_loopback_kerneldp step 2
+    virt:
+      name: rhel_loopback_kerneldp
+      state: running
+  - name: Wait vm to start
+    pause:
+      seconds: 60
+  - name: Logging into VM rhel_loopback_kerneldp
+    shell: ~/vm.sh login_vm rhel_loopback_kerneldp
+  - name: Logging into vm rhel_loopback_kerneldp
+    shell: ~/vm.sh login_vm rhel_loopback_kerneldp
+  - name: Getting IP address from VM
+    shell: ~/vm.sh run_cmd rhel_loopback_kerneldp "ip a | grep inet | grep brd | awk '{ print \$2 }'" | grep -A 1 "ip a \| grep inet \| grep brd"   | tail -n 1
+    register: vm_ip
+  - debug:
+      msg: Please note the ip address of the VM as it will be needed when executing the pvp test scripts {{ vm_ip.stdout }}
 
