@@ -30,45 +30,6 @@
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_emulator
     register: vcpu_emulator
 
-
-#############################
-# setting isolated CPUs #
-# ###########################
-
-  - name: Checking for isolcpus in grub (Fatal errors are normal here)
-    shell: >
-      grep "nohz_full={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }}" /proc/cmdline &&
-      grep "rcu_nocbs={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }}" /proc/cmdline &&
-      grep "isolcpus={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }}" /proc/cmdline
-    failed_when: false
-    ignore_errors: yes
-    register: isolcpus_ok
-  - block:
-    - name: Adding isolated cpus to tuned
-      lineinfile:
-         path: //etc/tuned/cpu-partitioning-variables.conf
-         regexp: "^isolated_cores=.*"
-         line: "isolated_cores={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }}"
-         state: present
-    - name: Starting cpu-partitioning tuned profile
-      shell: tuned-adm profile cpu-partitioning
-    - name: restart service tuned
-      systemd:
-        name: tuned
-        enabled: yes
-        state: restarted
-        daemon_reload: yes
-    - name: Change isolcpus in grub
-      shell: "grubby --args='isolcpus={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }}' --update-kernel=$(grubby --default-kernel)"
-
-    - block: 
-      - name: set BootNext for UEFI
-        shell: |
-          efibootmgr -v && efibootmgr -n $(efibootmgr -v | grep BootCurrent | sed 's/.*: //') || true
-      - name: REBOOTING DUT SERVER NOW 
-        reboot:
-    when: isolcpus_ok.rc != 0
-
 #######################################
 # Release the DPDK NIC back to kernel #
 # #####################################
@@ -103,7 +64,9 @@
   - name: Recreate ovs
     shell: ovs-vsctl add-br ovs_pvp_br0
   - name: Add nic into ovs
-    shell: ovs-vsctl add-port ovs_pvp_br0 {{ dut_interface_1 }} -- set Interface {{ dut_interface_1 }} ofport_request=1
+    shell: |
+      ip link set {{ dut_interface_1 }} up
+      ovs-vsctl add-port ovs_pvp_br0 {{ dut_interface_1 }} -- set Interface {{ dut_interface_1 }} ofport_request=1
   - name: Restart openvswitch
     service:
       name: openvswitch
