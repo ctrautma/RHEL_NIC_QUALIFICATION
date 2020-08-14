@@ -130,6 +130,20 @@
       command: undefine
     loop: "{{ all_vms.list_vms }}"
 
+  # customize vm image
+  - name: Folder for vm image
+    file:
+      state: directory
+      path: /opt/images
+  - name: Copy image to /opt/images
+    copy:
+      src: "{{ rhel_guest_image_path }}"
+      dest: /opt/images/rhel_guest_image_pvp_kernel.qcow2
+      remote_src: yes
+
+  - name: Change passwd to root for vm
+    shell: LIBGUESTFS_BACKEND=direct virt-customize -a /opt/images/rhel_guest_image_pvp_kernel.qcow2 --root-password password:root --uninstall cloud-init
+
   #set static IP address 192.168.122.123 for internet access in guest g1
   - shell: virsh net-list | grep default || virsh net-define /usr/share/libvirt/networks/default.xml
   - shell: virsh net-autostart default
@@ -140,7 +154,7 @@
       virsh net-update default add ip-dhcp-host "<host mac='52:54:00:01:02:03' ip='192.168.122.5'/>" --live --config
 
   - name: create VM
-    shell: virt-install --connect=qemu:///system --network bridge=ovs_pvp_br0,virtualport_type=openvswitch,model=virtio --network network=default,mac=52:54:00:01:02:03 --name=rhel_loopback_kerneldp --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0,access_mode=shared --vcpus=4,cpuset={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }} --check-cpu --cpu mode=host-passthrough,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
+    shell: virt-install --connect=qemu:///system --network bridge=ovs_pvp_br0,virtualport_type=openvswitch,model=virtio --network network=default,mac=52:54:00:01:02:03 --name=rhel_loopback_kerneldp --disk path=/opt/images/rhel_guest_image_pvp_kernel.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0,access_mode=shared --vcpus=4,cpuset={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }} --check-cpu --cpu mode=host-passthrough,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
 
   - name: Wait vm to start
     pause:
