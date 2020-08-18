@@ -866,7 +866,7 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
     # --search-granularity=1 \
     with pushd("/opt/trafficgen"):
         cmd = f"""
-        ./binary-search.py \
+        python ./binary-search.py \
         --trex-host={trex_server_ip} \
         --traffic-generator=trex-txrx \
         --frame-size={pkt_size} \
