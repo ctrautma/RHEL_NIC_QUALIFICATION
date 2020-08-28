@@ -250,8 +250,11 @@ Then start the server
 
     ./t-rex-64 -c 4 -i --no-scapy-server
 
+### 1.2 Run tests
 
-#### 1.1.3 Setup the Device Under Test (DUT), Open vSwitch
+#### 1.2.1 Running the _ovs\_perf_ script for ovsdpdk testing
+
+##### Setup the Device Under Test (DUT) 
 <a name="DUTsetup"/>
 
 Use the Ansible script pvp_ovsdpdk.yml to setup the DUT for the OVS-dpdk PVP test
@@ -266,8 +269,8 @@ may need to be entered at the start of the script and during the reboot of the D
 
 For manual instructions please refer to  [_ovs\_perf_ script documentation](https://github.com/chaudron/ovs_perf/tree/RHEL8#setup-the-device-under-test-dut-open-vswitch) on how to configure the DUT for OVS. Follow the above-linked chapter and stop at the [Running the PVP script](https://github.com/chaudron/ovs_perf/tree/RHEL8#running-the-pvp-script) chapter, and continue below.
 
-### 1.2 Run tests
-#### 1.2.1 Running the PVP script
+
+##### Running the PVP script
 
 Now we are all set to run the PVP script. We move back to the TRex host as we
 use this to execute the script.
@@ -669,7 +672,7 @@ PATH=~/bin:$PATH ./run.sh -i <PF interface>
 Please save the result files fl_change.dat and fl_change.png off to be processed later.
 
 
-## 2. Throughput  tests
+## 2. Throughput test
 
 Once the 24 hour tests have completed we will now run a series of throughput tests.
 
@@ -686,7 +689,7 @@ The script includes 5 tests (base on 3 logical topology) that run in the sequenc
 The 3 logical topology are SRIOV, OVS dpdk datapath pvp and OVS kernel datapath pvp. As below are the topology and test traffic flow description.
 
 
-Test topo#1 for sriov
+* Test topo#1 for sriov
 
 ```_
 +DUT--------------------------------+         +----------------------------+
@@ -698,12 +701,12 @@ Test topo#1 for sriov
 |-------------------                |         +----------------------------+
 +-----------------------------------+
 ```
-Bidirectional traffic:
-TRAFFICGEN_TREX_PORT1 <-> NIC1 <-> NIC1 VF <-> TestPMD <-> NIC2 VF <-> NIC2 <-> TRAFFICGEN_TREX_PORT2
+Bidirectional traffic datapath:
+TRAFFICGEN_TREX_PORT1 <--> NIC1 <--> NIC1 VF <--> TestPMD <--> NIC2 VF <--> NIC2 <--> TRAFFICGEN_TREX_PORT2
 
 
 
-Test topo#2 for ovs dpdk datapath pvp
+* Test topo#2 for ovs dpdk datapath pvp
 ```_
 +DUT-----------------------------------------+       +----------------------+
 |VM----------------|                         |       |                 Trex |
@@ -714,12 +717,12 @@ Test topo#2 for ovs dpdk datapath pvp
 |-------------------                         |       +----------------------+
 +--------------------------------------------+
 ```
-Bidirectional traffic:
-TRAFFICGEN_TREX_PORT1 <-> NIC1 <-> NIC1 VF <-> ovs-bridge (openflow) <-> Guest-NIC1 <-> TestPMD <-> Guest-NIC2 <-> ovs-bridge (openflow) <->NIC2 VF <-> NIC2 <-> TRAFFICGEN_TREX_PORT2
+Bidirectional traffic datapath:
+TRAFFICGEN_TREX_PORT1 <--> NIC1 <--> NIC1 VF <--> ovs-bridge (openflow) <--> Guest-NIC1 <--> TestPMD <--> Guest-NIC2 <--> ovs-bridge (openflow) <-->NIC2 VF <--> NIC2 <--> TRAFFICGEN_TREX_PORT2
 
 
 
-Test topo#3 for ovs kernel datapath pvp
+* Test topo#3 for ovs kernel datapath pvp
 ```_
 +DUT-----------------------------------------+       +-----------------------+
 |------------------|                         |       |                   Trex|
@@ -730,8 +733,8 @@ Test topo#3 for ovs kernel datapath pvp
 |-------------------                         |       +-----------------------+
 +--------------------------------------------+
 ```
-Bidirectional traffic:
-TRAFFICGEN_TREX_PORT1 <-> NIC1 <-> ovs-bridge (openflow) <-> Guest-eth1 <-> bridge <-> Guest-eth2 <-> ovs-bridge (openflow) <-> NIC2 <-> TRAFFICGEN_TREX_PORT2
+Bidirectional traffic datapath:
+TRAFFICGEN_TREX_PORT1 <--> NIC1 <--> ovs-bridge (openflow) <--> Guest-eth1 <--> bridge <--> Guest-eth2 <--> ovs-bridge (openflow) <--> NIC2 <--> TRAFFICGEN_TREX_PORT2
 
 The total length of time for these tests is 1.5 hours approximately.
 
@@ -884,6 +887,7 @@ Please keep the numbers without change.
 On Rhel8, VF nic name usually is NIC name + “v0”, for example, the name for ens1f0 vf 0 is ens1f0v0, so in this case, NIC1_VF=”ens1f0v0”.
 
 *IMAGE INFO* 
+
 TTTTTTTTTTOOOOOOOOOOO DDDDDDDDDDOOOOOOOOOO
 
 ##### Set hugepage and isolated CPU
