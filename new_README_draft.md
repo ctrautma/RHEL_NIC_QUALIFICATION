@@ -671,18 +671,17 @@ Please save the result files fl_change.dat and fl_change.png off to be processed
 
 ## 2. Throughput  tests
 
-Once the 24 hour tests have completed we will now run a series of performance tests
-using an upstream vswitch testing project called VSPerf.
+Once the 24 hour tests have completed we will now run a series of throughput tests.
 
 RFC 2544-Based Benchmarking Tests use binary search algorithm to test throughput 
 using very basic flows rules and parameters. 
 
 The script includes 5 tests (base on 3 logical topology) that run in the sequence as below:
--     SRIOV  --sriov datapath pvp 64/1500 bytes throughput test (topo #1)
--     OVS-DPDK 1Q     --ovs dpdk datapath pvp 64/1500 bytes throughput test (topo #2)
--     OVS-DPDK 2Q     --ovs dpdk datapath pvp 64/1500 bytes throughput test (topo #2)
--     OVS-DPDK Jumbo  --ovs dpdk datapath pvp 2000/9000 bytes throughput test (topo #2)
--     Kernel --ovs kernel datapath pvp 64/1500 bytes throughput test (topo #3)
+*     SRIOV  --sriov datapath pvp 64/1500 bytes throughput test (topo #1)
+*     OVS-DPDK 1Q     --ovs dpdk datapath pvp 64/1500 bytes throughput test (topo #2)
+*     OVS-DPDK 2Q     --ovs dpdk datapath pvp 64/1500 bytes throughput test (topo #2)
+*     OVS-DPDK Jumbo  --ovs dpdk datapath pvp 2000/9000 bytes throughput test (topo #2)
+*     Kernel --ovs kernel datapath pvp 64/1500 bytes throughput test (topo #3)
      
 The 3 logical topology are SRIOV, OVS dpdk datapath pvp and OVS kernel datapath pvp. As below are the topology and test traffic flow description.
 
@@ -740,15 +739,15 @@ The T-rex server should be installed as per the above ovs_perf instructions and 
 
 The system requirements are similar as above ovs_perf test on the DUT with the following considerations:
 
-- The user must be root
-- You have at least 24 1G hugepages available.
-- The DUT has an internet connection available to download a custom VNF images and to install proper rpm packages includes openvswitch, dpdk, dpdk-tools, qemu-kvm, kernel-tools, qemu-img, etc.
-- The server has enough cores to support a PMD mask of 4 threads plus 5 VCPUs for the VNF image where the cores are on the same NUMA as the NIC if you are running on a multi numa system.
+* The user must be root
+* You have at least 24 1G hugepages available.
+* The DUT has an internet connection available to download a custom VNF images and to install proper rpm packages includes openvswitch, dpdk, dpdk-tools, qemu-kvm, kernel-tools, qemu-img, etc.
+* The server has enough cores to support a PMD mask of 4 threads plus 5 VCPUs for the VNF image where the cores are on the same NUMA as the NIC if you are running on a multi numa system.
 
 
-###2.1 Setup Test environment
+### 2.1 Setup Test environment
 
-####2.1.1 Setup Trex
+#### 2.1.1 Setup Trex
 
 The T-rex server should be installed as per the above instructions for ovs_perf test and the cabling is the same. Two NICs wired back to back from the T-Rex server to the server under test.
 
@@ -805,7 +804,7 @@ $sudo ansible-playbook trex_setup.yml
 
 Assuming DUT has been freshly installed with RHEL8.
 
-#####Install packages
+##### Install packages
 ```
 #yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 
@@ -830,7 +829,7 @@ Install lrzip
 
 
 
-#####Set variables in configuration files
+##### Set variables in configuration files
 
 The test scripts are located in the vsperf folder of the git cloned repository and there are two configuration files.
 
@@ -887,7 +886,7 @@ On Rhel8, VF nic name usually is NIC name + “v0”, for example, the name for 
 *IMAGE INFO* 
 TTTTTTTTTTOOOOOOOOOOO DDDDDDDDDDOOOOOOOOOO
 
-#####Set hugepage and isolated CPU
+##### Set hugepage and isolated CPU
 
 ```
 #grubby --args='intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32' --update-kernel=$(grubby –default-kernel)
@@ -901,9 +900,9 @@ Depending on your settings in vsperf/Perf-Verify.conf, add all these cores to th
 ```
 
 
-###2.2 Start testing
+### 2.2 Start testing
 
-####2.2.1 Start Trex server
+#### 2.2.1 Start Trex server
 
 The T-Rex application must now be running on the T-Rex server for binary-search.py script to connect to it using the Python API as part of its execution. To start the server go to the folder where the T-Rex was installed.
 ```
@@ -915,7 +914,7 @@ You need to count the “number of isolated CPU” from the configuration file a
 #cat /etc/tuned/cpu-partitioning-variables.conf
 ```
 
-####2.2.2 Start test script on DUT
+#### 2.2.2 Start test script on DUT
 
 Turn on VF on test NICs. Please skip this step if you only run kernel datapath pvp test.
 
@@ -1000,7 +999,7 @@ The table as below lists the test iterations and approximate duration.
 
 
 
-#####Explanation of a few samples of logs
+##### Explanation of a few samples of logs
 
 
 The script levagates beaker lib (details at https://beaker-project.org/) and the output of the test script will look like this format:
@@ -1034,7 +1033,7 @@ error: internal error: Unable to configure VF 0 of PF 'ens1f0' because the PF is
 :: [ 23:25:18 ] :: [   FAIL   ] :: Command 'virsh attach-device gg /root/RHEL_NIC_QUALIFICATION/vsperf/vf1.xml' (Expected 0, got 1)
 ```
 
-#####Some tips
+##### Some tips
 
 When you encounter any issues in the middle of the tests, such as an unacceptable failure reported by beaker, “[   FAIL   ]”, the script might not exit out but go to the next command or test. You could use Ctrl + C to stop the script and try to fix the issue or just restart the script. The test script has the ability of cleaning up the environment, such as virsh undefine guest, restart service, etc.
 
@@ -1045,7 +1044,7 @@ Please note that the script will disable VF at some point during the tests, so i
 ```
 And disable VF spoof checking.
  ```
- #ip link set <test NIC1> vf 0 spoofchk off 
+  #ip link set <test NIC1> vf 0 spoofchk off 
   #ip link set <test NIC2> vf 0 spoofchk off
 ```
 
