@@ -1306,7 +1306,7 @@ def run_tests(test_list):
             log(data)
         else:
             sriov_pci_passthrough_test_wrap(1,64,30)
-            sriov_pci_passthrough_test_wrap(2,1500,30)
+            sriov_pci_passthrough_test_wrap(1,1500,30)
             pass
 
     if test_list == "ALL" or test_list == "1Q":
