@@ -680,11 +680,11 @@ RFC 2544-Based Benchmarking Tests use binary search algorithm to test throughput
 using very basic flows rules and parameters. 
 
 The script includes 5 tests (base on 3 logical topology) that run in the sequence as below:
-*     SRIOV  --sriov datapath pvp 64/1500 bytes throughput test (topo #1)
-*     OVS-DPDK 1Q     --ovs dpdk datapath pvp 64/1500 bytes throughput test (topo #2)
-*     OVS-DPDK 2Q     --ovs dpdk datapath pvp 64/1500 bytes throughput test (topo #2)
-*     OVS-DPDK Jumbo  --ovs dpdk datapath pvp 2000/9000 bytes throughput test (topo #2)
-*     Kernel --ovs kernel datapath pvp 64/1500 bytes throughput test (topo #3)
+* SRIOV  --sriov datapath pvp 64/1500 bytes throughput test (topo #1)
+* OVS-DPDK 1Q     --ovs dpdk datapath pvp 64/1500 bytes throughput test (topo #2)
+* OVS-DPDK 2Q     --ovs dpdk datapath pvp 64/1500 bytes throughput test (topo #2)
+* OVS-DPDK Jumbo  --ovs dpdk datapath pvp 2000/9000 bytes throughput test (topo #2)
+* Kernel --ovs kernel datapath pvp 64/1500 bytes throughput test (topo #3)
      
 The 3 logical topology are SRIOV, OVS dpdk datapath pvp and OVS kernel datapath pvp. As below are the topology and test traffic flow description.
 
@@ -738,7 +738,7 @@ TRAFFICGEN_TREX_PORT1 <--> NIC1 <--> ovs-bridge (openflow) <--> Guest-eth1 <--> 
 
 The total length of time for these tests is 1.5 hours approximately.
 
-The T-rex server should be installed as per the above ovs_perf instructions and the cabling is the same. 2 NICs wired back to back from the T-Rex server to the server under test.
+The T-rex server should be installed as per the above ovs_perf instructions and the cabling is the same. Two NICs wired back to back from the T-Rex server to the server under test.
 
 The system requirements are similar as above ovs_perf test on the DUT with the following considerations:
 
@@ -752,25 +752,28 @@ The system requirements are similar as above ovs_perf test on the DUT with the f
 
 #### 2.1.1 Setup Trex
 
-The T-rex server should be installed as per the above instructions for ovs_perf test and the cabling is the same. Two NICs wired back to back from the T-Rex server to the server under test.
+The T-rex server should be installed as per the above ovs_perf instructions and the cabling is the same. Two NICs wired back to back from the T-Rex server to the server under test.
 
 
-As below the brief steps of setting up Trex is as same as the above ovs_perf test. Please skip this section and jump to the DUT setup section, if the trex still has ovs_perf test settings.
+As following brief steps of setting up Trex is as same as the above ovs_perf test. You could skip this section and jump to the DUT setup section, if the Trex still has ovs_perf test settings.
 
 Ansible playbook will help with the process. Assuming a laptop with rhel 8 is used to config Trex and DUT.  Following commands should be run on the laptop:
 ```
 $ sudo ssh-keygen -b 2048 -t rsa
 $ sudo ssh-copy-id root@<Trex>
 ```
+
 Install ansible if it was not installed:
 ```
 $yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 $yum install -y ansible
 ```
+
 Download test scripts from github.
 ```
 $git clone -b ansible --single-branch https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
 ```
+
 Modify configuration files to get ready for installing Trex server.
 ```
 $vim ~/RHEL_NIC_QUALIFICATION/ansible/inventory
@@ -781,6 +784,7 @@ $vim ~/RHEL_NIC_QUALIFICATION/ansible/inventory
   [dut]
   <REPLACE HERE WITH THE DUT ADMIN IP>
 ```
+
 ```
 $vim test_settings.yml
 
@@ -802,28 +806,38 @@ Use the Ansible script trex_setup.yml to setup the trex server system.
 ```
 $sudo ansible-playbook trex_setup.yml
 ```
+
 #### 2.1.2 Setup the Device Under Test (DUT)
 
 
 Assuming DUT has been freshly installed with RHEL8.
 
 ##### Install packages
+
+Install some tools
 ```
 #yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 
 #yum -y install git wget python3 hwloc hwloc-gui grubby tuned-profiles-cpu-partitioning
 #alternatives --set python /usr/bin/python3
 #pip install lxml
+```
+
+Install openvswitch
+```
 #yum -y install http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch2.13/2.13.0/54.el8fdp/x86_64/openvswitch2.13-2.13.0-54.el8fdp.x86_64.rpm http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch-selinux-extra-policy/1.0/23.el8fdp/noarch/openvswitch-selinux-extra-policy-1.0-23.el8fdp.noarch.rpm
 ```
+
 Install dpdk and dpdk tool
 ```
 #yum -y install http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/19.11/5.el8_2/x86_64/dpdk-19.11-5.el8_2.x86_64.rpm http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/19.11/5.el8_2/x86_64/dpdk-tools-19.11-5.el8_2.x86_64.rpm
 ```
+
 Download the test scripts if it has not been done already.
 ```
 #git clone -b ansible –single-branch https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
 ```
+
 Install lrzip
 ```
 #yum install -y ~/RHEL_NIC_QUALIFICATION/vsperf/lrzip-0.616-5.el7.x86_64.rpm
@@ -838,7 +852,7 @@ The test scripts are located in the vsperf folder of the git cloned repository a
 
 * **vsperf/env.sh**
 
-As mentioned previously, by default, 5 tests will run in a sequence. There is an option to only execute individual tests by setting the switches as default value 0 (not to skip, run the test) or 1 (to skip, not to run the test) in env.sh.
+By default, the test script main-perf-test.sh runs 5 tests in a sequence once the script starts. There is an option to only execute individual tests by setting the switches as default value 0 (not to skip, run the test) or 1 (to skip, not to run the test) in env.sh.
 
 |  Switches in env.sh |  Test modules | Description  |
 | ------------ | ------------ | ------------ |
@@ -964,15 +978,15 @@ Once all settings are complete, it should be able to run the script to start tes
 #./main-perf-test.sh
 ```
 
-This only needs to be executed on the DUT, not on the T-Rex server. The script will do some checking to try and verify the setup is good and ready for testing. Any issues will be output to your terminal.
+This only needs to be executed on the DUT, not on the T-Rex server. The script will do pre-check, run 5 tests (10 modules) in a row and save logs. Any issues will be output to the terminal.
 
-If the test has been running for 10 minutes then it should run all the tests for about 1.5 hours.
+If the test has been running for 10 minutes then it should run all the tests for about 1.5 hours. As below is the first test.
 ```
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::   SRIOV-VF-PCI-PASSTHROUGH-64-Bytes-1Q-2PMD-TEST
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ```
-...running for 10 minutes
+
 
 
 The table as below lists the test iterations and approximate duration.
