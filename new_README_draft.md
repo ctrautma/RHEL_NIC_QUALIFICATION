@@ -28,7 +28,7 @@ that conducts a binary-search for maximum packet throughput.
 The functional test script runs a plethora of tests to verify NICs pass
 functional requirements.
 
-##1. OVS_Perf
+## 1. PVP testing using OVS_Perf 
 
 The performance tests (_ovs\_perf_ and _VSPerf_) both require two servers.
 One server will have TREX installed, the other will be a clean install system
