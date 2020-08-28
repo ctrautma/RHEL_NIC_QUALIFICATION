@@ -28,6 +28,12 @@ that conducts a binary-search for maximum packet throughput.
 The functional test script runs a plethora of tests to verify NICs pass
 functional requirements.
 
+This document has 4 chapters:
+1. PVP test
+2. Throughput test
+3. Functional test
+4. Collect test results
+
 ## 1. PVP testing using OVS_Perf 
 
 The performance tests (_ovs\_perf_ and _VSPerf_) both require two servers.
@@ -686,7 +692,7 @@ The script includes 5 tests (base on 3 logical topology) that run in the sequenc
 * OVS-DPDK Jumbo  --ovs dpdk datapath pvp 2000/9000 bytes throughput test (topo #2)
 * Kernel --ovs kernel datapath pvp 64/1500 bytes throughput test (topo #3)
      
-The 3 logical topology are SRIOV, OVS dpdk datapath pvp and OVS kernel datapath pvp. As below are the topology and test traffic flow description.
+The three logical topology are SRIOV, OVS dpdk datapath pvp and OVS kernel datapath pvp. As below are the topology and test traffic path.
 
 
 * Test topo#1 for sriov
@@ -736,14 +742,14 @@ TRAFFICGEN_TREX_PORT1 <--> NIC1 <--> NIC1 VF <--> ovs-bridge (openflow) <--> Gue
 Bidirectional traffic datapath:
 TRAFFICGEN_TREX_PORT1 <--> NIC1 <--> ovs-bridge (openflow) <--> Guest-eth1 <--> bridge <--> Guest-eth2 <--> ovs-bridge (openflow) <--> NIC2 <--> TRAFFICGEN_TREX_PORT2
 
-The total length of time for these tests is 1.5 hours approximately.
+The total duration for these tests is about 1.5 hours.
 
 The T-rex server should be installed as per the above ovs_perf instructions and the cabling is the same. Two NICs wired back to back from the T-Rex server to the server under test.
 
-The system requirements are similar as above ovs_perf test on the DUT with the following considerations:
+The system requirements are similar as above ovs_perf test on the DUT:
 
 * The user must be root
-* You have at least 24 1G hugepages available.
+* At least 24 1G hugepages available.
 * The DUT has an internet connection available to download a custom VNF images and to install proper rpm packages includes openvswitch, dpdk, dpdk-tools, qemu-kvm, kernel-tools, qemu-img, etc.
 * The server has enough cores to support a PMD mask of 4 threads plus 5 VCPUs for the VNF image where the cores are on the same NUMA as the NIC if you are running on a multi numa system.
 
@@ -852,7 +858,7 @@ The test scripts are located in the vsperf folder of the git cloned repository a
 
 * **vsperf/env.sh**
 
-By default, the test script main-perf-test.sh runs 5 tests in a sequence once the script starts. There is an option to only execute individual tests by setting the switches as default value 0 (not to skip, run the test) or 1 (to skip, not to run the test) in env.sh.
+By default, the test script main-perf-test.sh runs 5 tests in a sequence once the script starts. There is an option to only execute individual tests by toggling the switches. Without any change, the default values are 0 (not to skip, run the test); or change to 1 (to skip, not to run the test).
 
 |  Switches in env.sh |  Test modules | Description  |
 | ------------ | ------------ | ------------ |
@@ -869,7 +875,7 @@ By default, the test script main-perf-test.sh runs 5 tests in a sequence once th
 
 * **vsperf/Perf-Verify.conf**
 
-All the variables needed by scripts are sitting here in this config file.
+All the variables needed by scripts are sitting in this config file. We add few comments for some of them here.
 
 
 
@@ -885,7 +891,7 @@ To specify PMD_CPU, the script cpu_layout.py is needed. If dpdk and dpdk-tools h
 ```
 #python /usr/share/dpdk/usertools/cpu_layout.py
 ```
-The command lstopo can find out which numa node the test NICs belong to. 
+The command lstopo can tell which numa node the test NICs belong to. 
 ```
 #lstopo
 ```
@@ -1051,7 +1057,7 @@ error: internal error: Unable to configure VF 0 of PF 'ens1f0' because the PF is
 :: [ 23:25:18 ] :: [   FAIL   ] :: Command 'virsh attach-device gg /root/RHEL_NIC_QUALIFICATION/vsperf/vf1.xml' (Expected 0, got 1)
 ```
 
-##### Some tips
+__NOTE__:
 
 When you encounter any issues in the middle of the tests, such as an unacceptable failure reported by beaker, “[   FAIL   ]”, the script might not exit out but go to the next command or test. You could use Ctrl + C to stop the script and try to fix the issue or just restart the script. The test script has the ability of cleaning up the environment, such as virsh undefine guest, restart service, etc.
 
@@ -1074,6 +1080,7 @@ drwxr-xr-x. 2 root root  116 Oct 17 09:45 2017-10-17-09:41:09
 drwxr-xr-x. 2 root root 4096 Oct 17 10:06 2017-10-17-09:55:18
 -rw-r--r--. 1 root root   60 Oct 17 11:00 vsperf_logs_folder.txt
 ```
+
 Once this test has passed disable SR-IOV and begin execution of the functional QE scripts.
 
 
