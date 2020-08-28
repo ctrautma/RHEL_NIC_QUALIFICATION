@@ -833,7 +833,7 @@ Install lrzip
 
 The test scripts are located in the vsperf folder of the git cloned repository and there are two configuration files.
 
-**- vsperf/env.sh**
+* **vsperf/env.sh**
 
 As mentioned previously, by default, 5 tests will run in a sequence. There is an option to only execute individual tests by setting the switches as default value 0 (not to skip, run the test) or 1 (to skip, not to run the test) in env.sh.
 
@@ -850,7 +850,7 @@ As mentioned previously, by default, 5 tests will run in a sequence. There is an
 |  SKIP_KERNEL | OVS-KERNEL-DATAPATH-PVP-64-Bytes-1Q-2PMD-TEST  |  Kernel datapath without DPDK enabled |
 | SKIP_KERNEL  |  OVS-KERNEL-DATAPATH-PVP-1500-Bytes-2Q-4PMD-TEST | Kernel datapath without DPDK enabled  |
 
-**- vsperf/Perf-Verify.conf**
+* **vsperf/Perf-Verify.conf**
 
 All the variables needed by scripts are sitting here in this config file.
 
@@ -1002,7 +1002,7 @@ The table as below lists the test iterations and approximate duration.
 ##### Explanation of a few samples of logs
 
 
-The script levagates beaker lib (details at https://beaker-project.org/) and the output of the test script will look like this format:
+The scripts leverage beaker lib (more details at https://beaker-project.org/) and the output of the test script will look like this format:
 ```
 :: [ 09:21:41 ] :: [   PASS   ] :: Command 'rm -rf /dev/hugepages/*' (Expected 0, got 0)
 ```
