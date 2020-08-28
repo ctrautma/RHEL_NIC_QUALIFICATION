@@ -34,13 +34,13 @@ This document has 4 chapters:
 3. Functional test
 4. Collect test results
 
-## 1. PVP testing using OVS_Perf 
+## 1. PVP test (OVS_Perf)
 
-The performance tests (_ovs\_perf_ and _VSPerf_) both require two servers.
+The performance tests (_ovs\_perf_ and throughput test) both require two servers.
 One server will have TREX installed, the other will be a clean install system
 running RHEL 8.1 or greater. The servers should be wired back to back from the
 test NICs to the output NICs of the T-Rex server. These tests use two NIC ports
-on the DUT and two ports on the T-Rex which are connected as shown below.
+on the Device Under Test (DUT) and two ports on the T-Rex which are connected as shown below.
 The two NIC ports on the DUT must be the brand and type of NICs which are to be
 qualified. The first set of performance tests use a topology as seen below.
 
@@ -228,9 +228,10 @@ restart the script if it completed a few steps.  The NIC will be bound using dri
 
 ##### Download the guest image
 
+https://access.redhat.com/downloads/content/479/ver=/rhel---8/8.2/x86_64/ ?????????????????
+
 Please visit https://access.redhat.com/downloads/content/69/ver=/rhel---7/7.0/x86_64/product-software and use the
-combo boxes to select the correct guest image for use with the tests.  For example for 7.7 you would select 7.7 in the
-version and then select Red Hat Enterprise Linux Fast Datapath from the Product Variant.  Save this to the DUT
+combo boxes to select the correct guest image for use with the tests.  For example for 7.7 you would select 7.7 in the version and then select Red Hat Enterprise Linux Fast Datapath from the Product Variant.  Save this to the DUT
 as the Ansible script will use it for the test setup.  You will need to modify the trex_settings.yml file to specify
 where this was saved.
 
@@ -249,7 +250,7 @@ For manual instructions please refer to [_ovs\_perf_ script documentation](https
 Once the script is complete you must still start the T-rex application on the server itself.  Log into the T-Rex server
 and perform the following steps
 
-    cd ~/trex/v2.53
+    cd ~/trex/v2.82
 
 Note if you picked a different version to use for T-Rex the above command may change.
 Then start the server
@@ -260,7 +261,7 @@ Then start the server
 
 #### 1.2.1 Running the _ovs\_perf_ script for ovsdpdk testing
 
-##### Setup the Device Under Test (DUT) 
+##### Setup the DUT 
 <a name="DUTsetup"/>
 
 Use the Ansible script pvp_ovsdpdk.yml to setup the DUT for the OVS-dpdk PVP test
@@ -794,7 +795,7 @@ $vim ~/RHEL_NIC_QUALIFICATION/ansible/inventory
 ```
 $vim test_settings.yml
 
-#current latest Trex version is v2.82 
+  #current latest Trex version is v2.82 
   trex_version: v2.82
   trex_url: https://trex-tgn.cisco.com/trex/release/v2.82.tar.gz
 
@@ -808,12 +809,12 @@ $vim test_settings.yml
 ```
 
 
-Use the Ansible script trex_setup.yml to setup the trex server system.
+Use the Ansible playbook trex_setup.yml to setup the trex server system.
 ```
-$sudo ansible-playbook trex_setup.yml
+$sudo ansible-playbook ~/RHEL_NIC_QUALIFICATION/ansible/trex_setup.yml
 ```
 
-#### 2.1.2 Setup the Device Under Test (DUT)
+#### 2.1.2 Setup the DUT
 
 
 Assuming DUT has been freshly installed with RHEL8.
@@ -937,6 +938,7 @@ You need to count the “number of isolated CPU” from the configuration file a
 ```
 #cat /etc/tuned/cpu-partitioning-variables.conf
 ```
+__NOTE :__ "-c" is a mandatory option here as the test script will verify it. This is a difference from ovs_perf test.
 
 #### 2.2.2 Start test script on DUT
 
