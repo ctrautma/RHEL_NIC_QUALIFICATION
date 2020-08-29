@@ -907,25 +907,29 @@ Please keep the numbers without change.
 
 On Rhel8, VF nic name usually is NIC name + “v0”, for example, the name for ens1f0 vf 0 is ens1f0v0, so in this case, NIC1_VF=”ens1f0v0”.
 
-*IMAGE INFO* 
-Please download the compressed qcow2 image from below online storage and unzip to your NAS or DUT disk.
-http://people.redhat.com/zfang/rhel8.3-vsperf-1Q-noviommu.qcow2.tar.lrz
-http://people.redhat.com/zfang/rhel8.3-vsperf-2Q-noviommu.qcow2.tar.lrz
-http://people.redhat.com/zfang/rhel8.3-vsperf-1Q-viommu.qcow2.tar.lrz (have not uploaded yet)
+*IMAGE INFO*   
+
+Please download the compressed qcow2 image from below online storage and unzip to your NAS or DUT disk.  
+
+http://people.redhat.com/zfang/rhel8.3-vsperf-1Q-noviommu.qcow2.tar.lrz  
+http://people.redhat.com/zfang/rhel8.3-vsperf-2Q-noviommu.qcow2.tar.lrz  
+http://people.redhat.com/zfang/rhel8.3-vsperf-1Q-viommu.qcow2.tar.lrz (have not uploaded yet)  
 http://people.redhat.com/zfang/rhel8.3-vsperf-2Q-viommu.qcow2.tar.lrz
 
-Then give the image paths to ONE_QUEUE_IMAGE and TWO_QUEUE_IMAGE.
-ONE_QUEUE_IMAGE="<NAS location or local disk directory>/rhel8.3-vsperf-1Q-noviommu.qcow2"
-TWO_QUEUE_IMAGE="<NAS location or local disk directory>/rhel8.3-vsperf-2Q-noviommu.qcow2"
-       
+Then give the image paths to ONE_QUEUE_IMAGE and TWO_QUEUE_IMAGE.  
+```
+ONE_QUEUE_IMAGE="<NAS location or local disk directory>/rhel8.3-vsperf-1Q-noviommu.qcow2"         
+TWO_QUEUE_IMAGE="<NAS location or local disk directory>/rhel8.3-vsperf-2Q-noviommu.qcow2"  
+```       
 Depending on your test scenario, you might use rhel8.3-vsperf-1Q-viommu.qcow2 and/or rhel8.3-vsperf-2Q-viommu.qcow2.
 
 __NOTE:__ 
-# md5sum *.tar.lrz
-55e664cb1917324d6b60e5b54296a941  rhel8.3-vsperf-1Q-noviommu.qcow2.tar.lrz
-b634ef21a92b972649602b300859bb47  rhel8.3-vsperf-1Q-viommu.qcow2.tar.lrz
-8eb67c970d5e26f0f41c7d57cd095136  rhel8.3-vsperf-2Q-noviommu.qcow2.tar.lrz
-05e45aa77395b926abe20d0230a79952  rhel8.3-vsperf-2Q-viommu.qcow2.tar.lrz
+md5sum *.tar.lrz
+
+55e664cb1917324d6b60e5b54296a941  rhel8.3-vsperf-1Q-noviommu.qcow2.tar.lrz  
+b634ef21a92b972649602b300859bb47  rhel8.3-vsperf-1Q-viommu.qcow2.tar.lrz  
+8eb67c970d5e26f0f41c7d57cd095136  rhel8.3-vsperf-2Q-noviommu.qcow2.tar.lrz  
+05e45aa77395b926abe20d0230a79952  rhel8.3-vsperf-2Q-viommu.qcow2.tar.lrz  
 
 
 
