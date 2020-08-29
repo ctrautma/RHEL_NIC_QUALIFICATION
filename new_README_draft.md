@@ -903,7 +903,7 @@ The command lstopo can tell which numa node the test NICs belong to.
 Please keep the numbers without change.
 
 
-*NIC1_VF *and *NIC2_VF*
+*NIC1_VF * and *NIC2_VF*
 
 On Rhel8, VF nic name usually is NIC name + “v0”, for example, the name for ens1f0 vf 0 is ens1f0v0, so in this case, NIC1_VF=”ens1f0v0”.
 
@@ -1112,7 +1112,7 @@ Once this test has passed disable SR-IOV and begin execution of the functional Q
 
 
 
-## 3. Running the _OVS functional qualification_
+## 3. Running the OVS functional qualification test
 
 These tests follow a server/client model where the client is the DUT and the server will
 be used to execute certain functions to verify the client.
