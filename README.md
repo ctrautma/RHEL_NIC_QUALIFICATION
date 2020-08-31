@@ -864,7 +864,7 @@ By default, the test script main-perf-test.sh runs 5 tests in a sequence once th
 |  Switches in env.sh |  Test modules | Description  |
 | ------------ | ------------ | ------------ |
 |  SKIP_SRIOV |  SRIOV-VF-PCI-PASSTHROUGH-64-Bytes-1Q-2PMD-TEST |  SRIOV VF PCI-Passthrough without OVS |
-| SKIP_SRIOV  |  SRIOV-VF-PCI-PASSTHROUGH-1500-Bytes-1Q-2PMD-TEST |  RIOV VF PCI-Passthrough without OVS |
+| SKIP_SRIOV  |  SRIOV-VF-PCI-PASSTHROUGH-1500-Bytes-1Q-2PMD-TEST |  SRIOV VF PCI-Passthrough without OVS |
 | SKIP_1Q  | OVS-DPDK-PVP-64-BYTES-1Q-2PMD-TEST  | 4 PMD threads on 2 Hyper threads using 64 byte packet size  |
 | SKIP_1Q  | OVS-DPDK-PVP-1500-BYTES-1Q-2PMD-TEST  |  4 PMD threads on 2 Hyper threads using 1500 byte packet size |
 | SKIP_2Q  | OVS-DPDK-PVP-64-BYTES-2Q-4PMD-TEST  | 8 PMD threads on 4 Hyper threads using 64 and 1500 byte packet size  |
