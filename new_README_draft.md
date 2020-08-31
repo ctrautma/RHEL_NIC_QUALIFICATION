@@ -1,6 +1,6 @@
 # Red Hat NIC NFV Qualification
 
-# Ansible branch for RHEL 8.1+ only.
+# Ansible branch for RHEL 8.x only.
 
 The goal of this document is to guide you step by step through the process of
 qualifying a NIC driver for NFV usage. This includes both the Linux Kernel
@@ -817,8 +817,6 @@ $sudo ansible-playbook ~/RHEL_NIC_QUALIFICATION/ansible/trex_setup.yml
 #### 2.1.2 Setup the DUT
 
 
-Assuming DUT has been freshly installed with RHEL8.
-
 ##### Install packages
 
 Install some tools
@@ -830,14 +828,14 @@ Install some tools
 #pip install lxml
 ```
 
-Install openvswitch
-```
-#yum -y install http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch2.13/2.13.0/54.el8fdp/x86_64/openvswitch2.13-2.13.0-54.el8fdp.x86_64.rpm http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch-selinux-extra-policy/1.0/23.el8fdp/noarch/openvswitch-selinux-extra-policy-1.0-23.el8fdp.noarch.rpm
-```
+Install openvswitch and dpdk
 
-Install dpdk and dpdk tool
+DUT needs Red Hat subscriptions setup, if the systems are not subscribed correctly the yum installs will fail. For more subscription information, please found in the ovs_perf test section.  
+
+
 ```
-#yum -y install http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/19.11/5.el8_2/x86_64/dpdk-19.11-5.el8_2.x86_64.rpm http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/19.11/5.el8_2/x86_64/dpdk-tools-19.11-5.el8_2.x86_64.rpm
+#yum -y install openvswitch openvswitch-selinux-extra-policy
+#yum -y install dpdk dpdk-tools
 ```
 
 Download the test scripts if it has not been done already.
@@ -913,7 +911,7 @@ Please download the compressed qcow2 image from below online storage and unzip t
 
 http://people.redhat.com/zfang/rhel8.3-vsperf-1Q-noviommu.qcow2.tar.lrz  
 http://people.redhat.com/zfang/rhel8.3-vsperf-2Q-noviommu.qcow2.tar.lrz  
-http://people.redhat.com/zfang/rhel8.3-vsperf-1Q-viommu.qcow2.tar.lrz (have not uploaded yet)  
+http://people.redhat.com/zfang/rhel8.3-vsperf-1Q-viommu.qcow2.tar.lrz (has not been uploaded yet)  
 http://people.redhat.com/zfang/rhel8.3-vsperf-2Q-viommu.qcow2.tar.lrz
 
 Then give the image paths to ONE_QUEUE_IMAGE and TWO_QUEUE_IMAGE.  
@@ -1084,14 +1082,14 @@ error: internal error: Unable to configure VF 0 of PF 'ens1f0' because the PF is
 
 __NOTE__:
 
-When you encounter any issues in the middle of the tests, such as an unacceptable failure reported by beaker, “[   FAIL   ]”, the script might not exit out but go to the next command or test. You could use Ctrl + C to stop the script and try to fix the issue or just restart the script. The test script has the ability of cleaning up the environment, such as virsh undefine guest, restart service, etc.
+When you encounter any issues in the middle of the tests, such as an unacceptable failure like above FAIL examples, the script might not exit out but go to the next command or test. You could use Ctrl + C to stop the script and try to fix the issue then restart the script. The test script has the ability of cleaning up the environment, such as virsh undefine guest, restart service, etc.
 
-Please note that the script will disable VF at some point during the tests, so if VF was enabled prior to one round of tests, before restarting the test script, VF still needs to be enabled manually (except kernel based tests). Use command “ip link show <test NIC>” to check if VF was enabled, if not, enable them by below commands again.
+Please note that the script will disable VF at some point during the tests, so if you believe you had enabled VF for previous tests, it might need to be enabled manually again (except kernel based tests). Use command “ip link show <test NIC>” to check, to enable VF by below commands if needed.
 ```
   #echo 1 > /sys/bus/pci/devices/<pciid of test NIC1>/sriov_numvfs
   #echo 1 > /sys/bus/pci/devices/<pciid of test NIC2>/sriov_numvfs
 ```
-And disable VF spoof checking.
+And then again disable VF spoof checking.
  ```
   #ip link set <test NIC1> vf 0 spoofchk off 
   #ip link set <test NIC2> vf 0 spoofchk off
