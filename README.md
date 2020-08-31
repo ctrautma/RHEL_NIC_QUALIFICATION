@@ -820,19 +820,18 @@ $sudo ansible-playbook ~/RHEL_NIC_QUALIFICATION/ansible/trex_setup.yml
 
 
 ##### Install packages
-
+  
 Install some tools
 ```
 #yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
-
 #yum -y install git wget python3 hwloc hwloc-gui grubby tuned-profiles-cpu-partitioning
 #alternatives --set python /usr/bin/python3
 #pip install lxml
 ```
-
+  
 Install openvswitch and dpdk
 
-DUT needs Red Hat subscriptions setup, if the systems are not subscribed correctly the yum installs will fail. For more subscription information, please found in the ovs_perf test section.  
+DUT needs Red Hat subscriptions setup, if the systems are not subscribed correctly the yum installs will fail. For more subscription information, please find from the ovs_perf test section.  
 
 
 ```
@@ -845,12 +844,12 @@ Download the test scripts if it has not been done already.
 ```
 #git clone -b ansible –single-branch https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
 ```
-
+  
 Install lrzip
 ```
 #yum install -y ~/RHEL_NIC_QUALIFICATION/vsperf/lrzip-0.616-5.el7.x86_64.rpm
 ```
-
+  
 
 
 
