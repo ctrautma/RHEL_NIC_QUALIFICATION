@@ -6,6 +6,8 @@ The goal of this document is to guide you step by step through the process of
 qualifying a NIC driver for NFV usage. This includes both the Linux Kernel
 driver and the DPDK PMD driver.
 
+Please reach to Red Hat PFT team at redhat-pft@redhat.com, if you have any questions. 
+
 IT IS CRITICAL for qualification to keep all logs and to execute the collection
 script at the end of these tests. The collection script must be run on the
 server and client side. Please see the end of this file for further details.
@@ -837,7 +839,8 @@ DUT needs Red Hat subscriptions setup, if the systems are not subscribed correct
 #yum -y install openvswitch openvswitch-selinux-extra-policy
 #yum -y install dpdk dpdk-tools
 ```
-
+If you have any difficulty to install openvswitch, please let us know through email at redhat-pft@redhat.com.  
+  
 Download the test scripts if it has not been done already.
 ```
 #git clone -b ansible –single-branch https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
