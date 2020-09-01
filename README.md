@@ -46,8 +46,40 @@ on the Device Under Test (DUT) and two ports on the T-Rex which are connected as
 The two NIC ports on the DUT must be the brand and type of NICs which are to be
 qualified. The first set of performance tests use a topology as seen below.
 
-![](https://developers.redhat.com/blog/wp-content/uploads/2017/05/pvp_traffic_flow-866x1024.png)
->Physical to Virtual back to Physical topology
+```
+     +---------------------------------------+
+     |   +--------------------------------+  |
+     |   |                          Guest |  |
+     |   |   +------------------------+   |  |
+     |   |   |    Application         |   |  |
+     |   |   +------------------------+   |  |
+     |   |       ^               :        |  |
+     |   |       |               |        |  | 
+     |   |       :               v        |  |
+     |   |   +------------------------+   |  |
+     |   |   |       logical port     |   |  |
+     |   +---+------------------------+---+  |
+     |           ^               :           |
+     |           |               |           |
+     |           :               v           |
+     |       +-----------------------+       |
+     |       |      logical port     |       |
+     |       +-----------------------+       |
+     |           ^               :           |
+     |           |               |           |
+     |           :               v           |
+     |       +-----------------------+       |
+     |       |   physical port       |  Host |
+     +-------+-----------------------+-------+
+                  ^        :           
+                  |        |  
+                  :        v
+       +-------------------------------+
+       |                               |
+       |       traffic generator       |   
+       |                               |
+       +-------------------------------+
+```       
 
 All traffic on these tests are bi-directional and the results are calculated as a total of the
 sum of both ports in frames per second.
