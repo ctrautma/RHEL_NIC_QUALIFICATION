@@ -229,9 +229,7 @@ Also if the ovs-dpdk script fails at any point, you will have to stop the openvs
 restart the script if it completed a few steps.  The NIC will be bound using driverctl utility.
 
 ##### Download the guest image
-
-https://access.redhat.com/downloads/content/479/ver=/rhel---8/8.2/x86_64/ ?????????????????
-
+  
 Please visit https://access.redhat.com/downloads/content/69/ver=/rhel---7/7.0/x86_64/product-software and use the
 combo boxes to select the correct guest image for use with the tests.  For example for 7.7 you would select 7.7 in the version and then select Red Hat Enterprise Linux Fast Datapath from the Product Variant.  Save this to the DUT
 as the Ansible script will use it for the test setup.  You will need to modify the trex_settings.yml file to specify
