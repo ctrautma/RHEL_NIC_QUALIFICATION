@@ -51,7 +51,7 @@ qualified. The first set of performance tests use a topology as seen below.
      |   +--------------------------------+  |
      |   |                          Guest |  |
      |   |   +------------------------+   |  |
-     |   |   |    Application         |   |  |
+     |   |   |        testpmd         |   |  |
      |   |   +------------------------+   |  |
      |   |       ^               :        |  |
      |   |       |               |        |  | 
