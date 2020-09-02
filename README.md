@@ -230,14 +230,10 @@ restart the script if it completed a few steps.  The NIC will be bound using dri
 
 ##### Download the guest image
   
-Please visit https://access.redhat.com/downloads/content/69/ver=/rhel---7/7.0/x86_64/product-software and use the
-combo boxes to select the correct guest image for use with the tests.  For example for 7.7 you would select 7.7 in the version and then select Red Hat Enterprise Linux Fast Datapath from the Product Variant.  Save this to the DUT
+Please visit https://access.redhat.com/downloads/content/479/ver=/rhel---8/8.2/x86_64/product-software and use the
+combo boxes to select the correct guest image for use with the tests.  For example for 8.2 you would select 8.2 in the version and then select Red Hat Enterprise Linux Fast Datapath from the Product Variant.  Save this to the DUT
 as the Ansible script will use it for the test setup.  You will need to modify the trex_settings.yml file to specify
 where this was saved.
-
-For other streams such as 8.0 you just need to change the link to find 8.0 images
-
-https://access.redhat.com/downloads/content/479/ver=/rhel---8/8.0/x86_64/product-software
 
 #### 1.1.2 Setup the TRex traffic generator
 
