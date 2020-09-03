@@ -907,7 +907,7 @@ Please download the compressed qcow2 image from below online storage and unzip t
 
 http://people.redhat.com/zfang/rhel8.3-vsperf-1Q-noviommu.qcow2.tar.lrz  
 http://people.redhat.com/zfang/rhel8.3-vsperf-2Q-noviommu.qcow2.tar.lrz  
-http://people.redhat.com/zfang/rhel8.3-vsperf-1Q-viommu.qcow2.tar.lrz (has not been uploaded yet)  
+http://people.redhat.com/zfang/rhel8.3-vsperf-1Q-viommu.qcow2.tar.lrz  
 http://people.redhat.com/zfang/rhel8.3-vsperf-2Q-viommu.qcow2.tar.lrz
 
 Then give the image paths to ONE_QUEUE_IMAGE and TWO_QUEUE_IMAGE.  
