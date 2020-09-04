@@ -829,7 +829,7 @@ DUT needs Red Hat subscriptions setup, if the systems are not subscribed correct
 
 
 ```
-#yum -y install openvswitch openvswitch-selinux-extra-policy
+#yum -y install openvswitch2.13 openvswitch-selinux-extra-policy
 #yum -y install dpdk dpdk-tools
 ```
 If you have any difficulty to install openvswitch, please let us know through email at redhat-pft@redhat.com.  
