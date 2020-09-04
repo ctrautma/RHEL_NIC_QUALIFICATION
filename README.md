@@ -1159,8 +1159,8 @@ use systemctl to start openvswitch and can cause some db configuration problems 
 If using a custom openvswitch please re-install the custom version instead of the one from the fast datapath channel.
 
 ```
-    yum remove openvswitch
-    yum install openvswitch
+    yum remove openvswitch2.13
+    yum install openvswitch2.13
 ```
 
 It is also recommnded to reboot the systems.
