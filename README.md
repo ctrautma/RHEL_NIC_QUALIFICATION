@@ -903,7 +903,7 @@ On Rhel8, VF nic name usually is NIC name + “v0”, for example, the name for 
 
 *IMAGE INFO*   
 
-Please download the compressed qcow2 image from below online storage and unzip to your NAS or DUT disk.  
+Please download the compressed qcow2 image from below online storage and unzip to a NAS.  
 
 http://people.redhat.com/zfang/rhel8.3-vsperf-1Q-noviommu.qcow2.tar.lrz  
 http://people.redhat.com/zfang/rhel8.3-vsperf-2Q-noviommu.qcow2.tar.lrz  
@@ -912,8 +912,8 @@ http://people.redhat.com/zfang/rhel8.3-vsperf-2Q-viommu.qcow2.tar.lrz
 
 Then give the image paths to ONE_QUEUE_IMAGE and TWO_QUEUE_IMAGE.  
 ```
-ONE_QUEUE_IMAGE="<NAS location or local disk directory>/rhel8.3-vsperf-1Q-noviommu.qcow2"         
-TWO_QUEUE_IMAGE="<NAS location or local disk directory>/rhel8.3-vsperf-2Q-noviommu.qcow2"  
+ONE_QUEUE_IMAGE="<NAS location>/rhel8.3-vsperf-1Q-noviommu.qcow2"         
+TWO_QUEUE_IMAGE="<NAS location>/rhel8.3-vsperf-2Q-noviommu.qcow2"  
 ```       
 Depending on your test scenario, you might use rhel8.3-vsperf-1Q-viommu.qcow2 and/or rhel8.3-vsperf-2Q-viommu.qcow2.
 
@@ -931,7 +931,7 @@ b634ef21a92b972649602b300859bb47  rhel8.3-vsperf-1Q-viommu.qcow2.tar.lrz
 ##### Set hugepage and isolated CPU
 
 ```
-#grubby --args='intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32' --update-kernel=$(grubby –default-kernel)
+#grubby --args='intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32' --update-kernel=$(grubby –-default-kernel)
 ```
 Depending on your settings in vsperf/Perf-Verify.conf, add all these cores to the tuned profile. As below is an example and you might change the cpu numbers.
 ```
