@@ -1018,6 +1018,7 @@ The table as below lists the test iterations and approximate duration.
 
 | Modules in Test script   | Approximate duration  |
 | ------------ | ------------ |
+| Install packages | 5m |
 |  OS DISTRO CHECK | <10s  |
 |  HUGEPAGE CHECK |  <10s |
 |  CONFIG CHECK | <10s  |
