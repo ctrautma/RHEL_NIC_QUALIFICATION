@@ -836,7 +836,7 @@ If you have any difficulty to install openvswitch, please let us know through em
   
 Download the test scripts if it has not been done already.
 ```
-#git clone -b ansible –single-branch https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
+#git clone -b ansible --single-branch https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
 ```
   
 Install lrzip
@@ -931,7 +931,7 @@ b634ef21a92b972649602b300859bb47  rhel8.3-vsperf-1Q-viommu.qcow2.tar.lrz
 ##### Set hugepage and isolated CPU
 
 ```
-#grubby --args='intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32' --update-kernel=$(grubby –-default-kernel)
+#grubby --args='intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32' --update-kernel=$(grubby --default-kernel)
 ```
 Depending on your settings in vsperf/Perf-Verify.conf, add all these cores to the tuned profile. As below is an example and you might change the cpu numbers.
 ```
