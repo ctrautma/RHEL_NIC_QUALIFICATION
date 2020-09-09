@@ -28,6 +28,7 @@
           - wget
           - net-tools
           - libibverbs
+          - efibootmgr
 
     # Install EPEL repositories
     - name: Install EPEL repositories
