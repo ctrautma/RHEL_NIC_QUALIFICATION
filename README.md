@@ -973,7 +973,7 @@ For example,
 
 If there was an error “bash: echo: write error: Cannot allocate memory”, try below command and enable VF again:
 ```
-#grubby --args='pci=realloc' --update-kernel=$(grubby –default-kernel)
+#grubby --args='pci=realloc' --update-kernel=$(grubby --default-kernel)
 ```
 
 Turn off spoof checking on VF:
