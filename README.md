@@ -841,7 +841,7 @@ Download the test scripts if it has not been done already.
   
 Install lrzip
 ```
-#yum install -y ~/RHEL_NIC_QUALIFICATION/vsperf/lrzip-0.616-5.el7.x86_64.rpm
+#yum install -y ~/RHEL_NIC_QUALIFICATION/throughput-test/lrzip-0.616-5.el7.x86_64.rpm
 ```
   
 
@@ -849,9 +849,9 @@ Install lrzip
 
 ##### Set variables in configuration files
 
-The test scripts are located in the vsperf folder of the git cloned repository and there are two configuration files.
+The test scripts are located in the throughput-test folder of the git cloned repository and there are two configuration files.
 
-* **vsperf/env.sh**
+* **throughput-test/env.sh**
 
 By default, the test script main-perf-test.sh runs 5 tests in a sequence once the script starts. There is an option to only execute individual tests by toggling the switches. Without any change, the default values are 0 (not to skip, run the test); or change to 1 (to skip, not to run the test).
 
@@ -868,7 +868,7 @@ By default, the test script main-perf-test.sh runs 5 tests in a sequence once th
 |  SKIP_KERNEL | OVS-KERNEL-DATAPATH-PVP-64-Bytes-1Q-2PMD-TEST  |  Kernel datapath without DPDK enabled |
 | SKIP_KERNEL  |  OVS-KERNEL-DATAPATH-PVP-1500-Bytes-2Q-4PMD-TEST | Kernel datapath without DPDK enabled  |
 
-* **vsperf/Perf-Verify.conf**
+* **throughput-test/Perf-Verify.conf**
 
 All the variables needed by scripts are sitting in this config file. We add few comments for some of them here.
 
@@ -933,7 +933,7 @@ b634ef21a92b972649602b300859bb47  rhel8.3-vsperf-1Q-viommu.qcow2.tar.lrz
 ```
 #grubby --args='intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32' --update-kernel=$(grubby --default-kernel)
 ```
-Depending on your settings in vsperf/Perf-Verify.conf, add all these cores to the tuned profile. As below is an example and you might change the cpu numbers.
+Depending on your settings in throughput-test/Perf-Verify.conf, add all these cores to the tuned profile. As below is an example and you might change the cpu numbers.
 ```
 #echo "isolated_cores=2,4,6,14,16,24,26,34,36" >> /etc/tuned/cpu-partitioning-variables.conf
 # tuned-adm profile cpu-partitioning
@@ -999,7 +999,7 @@ Verify the VFs can be seen and spoofchk turned off:
 
 Once all settings are complete, it should be able to run the script to start testing:
 ```
-#cd /root/RHEL_NIC_QUALIFICATION/vsperf
+#cd /root/RHEL_NIC_QUALIFICATION/throughput-test
 #./main-perf-test.sh
 ```
 
@@ -1071,10 +1071,10 @@ As below the example shows a failure. It started python script binary-search.py,
 ```
 The failure below due to the test NIC PF down and command “ip link set *test_NIC* up” would fix the issue.
 ```
-:: [ 23:25:18 ] :: [  BEGIN   ] :: Running 'virsh attach-device gg /root/RHEL_NIC_QUALIFICATION/vsperf/vf1.xml'
-error: Failed to attach device from /root/RHEL_NIC_QUALIFICATION/vsperf/vf1.xml
+:: [ 23:25:18 ] :: [  BEGIN   ] :: Running 'virsh attach-device gg /root/RHEL_NIC_QUALIFICATION/throughput-test/vf1.xml'
+error: Failed to attach device from /root/RHEL_NIC_QUALIFICATION/throughput-test/vf1.xml
 error: internal error: Unable to configure VF 0 of PF 'ens1f0' because the PF is not online. Please change host network config to put the PF online.
-:: [ 23:25:18 ] :: [   FAIL   ] :: Command 'virsh attach-device gg /root/RHEL_NIC_QUALIFICATION/vsperf/vf1.xml' (Expected 0, got 1)
+:: [ 23:25:18 ] :: [   FAIL   ] :: Command 'virsh attach-device gg /root/RHEL_NIC_QUALIFICATION/throughput-test/vf1.xml' (Expected 0, got 1)
 ```
 
 __NOTE__:
@@ -1098,7 +1098,7 @@ The contents will appear as something similar to below.
 drwxr-xr-x. 2 root root  116 Oct 16 17:50 2017-10-16-17:47:14
 drwxr-xr-x. 2 root root  116 Oct 17 09:45 2017-10-17-09:41:09
 drwxr-xr-x. 2 root root 4096 Oct 17 10:06 2017-10-17-09:55:18
--rw-r--r--. 1 root root   60 Oct 17 11:00 vsperf_logs_folder.txt
+-rw-r--r--. 1 root root   60 Oct 17 11:00 throughput_logs_folder.txt
 ```
 
 Once this test has passed disable SR-IOV and begin execution of the functional QE scripts.
@@ -1155,7 +1155,7 @@ The files will expand into the rh_nic_cert folder. The settings in the Perf-Veri
 are used for a single test in this suite of tests so verify the conf file is correct on the client
 side.
 
-Before starting the tests please uninstall openvswitch and reinstall openvswitch. This is because VSPerf does not
+Before starting the tests please uninstall openvswitch and reinstall openvswitch. This is because throughput-test does not
 use systemctl to start openvswitch and can cause some db configuration problems when going back to using systemctl.
 If using a custom openvswitch please re-install the custom version instead of the one from the fast datapath channel.
 
@@ -1263,7 +1263,7 @@ last run was the iteration you wish to send for review. If you have a different 
 submit modify the txt files in RHEL_NIC_QUAL_LOGS to point to the dated folder you wish to submit and
 run the collection script again.
 
-The files are vsperf\_logs\_folder.txt and kernel\_functional\_logs.txt which point to specific folders.
+The files are throughput-test\_logs\_folder.txt and kernel\_functional\_logs.txt which point to specific folders.
 
 Once all tests have been executed and the output from the collection.sh script and pvp results are collected
 you can generate a reporting spreadsheet to glance and see how your tests went.
