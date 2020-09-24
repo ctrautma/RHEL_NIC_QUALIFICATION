@@ -1,7 +1,7 @@
 #!/bin/bash
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-#   Description: Run VSPerf tests
+#   Description: Run throughput tests
 #   Author: Hekai Wang <hewang@redhat.com>
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -38,7 +38,7 @@ init_main_perf_env()
     set -a
     ALL_CMD_FILE="/tmp/all_commands"
     CMD_FILE="/tmp/shell_commands"
-    LOCK_FILE='/tmp/vsperf-lock-file'
+    LOCK_FILE='/tmp/throughput-lock-file'
     MAIN_FILE="main.py"
     set +a
 }
@@ -194,7 +194,7 @@ create_log_folder()
         mkdir -p $nic_log_folder
     fi
 
-    touch ${nic_log_folder}"/vsperf_log_folder.txt"
+    touch ${nic_log_folder}"/throughput_log_folder.txt"
     export NIC_LOG_FOLDER=$nic_log_folder
     return 0
 }
@@ -309,7 +309,7 @@ start_run_test()
         else
             N=0
             lockfile ${LOCK_FILE}
-            if grep sriov-github-vsperf-quit-string ${CMD_FILE};then
+            if grep sriov-github-throughput-quit-string ${CMD_FILE};then
                 killall python
                 killall python
                 killall main-perf-test.sh
@@ -326,5 +326,5 @@ start_run_test()
 }
 
 create_log_folder
-touch ${NIC_LOG_FOLDER}/vsperf_pvp_all_performance.txt
-start_run_test |& tee -a ${NIC_LOG_FOLDER}/vsperf_pvp_all_performance.txt
+touch ${NIC_LOG_FOLDER}/throughput_pvp_all_performance.txt
+start_run_test |& tee -a ${NIC_LOG_FOLDER}/throughput_pvp_all_performance.txt

@@ -153,7 +153,7 @@ def log_folder_check():
     else:
         os.mkdir(nic_log_folder)
 
-    local.path(nic_log_folder + "/vsperf_log_folder.txt").write(nic_log_folder)
+    local.path(nic_log_folder + "/throughput_log_folder.txt").write(nic_log_folder)
 
     os.environ["NIC_LOG_FOLDER"] = nic_log_folder
 
@@ -1352,7 +1352,7 @@ def run_tests(test_list):
         if SKIP_SRIOV == 1:
             data = """
             ************************************************
-            SKIP Running 64/1500 Bytes SR-IOV VSPerf TEST
+            SKIP Running 64/1500 Bytes SR-IOV Throughput TEST
             ************************************************
             """
             log(data)
@@ -1379,7 +1379,7 @@ def run_tests(test_list):
 
     if test_list == "ALL" or test_list == "Jumbo":
         if SKIP_JUMBO == 1:
-            log("SKIP running 2000/9000 Bytes 2PMD PVP OVS/DPDK VSPerf TEST")
+            log("SKIP running 2000/9000 Bytes 2PMD PVP OVS/DPDK Throughput TEST")
         else:
             ovs_dpdk_pvp_test_wrap(1,2000,2000,30)
             ovs_dpdk_pvp_test_wrap(2,9000,9000,30)
@@ -1387,7 +1387,7 @@ def run_tests(test_list):
 
     if test_list == "ALL" or test_list == "Kernel":
         if SKIP_KERNEL == 1:
-            log("skip running 64/1500 Bytes PVP OVS Kernel VSPerf TEST")
+            log("skip running 64/1500 Bytes PVP OVS Kernel Throughput TEST")
         else:
             ovs_kernel_datapath_test_wrap(1,64,30)
             ovs_kernel_datapath_test_wrap(2,1500,30)
@@ -1411,7 +1411,7 @@ def usage():
 def exit_with_error(str):
     print(f"Exit with {str}")
     log(f"""Exit with {str}""")
-    send_command("sriov-github-vsperf-quit-string")
+    send_command("sriov-github-throughput-quit-string")
     pass
 
 def main(test_list="ALL"):
@@ -1465,10 +1465,10 @@ def main(test_list="ALL"):
         pass
 
     #finished running checks
-    with enter_phase("VSPERF RUN TEST LIST"):
+    with enter_phase("THROUGHPUT RUN TEST LIST"):
         ret = run_tests(test_list)
         if ret != 0:
-            exit_with_error("VSPERF REPLACEMENT RUN TESTS FAILED")
+            exit_with_error("THROUGHPUT REPLACEMENT RUN TESTS FAILED")
         pass
 
     with enter_phase("COPY CONFIG FILES TO LOG FOLDER"):
@@ -1482,5 +1482,5 @@ if __name__ == "__main__":
     main()
     send_command("rlJournalPrintText")
     send_command("rlJournalEnd")
-    send_command("sriov-github-vsperf-quit-string")
+    send_command("sriov-github-throughput-quit-string")
     pass
