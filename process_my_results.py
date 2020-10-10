@@ -120,7 +120,7 @@ class ResultsSheet(object):
             for line in data:
                 line = line.decode('utf8').strip()
                 if "RESULT" in line:
-                    findresult = re.search(r'\[   (PASS|FAIL)   \] :: RESULT: (\S+)', line)
+                    findresult = re.search(r'::\s+RESULT:\s+(PASS|FAIL)\s+\((\S+)\)', line)
                     if findresult:
                         self.functional_ws.write_string(self.row, column,
                                                         findresult.group(2))
