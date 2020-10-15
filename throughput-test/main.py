@@ -880,7 +880,7 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
         [ -e trafficgen ] || git clone https://github.com/atheurer/trafficgen.git
         mkdir -p trex
         pushd trex &>/dev/null
-        [ -f {trex_name} ] || wget -nv -N {trex_url};tar xf {trex_name};ln -sf {trex_dir} current; ls -l;
+        [ -f {trex_name} ] || wget -nv -N --no-check-certificate {trex_url};tar xf {trex_name};ln -sf {trex_dir} current; ls -l;
         popd &>/dev/null
         chmod 777 /opt/trex -R
         """
@@ -914,7 +914,7 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
         --frame-size={pkt_size} \
         --traffic-direction=bidirectional \
         --search-runtime={t_time} \
-        --search-granularity=0.5 \
+        --search-granularity=0.1 \
         --validation-runtime=10 \
         --negative-packet-loss=fail \
         --max-loss-pct=0.0 \
