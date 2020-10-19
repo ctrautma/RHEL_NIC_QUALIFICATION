@@ -512,7 +512,7 @@ def ovs_bridge_with_kernel(nic1_name, nic2_name):
     run(cmd)
     return 0
 
-def ovs_bridge_with_dpdk_with_pci_bus(nic1_bus, nic2_bus, mtu_val, pmd_cpu_mask):
+def ovs_bridge_with_dpdk_with_pci_bus(q_num,nic1_bus, nic2_bus, mtu_val, pmd_cpu_mask):
     cmd = f"""
 	modprobe openvswitch
 	systemctl stop openvswitch
@@ -531,8 +531,8 @@ def ovs_bridge_with_dpdk_with_pci_bus(nic1_bus, nic2_bus, mtu_val, pmd_cpu_mask)
 	sleep 3
 	ovs-vsctl add-br ovsbr0 -- set bridge ovsbr0 datapath_type=netdev
 
-    ovs-vsctl add-port ovsbr0 dpdk0 -- set Interface dpdk0 type=dpdk options:dpdk-devargs={nic1_bus} mtu_request={mtu_val}
-    ovs-vsctl add-port ovsbr0 dpdk1 -- set Interface dpdk1 type=dpdk options:dpdk-devargs={nic2_bus} mtu_request={mtu_val}
+    ovs-vsctl add-port ovsbr0 dpdk0 -- set Interface dpdk0 type=dpdk options:dpdk-devargs={nic1_bus} options:n_rxq={q_num} mtu_request={mtu_val}
+    ovs-vsctl add-port ovsbr0 dpdk1 -- set Interface dpdk1 type=dpdk options:dpdk-devargs={nic2_bus} options:n_rxq={q_num} mtu_request={mtu_val}
 
     ovs-vsctl add-port ovsbr0 vhost0 -- set interface vhost0 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost0 mtu_request={mtu_val}
     ovs-vsctl add-port ovsbr0 vhost1 -- set interface vhost1 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost1 mtu_request={mtu_val}
@@ -555,7 +555,7 @@ def ovs_bridge_with_dpdk_with_pci_bus(nic1_bus, nic2_bus, mtu_val, pmd_cpu_mask)
     run(cmd)
     return 0
 
-def ovs_bridge_with_dpdk_with_mac(nic1_mac, nic2_mac, mtu_val, pmd_cpu_mask):
+def ovs_bridge_with_dpdk_with_mac(q_num,nic1_mac, nic2_mac, mtu_val, pmd_cpu_mask):
     cmd = f"""
 	modprobe openvswitch
 	systemctl stop openvswitch
@@ -574,8 +574,8 @@ def ovs_bridge_with_dpdk_with_mac(nic1_mac, nic2_mac, mtu_val, pmd_cpu_mask):
 	sleep 3
 	ovs-vsctl add-br ovsbr0 -- set bridge ovsbr0 datapath_type=netdev
 
-    ovs-vsctl add-port ovsbr0 dpdk0 -- set Interface dpdk0 type=dpdk options:dpdk-devargs="class=eth,mac={nic1_mac}" mtu_request={mtu_val}
-    ovs-vsctl add-port ovsbr0 dpdk1 -- set Interface dpdk1 type=dpdk options:dpdk-devargs="class=eth,mac={nic2_mac}" mtu_request={mtu_val}
+    ovs-vsctl add-port ovsbr0 dpdk0 -- set Interface dpdk0 type=dpdk options:dpdk-devargs="class=eth,mac={nic1_mac}" options:n_rxq={q_num} mtu_request={mtu_val}
+    ovs-vsctl add-port ovsbr0 dpdk1 -- set Interface dpdk1 type=dpdk options:dpdk-devargs="class=eth,mac={nic2_mac}" options:n_rxq={q_num} mtu_request={mtu_val}
 
     ovs-vsctl add-port ovsbr0 vhost0 -- set interface vhost0 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost0 mtu_request={mtu_val}
     ovs-vsctl add-port ovsbr0 vhost1 -- set interface vhost1 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost1 mtu_request={mtu_val}
@@ -1182,16 +1182,16 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
         cpu_mask = my_tool.get_pmd_masks(" ".join(pmd_cpu_2_list))
         vcpu_list = [get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3")]
         if "mlx" in nic_driver:
-            ovs_bridge_with_dpdk_with_mac(nic1_mac,nic2_mac,mtu_val,cpu_mask)
+            ovs_bridge_with_dpdk_with_mac(q_num,nic1_mac,nic2_mac,mtu_val,cpu_mask)
         else:
-            ovs_bridge_with_dpdk_with_pci_bus(nic1_businfo,nic2_businfo,mtu_val,cpu_mask)
+            ovs_bridge_with_dpdk_with_pci_bus(q_num,nic1_businfo,nic2_businfo,mtu_val,cpu_mask)
     else:
         cpu_mask = my_tool.get_pmd_masks(" ".join(pmd_cpu_4_list))
         vcpu_list = [get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3"),get_env("VCPU4"),get_env("VCPU5")]
         if "mlx" in nic_driver:
-            ovs_bridge_with_dpdk_with_mac(nic1_mac,nic2_mac,mtu_val,cpu_mask)
+            ovs_bridge_with_dpdk_with_mac(q_num,nic1_mac,nic2_mac,mtu_val,cpu_mask)
         else:
-            ovs_bridge_with_dpdk_with_pci_bus(nic1_businfo,nic2_businfo,mtu_val,cpu_mask)
+            ovs_bridge_with_dpdk_with_pci_bus(q_num,nic1_businfo,nic2_businfo,mtu_val,cpu_mask)
     
     log("update guest xml config file")
     new_xml = "g1.xml"
