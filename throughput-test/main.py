@@ -789,6 +789,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     {legacy_mem} \
     -n 4 \
     -- \
+    --burst=64 \
     --forward-mode={fwd_mode} \
     --port-topology=paired \
     {hw_vlan_flag} \
