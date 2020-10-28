@@ -30,9 +30,12 @@ custom_repo_path:
 # This is the version that will be downloaded and installed on the T-Rex
 # server.
 trex_path: https://trex-tgn.cisco.com/trex/release
-trex_version: v2.72
+trex_version: v2.82
+trex_url: https://trex-tgn.cisco.com/trex/release/v2.82.tar.gz
 
 # T-Rex server NICs
+trex_interface_1： enp131s0f0
+trex_interface_2： enp131s0f2
 trex_interface_1_pciid: "0000:04:00.0"
 trex_interface_2_pciid: "0000:04:00.1"
 
@@ -74,6 +77,8 @@ ovs_selinux_rpm_path: "http://download-node-02.eng.bos.redhat.com/brewroot/packa
 rhel_guest_image_path: /root/rhel-8.1-x86_64-kvm.qcow2
 
 # DUT NICs
+dut_interface_1： enp131s0f0
+dut_interface_2： enp131s0f1
 dut_interface_1_pciid: "0000:84:00.0"
 dut_interface_2_pciid: "0000:84:00.1"
 tc_offload_card_type: "i40e"
