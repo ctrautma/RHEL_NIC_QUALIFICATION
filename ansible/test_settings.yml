@@ -35,7 +35,7 @@ trex_url: https://trex-tgn.cisco.com/trex/release/v2.82.tar.gz
 
 # T-Rex server NICs
 trex_interface_1: enp131s0f0
-trex_interface_2: enp131s0f2
+trex_interface_2: enp131s0f1
 trex_interface_1_pciid: "0000:04:00.0"
 trex_interface_2_pciid: "0000:04:00.1"
 
