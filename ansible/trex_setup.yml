@@ -92,7 +92,7 @@
       shell:
         cmd: >
           mkdir -p "trex" &&
-          [[ -f $(basename "{{ trex_url }}") ]] || wget -nv -N "{{ trex_url }}" &&
+          [[ -f $(basename "{{ trex_url }}") ]] || wget -nv -N --no-check-certificate "{{ trex_url }}" &&
           tar xzf $(basename "{{ trex_url }}") -C trex/ &&
           pushd trex/$(basename -s '.tar.gz' "{{ trex_url }}") &&
           tar -C "{{ ovs_perf_dir }}" --strip 2 -xzf trex_client_*.tar.gz trex_client/interactive/trex &&
