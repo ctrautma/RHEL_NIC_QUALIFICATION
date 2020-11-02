@@ -16,6 +16,7 @@
           - bc
           - emacs
           - gcc
+          - gcc-c++
           - git
           - lshw
           - pciutils
@@ -29,6 +30,7 @@
           - net-tools
           - libibverbs
           - efibootmgr
+          - "@infiniband support"
 
     # Install EPEL repositories
     - name: Install EPEL repositories
@@ -42,11 +44,6 @@
           - zeromq-devel
           - sshpass
         state: present
-
-    - name: Remove EPEL repo to avoid conflict
-      dnf:
-        name: epel-release-7
-        state: absent
 
     # Python settings
     - name: Link /usr/bin/python to /usr/bin/python3
@@ -100,29 +97,14 @@
           python dpdk_setup_ports.py -c {{trex_interface_1}} {{trex_interface_2}} --force-mac -o /etc/trex_cfg.yaml &&
           popd
 
-    # Setting bootargs for iommu and hugepages
-    - name: Checking iommu settings
-      shell:
-        cmd: >
-          grep intel_iommu=on /proc/cmdline &&
-          grep iommu=pt /proc/cmdline
-      failed_when: false
-      ignore_errors: yes
-      register: iommu_ok
-    - name: Checking hugepage settings
-      shell:
-        cmd: >
-          grep hugepages=32 /proc/cmdline &&
-          grep hugepagesz=1G /proc/cmdline &&
-          grep default_hugepagesz=1G /proc/cmdline &&
-          grep iommu=pt /proc/cmdline &&
-          grep intel_iommu=on /proc/cmdline
-      failed_when: false
-      ignore_errors: yes
-      register: hugepage_ok
-    - name: Setting bootargs
-      shell: "grubby --args='intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32' --update-kernel=$(grubby --default-kernel)"
-      when: iommu_ok.rc != 0 or hugepage_ok.rc != 0
+    - name: Checking required cmdline
+      shell: "grep '{{ trex_linux_cmdline }}' /proc/cmdline"
+      register: trex_linux_cmdline_found
+      failed_when: trex_linux_cmdline_found.rc > 1
+    - debug: var=trex_linux_cmdline_found
+    - name: Tweak the kernel for trex_linux_cmdline
+      shell: "grubby --args='{{ trex_linux_cmdline }}' --update-kernel=$(grubby --default-kernel)"
+      when: trex_linux_cmdline_found.rc != 0
 
     # Setting isolated CPUs and tune to cpu-partitioning
     - name: Getting isolated core list
@@ -159,8 +141,23 @@
 
       - name: reboot
         reboot:
-      when: iommu_ok.rc != 0 or hugepage_ok.rc != 0 or tuned_ok.rc != 0
+      when: trex_linux_cmdline_found.rc != 0 or tuned_ok.rc != 0
 
     # Create pvp results folder
     - name: Create pvp results folder
       shell: mkdir -p ~/pvp_results
+
+    # start trex server
+    - name: start t-rex-64
+      shell: |
+        pushd trex/$(basename -s '.tar.gz' "{{ trex_url }}")
+        nohup ./t-rex-64 --no-ofed-check -c $(sed -n -e 's/.*threads: \[\(.*\)\]/\1/p' /etc/trex_cfg.yaml | sed 's/,/\n/g' | wc -l) -i 1>/tmp/trex_perf.log &
+        popd
+    - name: wait t-rex-64 start up
+      pause:
+        seconds: 10
+    - name: check t-rex-64
+      shell: ps -ef | grep t-rex-64
+      register: re
+      failed_when:
+      - "'_t-rex-64' not in re.stdout"

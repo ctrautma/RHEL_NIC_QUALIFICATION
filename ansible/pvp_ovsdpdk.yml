@@ -1,25 +1,13 @@
 - name: pvp_ovsdpdk setup
   hosts: dut
+  vars:
+    guest_name: rhel_loopback
   vars_files:
     - ./test_settings.yml
   tasks:
   - debug:
       msg: Debug mode is enabled
     when: redhat_debug_mode == true
-
-#################################################
-# Check for nic to make sure its seen by kernel #
-#################################################
-
-  - stat: path=/sys/class/net/{{ dut_interface_1 }}
-    register: st
-  - block:
-    - name: "Checking nic to be seen by kernel"
-      debug:
-        msg: "exiting as nic {{ dut_interface_1 }} cannot be seen by the kernel.  Please check settings or unbind the nic from a dpdk driver using driverctl"
-
-    - meta: end_play
-    when: not st.stat.exists
 
 ######################################
 # Install repositories on DUT server #
@@ -30,7 +18,7 @@
       name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm
   - name: Install needed repos stage 1
     yum:
-      name: aspell,aspell-en,autoconf,automake,bc,checkpolicy
+      name: wget,aspell,aspell-en,autoconf,automake,bc,checkpolicy
   - name: Install needed repos stage 2
     yum:
       name: desktop-file-utils,dpdk,dpdk-tools,driverctl,emacs,expect,gcc,gcc-c++,gdb
@@ -66,64 +54,32 @@
       src: "/usr/bin/pip3"
       dest: "/usr/bin/pip"
       state: link
+  - name: copying vm.sh to default location
+    copy:
+      src: ./vm.sh
+      dest: ~/vm.sh
+      mode: "777"
+  - name: Copy up cpulist script to remote DUT
+    copy:
+      src: get_cpulist.sh
+      dest: /root/get_cpulist.sh
+      mode: "a+x"
 
 ####################################################
 # Tweak the system for QEMU and and OVS-DPDK usage #
 ####################################################
-
   - name: Modifying selinux params step 1
-    shell: sed -i -e 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
+    lineinfile:
+      path: /etc/selinux/config
+      regexp: '^SELINUX=.*'
+      line: "SELINUX=permissive"
+      state: present
   - name: Modifying selinux params step 2
     shell: setenforce permissive
 
-#####################################################
-# Modify startup parameters for hugepages and iommu #
-#####################################################
-
-  - name: Checking for hugepages in grub step 1 (Fatal errors are normal here)
-    shell: "cat /proc/cmdline | grep hugepages=32"
-    register: hugepages_found1
-    ignore_errors: True
-  - debug:
-      var: hugepages_found1
-    when: redhat_debug_mode == true
-  - name: Checking for hugepages in grub step 2 (Fatal errors are normal here)
-    shell: "cat /proc/cmdline | grep hugepagesz=1G"
-    register: hugepages_found2
-    ignore_errors: True
-  - debug:
-      var: hugepages_found2
-    when: redhat_debug_mode == true
-  - name: Checking for hugepages in grub step 3 (Fatal errors are normal here)
-    shell: "cat /proc/cmdline | grep default_hugepagesz=1G"
-    register: hugepages_found3
-    ignore_errors: True
-  - debug:
-      var: hugepages_found3
-    when: redhat_debug_mode == true
-  - name: Checking for iommu in grub step 1 (Fatal errors are normal here)
-    shell: "cat /proc/cmdline | grep iommu=pt"
-    register: iommu_found1
-    ignore_errors: True
-  - debug:
-      var: iommu_found1
-    when: redhat_debug_mode == true
-  - name: Checking for iommu in grub step 2 (Fatal errors are normal here)
-    shell: "cat /proc/cmdline | grep intel_iommu=on"
-    register: iommu_found2
-    ignore_errors: True
-  - debug:
-      var: iommu_found2
-    when: redhat_debug_mode == true
-  - name: Tweak the kernel for hugepages and iommu step 2
-    shell: "grubby --args='intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32' --update-kernel=$(grubby --default-kernel)"
-    when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0
-    tags: ["grub"]
-
-#########################
-# Setup libvirt service #
-#########################
-
+################################
+# Starting libvirtd service #
+################################
   - name: group = 'hugetlbfs' in /etc/libvirt/qemu.conf
     lineinfile:
       path: /etc/libvirt/qemu.conf
@@ -140,91 +96,111 @@
       daemon_reload: yes
     when: result_hugetlbfs.changed
 
+################################
+# Starting openvswitch service #
+################################
+  - name: Enable service openvswitch
+    service:
+      name: openvswitch
+      enabled: yes
+  - name: Start service openvswitch
+    service:
+      name: openvswitch
+      state: started
+
+################################
+# Removing old configurations if exists
+################################
+  - name: list all VMs
+    virt:
+      command: list_vms
+    register: all_vms
+  - virt:
+      name: "{{ item }}"
+      state: destroyed
+    loop: "{{ all_vms.list_vms }}"
+  - pause:
+      seconds: 5
+  - virt:
+      name: "{{ item }}"
+      command: undefine
+    loop: "{{ all_vms.list_vms }}"
+
+  - name: ovs-vsctl del-br
+    shell: ovs-vsctl list-br | awk '{ system("ovs-vsctl del-br "$1) }'
+  - name: stop service openvswitch
+    systemd:
+      name: openvswitch
+      state: stopped
+
+  - name: driverctl unset_overrides
+    shell: driverctl list-overrides 2>/dev/null | awk '{ system("driverctl unset-override "$1) }'
+
+  - name: remove /dev/hugepages/rtemap_*
+    file:
+      path: /dev/hugepages/rtemap_*
+      state: absent
+
+#####################################################
+# Modify startup parameters for hugepages and iommu
+#####################################################
+  - name: Checking required cmdline
+    shell: "grep '{{ dut_linux_cmdline }}' /proc/cmdline"
+    register: dut_linux_cmdline_found
+    failed_when: dut_linux_cmdline_found.rc > 1
+  - debug: var=dut_linux_cmdline_found
+  - name: Tweak the kernel for dut_linux_cmdline
+    shell: "grubby --args='{{ dut_linux_cmdline }}' --update-kernel=$(grubby --default-kernel)"
+    when: dut_linux_cmdline_found.rc != 0
+
 ############################################
 # Get needed cpu list #
 ############################################
-
-  - name: Copy up cpulist script to remote DUT
-    copy:
-      src: get_cpulist.sh
-      dest: /root/get_cpulist.sh
-  - name: Changing perm of "/root/get_cpu_list.sh", adding "+x"
-    file: dest=/root/get_cpulist.sh mode=a+x
   - name: check cpu requirement
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
     register: cpu_meet
   - block:
-      - debug:
-          msg: cpu list can't meet the test requirement,exit the script
-      - meta: end_play
+    - debug:
+        msg: cpu list can't meet the test requirement,exit the script
+    - meta: end_play
     when: cpu_meet.rc != 0
   - name: Get dut_isolated_cpus
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_isolated_cpus
     register: dut_isolated_cpus
-  - debug:
-      var: dut_isolated_cpus
-    when: redhat_debug_mode == true
   - name: Get dut_dpdk_pmd_mask
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_dpdk_pmd_mask
     register: dut_dpdk_pmd_mask
-  - debug:
-      var: dut_dpdk_pmd_mask
-    when: redhat_debug_mode == true
   - name: Get dut_pmd_rxq_affinity
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_pmd_rxq_affinity
     register: dut_pmd_rxq_affinity
-  - debug:
-      var: dut_pmd_rxq_affinity
-    when: redhat_debug_mode == true
   - name: Get vcpu_0
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_0
     register: vcpu_0
-  - debug:
-      var: vcpu_0
-    when: redhat_debug_mode == true
   - name: Get vcpu_1
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_1
     register: vcpu_1
-  - debug:
-      var: vcpu_1
-    when: redhat_debug_mode == true
   - name: Get vcpu_2
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_2
     register: vcpu_2
-  - debug:
-      var: vcpu_2
-    when: redhat_debug_mode == true
   - name: Get vcpu_3
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_3
     register: vcpu_3
-  - debug:
-      var: vcpu_3
-    when: redhat_debug_mode == true
   - name: Get dut_dpdk_lcore_mask
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} dut_dpdk_lcore_mask
     register: dut_dpdk_lcore_mask
-  - debug:
-      var: dut_dpdk_lcore_mask
-    when: redhat_debug_mode == true
   - name: Get vcpu_emulator
     shell: ./get_cpulist.sh {{ dut_interface_1_pciid }} vcpu_emulator
     register: vcpu_emulator
-  - debug:
-      var: vcpu_emulator
-    when: redhat_debug_mode == true
-
 
 ############################################
-# Tune isolated cpus based on t-rex config #
+# Tune isolated cpus
 ############################################
-
   - name: Checking for isolcpus in grub (Fatal errors are normal here)
     shell: >
       grep "nohz_full={{ dut_isolated_cpus.stdout }}" /proc/cmdline &&
       grep "rcu_nocbs={{ dut_isolated_cpus.stdout }}" /proc/cmdline
-    failed_when: false
-    ignore_errors: yes
     register: isolcpus_needed
+    failed_when: isolcpus_needed.rc > 1
   - name: Adding isolated cpus to tuned
     lineinfile:
        path: //etc/tuned/cpu-partitioning-variables.conf
@@ -243,45 +219,30 @@
 ###################################################
 # Reboot DUT system for settings to take effect #
 ###################################################
-  - block:
-    - name: set BootNext for UEFI
-      shell: |
-        efibootmgr -v && efibootmgr -n $(efibootmgr -v | grep BootCurrent | sed 's/.*: //') || true
+  - name: set BootNext for UEFI system
+    shell: >
+      efibootmgr -v && efibootmgr -n $(efibootmgr -v | grep BootCurrent | sed 's/.*: //')
+    register: re
+    failed_when:
+      - re.rc != 0
+      - '"efibootmgr: command not found" not in re.stderr'
 
-    - name: reboot
-      reboot:
-    when: iommu_found1.rc != 0 or iommu_found2.rc != 0 or hugepages_found1.rc != 0 or hugepages_found2.rc != 0 or hugepages_found3.rc != 0 or isolcpus_needed.rc !=0
+  - name: reboot
+    reboot:
+    when: dut_linux_cmdline_found.rc != 0 or isolcpus_needed.rc !=0
 
   - name: check hugepage
-    shell: |
-      (($(cat /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages) == 0)) && echo 32 > /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages || true
-      grep -i huge /proc/meminfo
+    shell: grep -i huge /proc/meminfo
 
 ####################
 # Getting NIC info #
 ####################
 
-  - name: get driver
-    shell: "ethtool -i {{ dut_interface_1 }} | sed -n '/driver: / s/driver: //p'"
-    register: nic_driver
-  - name: Getting pci address of NIC 1
-    shell: "ethtool -i {{ dut_interface_1 }} | grep bus-info | awk '{print $2}'"
-    register: dut_nic1_pci_address
-  - name: Getting pci address of NIC 2
-    shell: "ethtool -i {{ dut_interface_2 }} | grep bus-info | awk '{print $2}'"
-    register: dut_nic2_pci_address
-  - name: finding numa node of nic
-    shell: cat /sys/class/net/{{ dut_interface_1}}/device/numa_node
-    register: nic1_numa
-  - debug:
-      var: dut_nic1_pci_address
-    when: redhat_debug_mode == true
-  - name: Binding nic {{ dut_interface_1 }} to driver {{ dut_driver }}
+  - name: Binding nic to {{ dut_driver_override }}
     shell: |
-      driverctl -v set-override {{ dut_nic1_pci_address.stdout }} {{ dut_driver }}
-      driverctl -v set-override {{ dut_nic2_pci_address.stdout }} {{ dut_driver }}
-    ignore_errors: True
-    when: nic_driver.stdout != 'mlx5_core'
+      driverctl -v set-override {{ dut_interface_1_pciid }} {{ dut_driver_override }}
+      driverctl -v set-override {{ dut_interface_2_pciid }} {{ dut_driver_override }}
+    when: dut_driver_override != ''
 
 ################################
 # Starting openvswitch service #
@@ -317,9 +278,19 @@
   - name: Setting up OVS-DPDK config step 6
     shell: ovs-vsctl add-br ovs_pvp_br0 -- set bridge ovs_pvp_br0 datapath_type=netdev
   - name: Setting up OVS-DPDK config step 7
-    shell: "ovs-vsctl add-port ovs_pvp_br0 dpdk0 -- set Interface dpdk0 type=dpdk -- set Interface dpdk0 options:dpdk-devargs='{{ dut_nic1_pci_address.stdout }}' -- set interface dpdk0 options:n_rxq=2 other_config:pmd-rxq-affinity='{{ dut_pmd_rxq_affinity.stdout }}' -- set Interface dpdk0 ofport_request=1"
+    shell: >
+      ovs-vsctl add-port ovs_pvp_br0 dpdk0 -- set Interface dpdk0 type=dpdk
+      options:dpdk-devargs={{ dut_interface_1_pciid }}
+      options:n_rxq=2
+      other_config:pmd-rxq-affinity={{ dut_pmd_rxq_affinity.stdout }}
+      ofport_request=1
   - name: Setting up OVS-DPDK config step 8
-    shell: "ovs-vsctl add-port ovs_pvp_br0 vhost0 -- set Interface vhost0 type=dpdkvhostuserclient -- set Interface vhost0 options:vhost-server-path='/tmp/vhost-sock0' -- set interface vhost0 options:n_rxq=2 other_config:pmd-rxq-affinity='{{ dut_pmd_rxq_affinity.stdout }}' -- set Interface vhost0 ofport_request=2"
+    shell: >
+      ovs-vsctl add-port ovs_pvp_br0 vhost0 -- set Interface vhost0 type=dpdkvhostuserclient
+      options:vhost-server-path='/tmp/vhost-sock0'
+      options:n_rxq=2
+      other_config:pmd-rxq-affinity={{ dut_pmd_rxq_affinity.stdout }}
+      ofport_request=2
 
 ##############################
 # Setting up Virtual machine #
@@ -340,35 +311,60 @@
       remote_src: yes
     when: not st.stat.exists
   - name: Configuring VM
-    shell: LIBGUESTFS_BACKEND=direct virt-customize -a /opt/images/rhel_guest_image_pvp.qcow2 --root-password password:root --uninstall cloud-init
-  - name: Checking status of rhel_loopback image
-    virt:
-      command: list_vms
-    register: all_vms
-  - debug:
-      var: all_vms
-    when: redhat_debug_mode == true
-  - name: Stopping rhel_loopback if its started
-    virt:
-      name: rhel_loopback
-      command: destroy
-    ignore_errors: yes
-    when: '"rhel_loopback" in all_vms.list_vms'
-  - name: Undefining rhel_loopback if needed
-    shell: virsh undefine rhel_loopback
-    when: '"rhel_loopback" in all_vms.list_vms'
+    shell: >
+      LIBGUESTFS_BACKEND=direct virt-customize
+      -a /opt/images/rhel_guest_image_pvp.qcow2
+      --root-password password:root
+      --uninstall cloud-init
 
-  #set static IP address 192.168.122.123 for internet access in guest g1
-  - shell: virsh net-list | grep default || virsh net-define /usr/share/libvirt/networks/default.xml
-  - shell: virsh net-autostart default
-  - shell: virsh net-list | grep default | grep active || virsh net-start default
-  - shell: >
-      virsh net-dumpxml default | grep "mac='52:54:00:01:02:03'" &&
-      virsh net-update default modify ip-dhcp-host "<host mac='52:54:00:01:02:03' ip='192.168.122.5'/>" --live --config ||
-      virsh net-update default add ip-dhcp-host "<host mac='52:54:00:01:02:03' ip='192.168.122.5'/>" --live --config
+###################################################
+# set static IP address 192.168.122.123 for internet access in guest
+###################################################
+  - name: destroy virt-net default
+    virt_net:
+      name: default
+      command: destroy
+    failed_when: false
+  - name: undefine virt-net default
+    virt_net:
+      name: default
+      command: undefine
+  - name: define virt-net default
+    virt_net:
+      name: default
+      command: define
+      xml: "{{ lookup('file', '/usr/share/libvirt/networks/default.xml') }}"
+      autostart: yes
+  - name: set IP address for internet access in guest
+    virt_net:
+      name: default
+      command: modify
+      xml: "<host name='{{ guest_name }}' mac='52:54:00:01:02:03' ip='192.168.122.5'/>"
+  - name: start virt-net default
+    virt_net:
+      name: default
+      command: create
+  - name: check virt-net default
+    virt_net:
+      name: default
+      command: get_xml
 
   - name: Running virt-install
-    shell: virt-install --connect=qemu:///system --network vhostuser,source_type=unix,source_path=/tmp/vhost-sock0,source_mode=server,model=virtio,driver_queues=2 --network network=default,mac=52:54:00:01:02:03 --name=rhel_loopback --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2 --ram 8192 --memorybacking hugepages=on,size=1024,unit=M,nodeset=0,access_mode=shared --vcpus=4,cpuset={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }} --check-cpu --cpu mode=host-passthrough,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608 --numatune mode=strict,nodeset=0 --nographics --noautoconsole --import
+    shell: >
+      virt-install --connect=qemu:///system
+      --name={{ guest_name }}
+      --check-cpu
+      --cpu mode=host-passthrough,+pdpe1gb,cell0.id=0,cell0.cpus=0,cell0.memory=8388608
+      --vcpus=4,cpuset={{ vcpu_0.stdout }},{{ vcpu_1.stdout }},{{ vcpu_2.stdout }},{{ vcpu_3.stdout }}
+      --ram 8192
+      --numatune mode=strict,nodeset=0
+      --memorybacking hugepages=on,size=1024,unit=M,nodeset=0,access_mode=shared
+      --network vhostuser,source_type=unix,source_path=/tmp/vhost-sock0,source_mode=server,model=virtio,driver_queues=2
+      --network network=default,mac=52:54:00:01:02:03
+      --disk path=/opt/images/rhel_guest_image_pvp.qcow2,format=qcow2
+      --nographics
+      --noautoconsole
+      --import
   - name: Wait vm to start
     pause:
       seconds: 60
@@ -376,78 +372,77 @@
     file:
        path: /tmp/vhost-sock0
        mode: 777
-  - name: Setting cpu pin for vcpu 0
-    shell: virsh vcpupin rhel_loopback 0 {{ vcpu_0.stdout }}
-  - name: Setting cpu pin for vcpu 1
-    shell: virsh vcpupin rhel_loopback 1 {{ vcpu_1.stdout }}
-  - name: Setting cpu pin for vcpu 2
-    shell: virsh vcpupin rhel_loopback 2 {{ vcpu_2.stdout }}
-  - name: Setting cpu pin for vcpu 3
-    shell: virsh vcpupin rhel_loopback 3 {{ vcpu_3.stdout }}
-  - name: Setting emulator pin for guest
-    shell: virsh emulatorpin rhel_loopback {{ vcpu_emulator.stdout }}
-  - name: copying virsh console script to default location
-    copy:
-      src: ./vm.sh
-      dest: ~/vm.sh
-      mode: "777"
-  - name: Logging into vm rhel_loopback
-    shell: ~/vm.sh login_vm rhel_loopback
-  - name: Setting up subscription manager step 1 on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "subscription-manager register --username={{ rh_sub_username }} --password={{ rh_sub_pass }}"
+  - name: Setting cpu pin for vcpu
+    shell: |
+      virsh vcpupin {{ guest_name }} 0 {{ vcpu_0.stdout }}
+      virsh vcpupin {{ guest_name }} 1 {{ vcpu_1.stdout }}
+      virsh vcpupin {{ guest_name }} 2 {{ vcpu_2.stdout }}
+      virsh vcpupin {{ guest_name }} 3 {{ vcpu_3.stdout }}
+      virsh emulatorpin {{ guest_name }} {{ vcpu_emulator.stdout }}
+
+  - name: Logging into vm {{ guest_name }}
+    shell: ~/vm.sh login_vm {{ guest_name }}
+
+  - name: Setting up subscription manager step 1 on {{ guest_name }}
+    shell: ~/vm.sh run_cmd {{ guest_name }} "subscription-manager register --username={{ rh_sub_username }} --password={{ rh_sub_pass }}"
     when: not qe_subscription_mode
-  - name: Setting up subscription manager step 2 on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "subscription-manager attach --pool={{ rh_sub_pool_id }}"
+  - name: Setting up subscription manager step 2 on {{ guest_name }}
+    shell: ~/vm.sh run_cmd {{ guest_name }} "subscription-manager attach --pool={{ rh_sub_pool_id }}"
     when: not qe_subscription_mode
+
   - name: Using QE Secret sauce to add subscription for repos
-    shell: ~/vm.sh run_cmd rhel_loopback "{{ qe_subscription_command }}"
+    shell: ~/vm.sh run_cmd {{ guest_name }} "{{ qe_subscription_command }}"
     retries: 5
     delay: 3
     when: qe_subscription_mode
-  - name: subscribing to appstream on VM rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms || subscription-manager repos --enable rhel-8-for-x86_64-appstream*-rpms"
-  - name: Running yum commandset step 1 on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "yum -y clean all"
-  - name: Running yum commandset step 2 on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "yum -y update"
-  - name: Running yum commandset step 3 on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "yum -y install driverctl gcc kernel-devel numactl-devel tuned-profiles-cpu-partitioning wget libibverbs dpdk-tools"
-  - name: Running yum commandset step 4 on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "yum -y update kernel"
-  - name: Modifying grub for tuning on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "grubby --args='isolcpus=1,2,3 default_hugepagesz=1G hugepagesz=1G hugepages=2' --update-kernel=ALL"
-  - name: Setting vfio options on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "echo 'options vfio enable_unsafe_noiommu_mode=1' > /etc/modprobe.d/vfio.conf"
-  - name: Binding nic to vfio-pci on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "driverctl -v set-override 0000:00:02.0 vfio-pci"
-  - name: Starting tuned service step 1 on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "systemctl enable tuned"
-  - name: Starting runed service step 2 on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "systemctl start tuned"
-  - name: Setting isolated cores for tuning profile on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "grep -e '^isolated_cores=1,2,3' /etc/tuned/cpu-partitioning-variables.conf || echo isolated_cores=1,2,3 >> /etc/tuned/cpu-partitioning-variables.conf"
-  - name: Starting tuned profile cpu-partitioning on rhel_loopback
-    shell: ~/vm.sh run_cmd rhel_loopback "tuned-adm profile cpu-partitioning"
-  - name: Rebooting vm rhel_loopback step 1
+
+  - name: subscribing to appstream on VM {{ guest_name }}
+    shell: ~/vm.sh run_cmd {{ guest_name }} "subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms || subscription-manager repos --enable rhel-8-for-x86_64-appstream*-rpms"
+  - name: Running yum commandset step 1 on {{ guest_name }}
+    shell: ~/vm.sh run_cmd {{ guest_name }} "yum -y clean all"
+  #- name: Running yum commandset step 2 on {{ guest_name }}
+  #  shell: ~/vm.sh run_cmd {{ guest_name }} "yum -y update"
+  - name: Running yum commandset step 3 on {{ guest_name }}
+    shell: ~/vm.sh run_cmd {{ guest_name }} "yum -y install driverctl gcc kernel-devel numactl-devel tuned-profiles-cpu-partitioning wget libibverbs dpdk-tools"
+  #- name: Running yum commandset step 4 on {{ guest_name }}
+  #  shell: ~/vm.sh run_cmd {{ guest_name }} "yum -y update kernel"
+
+  - name: Modifying grub for tuning on {{ guest_name }}
+    shell: ~/vm.sh run_cmd {{ guest_name }} "grubby --args='isolcpus=1,2,3 default_hugepagesz=1G hugepagesz=1G hugepages=2' --update-kernel=ALL"
+  - name: Setting vfio options on {{ guest_name }}
+    shell: ~/vm.sh run_cmd {{ guest_name }} "echo 'options vfio enable_unsafe_noiommu_mode=1' > /etc/modprobe.d/vfio.conf"
+  - name: Binding nic to vfio-pci on {{ guest_name }}
+    shell: ~/vm.sh run_cmd {{ guest_name }} "driverctl -v set-override 0000:00:02.0 {{ vm_driver_override }}"
+    when: vm_driver_override != ""
+  - name: Starting tuned service step 1 on {{ guest_name }}
+    shell: ~/vm.sh run_cmd {{ guest_name }} "systemctl enable tuned"
+  - name: Starting runed service step 2 on {{ guest_name }}
+    shell: ~/vm.sh run_cmd {{ guest_name }} "systemctl start tuned"
+  - name: Setting isolated cores for tuning profile on {{ guest_name }}
+    shell: ~/vm.sh run_cmd {{ guest_name }} "grep -e '^isolated_cores=1,2,3' /etc/tuned/cpu-partitioning-variables.conf || echo isolated_cores=1,2,3 >> /etc/tuned/cpu-partitioning-variables.conf"
+  - name: Starting tuned profile cpu-partitioning on {{ guest_name }}
+    shell: ~/vm.sh run_cmd {{ guest_name }} "tuned-adm profile cpu-partitioning"
+
+  - name: Rebooting vm {{ guest_name }} step 1
     virt:
-      name: rhel_loopback
+      name: "{{ guest_name }}"
       state: shutdown
   - name: Wait system some time to shutdown
     pause:
       seconds: 5
-  - name: Rebooting vm rhel_loopback step 2
+  - name: Rebooting vm {{ guest_name }} step 2
     virt:
-      name: rhel_loopback
+      name: "{{ guest_name }}"
       state: running
   - name: Wait vm to start
     pause:
       seconds: 60
-  - name: Logging into VM rhel_loopback
-    shell: ~/vm.sh login_vm rhel_loopback
-  - name: Logging into vm rhel_loopback
-    shell: ~/vm.sh login_vm rhel_loopback
+  - name: Logging into VM {{ guest_name }}
+    shell: ~/vm.sh login_vm {{ guest_name }}
+  - name: Logging into vm {{ guest_name }}
+    shell: ~/vm.sh login_vm {{ guest_name }}
   - name: Getting IP address from VM
-    shell: ~/vm.sh run_cmd rhel_loopback "ip a | grep inet | grep brd | awk '{ print \$2 }'" | grep -A 1 "ip a \| grep inet \| grep brd"   | tail -n 1
+    shell: ~/vm.sh run_cmd {{ guest_name }} "ip a | grep inet | grep brd | awk '{ print \$2 }'" | grep -A 1 "ip a \| grep inet \| grep brd"   | tail -n 1
     register: vm_ip
   - debug:
       msg: Please note the ip address of the VM as it will be needed when executing the pvp test scripts {{ vm_ip.stdout }}
