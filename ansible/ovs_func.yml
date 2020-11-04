@@ -1,0 +1,65 @@
+- name: ovs functionality
+  hosts: dut
+  vars_files:
+    - ./test_settings.yml
+  tasks:
+  - name: copy rh_nic_cert.tar
+    copy:
+      src: ../rh_nic_cert.tar
+      dest: /root/
+
+  - name: unzip
+    unarchive:
+      src: /root/rh_nic_cert.tar
+      dest: /root/
+      remote_src: True
+
+  - name: generate env.sh
+    copy:
+      content: |
+        export CLIENTS="{{ groups['dut'][0] }}"
+        export SERVERS="{{ groups['trex'][0] }}"
+        export NIC_CLIENT="{{ dut_interface_1 }} {{ dut_interface_2 }}"
+        export NIC_SERVER="{{ trex_interface_1 }}"
+        export IMG_GUEST="{{ rhel_guest_image_url }}"
+        export QE_SKIP_OVS_BOND_TEST=yes
+        export RPM_OVS_SELINUX_EXTRA_POLICY="{{ ovs_selinux_rpm_path }}"
+        export RPM_OVS="{{ ovs_rpm_path }}"
+        export RPM_DPDK="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/19.11/4.el8/x86_64/dpdk-19.11-4.el8.x86_64.rpm"
+        export RPM_DPDK_TOOLS="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/19.11/4.el8/x86_64/dpdk-tools-19.11-4.el8.x86_64.rpm"
+        export RPM_DRIVERCTL="http://download-node-02.eng.bos.redhat.com/brewroot/packages/driverctl/0.95/4.el8/noarch/driverctl-0.95-4.el8.noarch.rpm"
+      dest: env.sh
+      mode: a+x
+
+- name: ovs functionality
+  hosts: trex
+  vars_files:
+    - ./test_settings.yml
+  tasks:
+  - name: copy rh_nic_cert.tar
+    copy:
+      src: ../rh_nic_cert.tar
+      dest: /root/
+
+  - name: unzip
+    unarchive:
+      src: /root/rh_nic_cert.tar
+      dest: /root/
+      remote_src: True
+
+  - name: generate env.sh
+    copy:
+      content: |
+        export CLIENTS="{{ groups['dut'][0] }}"
+        export SERVERS="{{ groups['trex'][0] }}"
+        export NIC_CLIENT="{{ dut_interface_1 }} {{ dut_interface_2 }}"
+        export NIC_SERVER="{{ trex_interface_1 }}"
+        export IMG_GUEST="{{ rhel_guest_image_url }}"
+        export QE_SKIP_OVS_BOND_TEST=yes
+        export RPM_OVS_SELINUX_EXTRA_POLICY="{{ ovs_selinux_rpm_path }}"
+        export RPM_OVS="{{ ovs_rpm_path }}"
+        export RPM_DPDK="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/19.11/4.el8/x86_64/dpdk-19.11-4.el8.x86_64.rpm"
+        export RPM_DPDK_TOOLS="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/19.11/4.el8/x86_64/dpdk-tools-19.11-4.el8.x86_64.rpm"
+        export RPM_DRIVERCTL="http://download-node-02.eng.bos.redhat.com/brewroot/packages/driverctl/0.95/4.el8/noarch/driverctl-0.95-4.el8.noarch.rpm"
+      dest: env.sh
+      mode: a+x
