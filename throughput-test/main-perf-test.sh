@@ -194,7 +194,8 @@ create_log_folder()
         mkdir -p $nic_log_folder
     fi
 
-    touch ${nic_log_folder}"/throughput_log_folder.txt"
+    touch ${log_folder}"/throughput_logs_folder.txt"
+    echo $nic_log_folder > ${log_folder}"/throughput_logs_folder.txt"
     export NIC_LOG_FOLDER=$nic_log_folder
     return 0
 }
