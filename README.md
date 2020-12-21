@@ -995,7 +995,13 @@ Verify the VFs can be seen and spoofchk turned off:
     vf 0     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking off, link-state auto, trust off
 ```
 
-
+Please note that for certain NICs, for example, Intel X540-AT2, only dpdk 19.11+ can support promisc mode on SRIOV guest. If guest uses promisc mode, the PF setting needs to be PROMISC mode and VF trust setting needs to be turned on. As below is an example of host NIC settings for SRIOV test. Please check with the manufacturer for details.
+```
+# ip link show enp131s0f0
+36: enp131s0f0: <BROADCAST,MULTICAST,PROMISC,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
+    link/ether a0:36:9f:08:2b:c4 brd ff:ff:ff:ff:ff:ff
+    vf 0     link/ether 52:54:00:11:8f:ea brd ff:ff:ff:ff:ff:ff, spoof checking off, link-state auto, trust on, query_rss off
+```
 
 Once all settings are complete, it should be able to run the script to start testing:
 ```
