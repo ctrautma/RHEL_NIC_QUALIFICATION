@@ -423,6 +423,19 @@ def download_VNF_image():
     sleep 5
     """
     log_and_run(cmd)
+
+    #copy driverctl into guest image
+    driverctl_dir="/root/driverctl_dir/"
+    cmd = f"""
+    rm -rf {driverctl_dir}
+    mkdir -p {driverctl_dir}
+    dnf download driverctl --destdir={driverctl_dir}
+    virt-copy-in -a {image_dir}/{one_queue_image_name} {driverctl_dir} /root/
+    virt-copy-in -a {image_dir}/{two_queue_image_name} {driverctl_dir} /root/
+    sleep 10
+    """
+    log_and_run(cmd)
+
     return 0
 
 
@@ -736,7 +749,9 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     cmd = fr"""
     stty rows 24 cols 120
     /root/one_gig_hugepages.sh 1
-    rpm -ivh /root//{dpdk_ver}/dpdk*.rpm
+    # rpm -ivh /root//{dpdk_ver}/dpdk*.rpm
+    rpm -ivh /root/driverctl_dir/driverctl*.rpm
+    for i in `ls /root/{dpdk_ver}/`; do rpm -ivh /root/{dpdk_ver}/$i; done
     echo "options vfio enable_unsafe_noiommu_mode=1" > /etc/modprobe.d/vfio.conf
     modprobe -r vfio_iommu_type1
     modprobe -r vfio-pci
