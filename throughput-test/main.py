@@ -90,24 +90,17 @@ def enable_dpdk(nic1_mac, nic2_mac):
     if driver_name == "mlx5_core":
         log("This Driver is Mallenox , So just return 0")
         return 0
-    if os.path.exists("/usr/share/dpdk/usertools/dpdk-devbind.py"):
-        log("using dpdk-devbind.py set the vfio-pci driver to nic")
-        cmd = f"""
-        /usr/share/dpdk/usertools/dpdk-devbind.py -b vfio-pci {nic1_businfo}
-        /usr/share/dpdk/usertools/dpdk-devbind.py -b vfio-pci {nic2_businfo}
-        /usr/share/dpdk/usertools/dpdk-devbind.py --status
-        """
-        log_and_run(cmd)
-    else:
-        log("using driverctl set the vfio-pci driver to nic")
-        cmd = f"""
-        driverctl -v set-override {nic1_businfo} vfio-pci
-        sleep 3
-        driverctl -v set-override {nic2_businfo} vfio-pci
-        sleep 3
-        driverctl -v list-devices | grep vfio-pci
-        """
-        log_and_run(cmd)
+    #Only use driverctl to set override
+    log("using driverctl set the vfio-pci driver to nic")
+    cmd = f"""
+    driverctl -v set-override {nic1_businfo} vfio-pci
+    sleep 3
+    driverctl -v set-override {nic2_businfo} vfio-pci
+    sleep 3
+    driverctl -v list-devices | grep vfio-pci
+    """
+    log_and_run(cmd)
+
     return 0
 
 @set_check(0)
@@ -260,11 +253,11 @@ def rpm_check():
     else:
         log("Openvswitch rpm check OK")
 
-    if bash("rpm -qa | grep dpdk-tools").value() == "":
-        log("Please install dpdk tools rpm ")
-        return 1
-    else:
-        log("dpdk tools check OK ")
+    # if bash("rpm -qa | grep dpdk-tools").value() == "":
+    #     log("Please install dpdk tools rpm ")
+    #     return 1
+    # else:
+    #     log("dpdk tools check OK ")
 
     if bash("rpm -qa | grep dpdk-[0-9]").value() == "":
         log("Please install dpdk package rpm ")
@@ -466,6 +459,7 @@ def install_rpms():
         vim
         lrzip
         libnl3-devel
+        driverctl
         """.split()
         for pack in all_package:
             check_install(pack)
@@ -767,7 +761,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     grep "mlx" <<< $driver || driverctl -v set-override 0000:04:00.0 vfio-pci
     grep "mlx" <<< $driver && driverctl -v unset-override 0000:03:00.0
     grep "mlx" <<< $driver && driverctl -v unset-override 0000:04:00.0
-    dpdk-devbind --status
+    driverctl -v list-overrides
     """
     pts = bash("virsh ttyconsole gg").value()
     ret = my_tool.run_cmd_get_output(pts, cmd)
@@ -829,17 +823,13 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
 
 @set_check(0)
 def clear_dpdk_interface():
-    if bash("rpm -qa | grep dpdk-tools").value():
-        bus_list = bash(r"dpdk-devbind -s | grep  -E drv=vfio-pci\|drv=igb | awk '{print $1}'").value()
-        # print(bus_list)
-        for i in str(bus_list).split(os.linesep):
-            # print("*************************************************************")
-            # print(i)
-            # print("*********************************************************")
-            if len(i.strip()) > 0:
-                kernel_driver = bash(f"lspci -s {i} -v | grep Kernel  | grep modules  | awk '{{print $NF}}'").value()
-                log_and_run(f"dpdk-devbind -b {kernel_driver} {i}")
-    return 0
+    bus_list = bash(r"driverctl -v list-devices|grep \*").value()
+    print(bus_list)
+    for i in str(bus_list).split(os.linesep):
+        if len(i.strip()) > 0:
+            pci_bus = i.split()[0]
+            run(f"driverctl -v unset-override {pci_bus}")
+    pass
 
 def clear_env():
     cmd = """
