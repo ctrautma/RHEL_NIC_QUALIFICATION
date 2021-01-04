@@ -43,6 +43,7 @@
   - name: Installing openvswitch packages
     yum:
       name: "{{ ovs_selinux_rpm_path }}, {{ ovs_rpm_path }}"
+      disable_gpg_check: yes
     when: redhat_debug_mode == true
   - name: Create symbolic link for python3
     file:
