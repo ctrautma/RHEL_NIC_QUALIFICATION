@@ -31,15 +31,23 @@ init_main_perf_env()
     CASE_PATH="$(dirname $(readlink -f $0))"
     source /etc/os-release
     SYSTEM_VERSION_ID=`echo $VERSION_ID | tr -d '.'`
+    echo "All Config Begin"
+    echo "#####################################"
     source $CASE_PATH/Perf-Verify.conf
+    cat $CASE_PATH/Perf-Verify.conf
+    echo "#####################################"
     source $CASE_PATH/env.sh
+    cat $CASE_PATH/env.sh
+    echo "#####################################"
     set +a
 
     set -a
+    echo "#####################################"
     ALL_CMD_FILE="/tmp/all_commands"
     CMD_FILE="/tmp/shell_commands"
     LOCK_FILE='/tmp/throughput-lock-file'
     MAIN_FILE="main.py"
+    echo "#####################################"
     set +a
 }
 
@@ -71,19 +79,19 @@ install_python()
         yum -y install python3-netifaces
         yum -y install platform-python-devel
     fi
-    yum -y install python2
     yum -y install python3
     yum -y install python3-devel
     yum -y install python3-pyelftools
-
-    yum -y install python-pip
     yum -y install python3-pip
-
-    python2 -m pip install --upgrade pip
-    python2 -m pip install wheel
-    python2 -m pip install netifaces
-    python2 -m pip install six
-
+    if (( $SYSTEM_VERSION_ID < 80 ))
+    then
+        yum -y install python2
+        yum -y install python-pip
+        python2 -m pip install --upgrade pip
+        python2 -m pip install wheel
+        python2 -m pip install netifaces
+        python2 -m pip install six
+    fi
 }
 
 install_python_and_init_env()
@@ -197,6 +205,7 @@ create_log_folder()
     touch ${log_folder}"/throughput_logs_folder.txt"
     echo $nic_log_folder > ${log_folder}"/throughput_logs_folder.txt"
     export NIC_LOG_FOLDER=$nic_log_folder
+    echo "Create Log Folder Finished"
     return 0
 }
 
@@ -267,9 +276,6 @@ start_main_process()
 all_env_init()
 {
     init_main_perf_env
-    echo "==============================================="
-    env
-    echo "==============================================="
     install_rpms
     install_beakerlib
     install_python_and_init_env

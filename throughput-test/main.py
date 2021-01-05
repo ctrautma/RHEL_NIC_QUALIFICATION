@@ -793,7 +793,12 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
         port1_peer_mac = get_env("TRAFFICGEN_TREX_PORT2")
         extra_parameter = f""" --eth-peer=0,{port0_peer_mac} --eth-peer=1,{port1_peer_mac} """
 
-    cmd_test = f"""testpmd -l {guest_cpu_list}  \
+    if dpdk_version >= 1811:
+        testpmd_cmd = "dpdk-testpmd"
+    else:
+        testpmd_cmd = "testpmd"
+
+    cmd_test = f"""{testpmd_cmd} -l {guest_cpu_list}  \
     --socket-mem 1024 \
     {legacy_mem} \
     -n 4 \
