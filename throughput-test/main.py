@@ -793,7 +793,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
         port1_peer_mac = get_env("TRAFFICGEN_TREX_PORT2")
         extra_parameter = f""" --eth-peer=0,{port0_peer_mac} --eth-peer=1,{port1_peer_mac} """
 
-    if dpdk_version >= 1811:
+    if dpdk_version >= 2011:
         testpmd_cmd = "dpdk-testpmd"
     else:
         testpmd_cmd = "testpmd"
