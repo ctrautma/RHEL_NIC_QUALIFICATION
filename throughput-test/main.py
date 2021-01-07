@@ -930,7 +930,9 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
         --negative-packet-loss=fail \
         --max-loss-pct=0.0 \
         --rate-unit=% \
-        --rate=100
+        --rate=100 \
+        --use-device-stats \
+        --no-promisc
         """
         log(cmd)
         py3_run(cmd)
@@ -1332,7 +1334,8 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
     else:
         guest_cpu_list="0,1,2,3,4"
 
-    guest_start_testpmd(q_num,guest_cpu_list,get_env("SRIOV_RXD_SIZE"),get_env("SRIOV_TXD_SIZE"),pkt_size,"mac")
+    # guest_start_testpmd(q_num,guest_cpu_list,get_env("SRIOV_RXD_SIZE"),get_env("SRIOV_TXD_SIZE"),pkt_size,"mac")
+    guest_start_testpmd(q_num,guest_cpu_list,get_env("SRIOV_RXD_SIZE"),get_env("SRIOV_TXD_SIZE"),pkt_size,"io")
 
     log("sriov pci passthrough PVP performance test Begin Now")
     bonding_test_trex(cont_time,pkt_size,"52:54:00:11:8f:ea","52:54:00:11:8f:eb")
