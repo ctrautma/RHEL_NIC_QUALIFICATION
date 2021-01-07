@@ -918,22 +918,63 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
     # """
     # --search-granularity=1 \
     with pushd("/opt/trafficgen"):
-        cmd = f"""
-        python ./binary-search.py \
-        --trex-host={trex_server_ip} \
-        --traffic-generator=trex-txrx \
-        --frame-size={pkt_size} \
-        --traffic-direction=bidirectional \
-        --search-runtime={t_time} \
-        --search-granularity=0.1 \
-        --validation-runtime=10 \
-        --negative-packet-loss=fail \
-        --max-loss-pct=0.0 \
-        --rate-unit=% \
-        --rate=100 \
-        --use-device-stats \
-        --no-promisc
-        """
+        import sys
+        sys.path.append('/opt/trex/current/automation/trex_control_plane/interactive')
+        import json
+        from trex.stl.api import *
+        # from trex_tg_lib import *
+        c = STLClient(server = trex_server_ip)
+        try:
+            # connect to server
+            print("Establishing connection to TRex server...")
+            c.connect()
+            print("Connection established")
+
+            # prepare our ports
+            c.acquire(ports = [0], force=True)
+            c.reset(ports = [0])
+
+            port_info = c.get_port_info(ports = [0])
+            #port_info[0]["driver"]
+            print(port_info)
+        except TRexError as e:
+            print(e)
+        finally:
+            c.disconnect()
+        trex_port_driver_info = port_info[0]["driver"]
+        if "mlx" in trex_port_driver_info:
+            print("Trex driver is Mellanox..........................")
+            cmd = f"""
+            python ./binary-search.py \
+            --trex-host={trex_server_ip} \
+            --traffic-generator=trex-txrx \
+            --frame-size={pkt_size} \
+            --traffic-direction=bidirectional \
+            --search-runtime={t_time} \
+            --search-granularity=0.1 \
+            --validation-runtime=10 \
+            --negative-packet-loss=fail \
+            --max-loss-pct=0.0 \
+            --rate-unit=% \
+            --rate=100 \
+            --use-device-stats \
+            --no-promisc
+            """
+        else:
+            cmd = f"""
+            python ./binary-search.py \
+            --trex-host={trex_server_ip} \
+            --traffic-generator=trex-txrx \
+            --frame-size={pkt_size} \
+            --traffic-direction=bidirectional \
+            --search-runtime={t_time} \
+            --search-granularity=0.1 \
+            --validation-runtime=10 \
+            --negative-packet-loss=fail \
+            --max-loss-pct=0.0 \
+            --rate-unit=% \
+            --rate=100
+            """
         log(cmd)
         py3_run(cmd)
     return 0
