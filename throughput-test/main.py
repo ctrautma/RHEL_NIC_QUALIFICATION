@@ -959,8 +959,6 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
             --rate-unit=% \
             --rate=100 \
             --use-device-stats \
-            --no-promisc \
-            --src-macs={dst_mac_one},{dst_mac_one} \
             --dst-macs={dst_mac_one},{dst_mac_two}
             """
         else:
@@ -977,8 +975,6 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
             --max-loss-pct=0.0 \
             --rate-unit=% \
             --rate=100 \
-            --no-promisc \
-            --src-macs={dst_mac_one},{dst_mac_one} \
             --dst-macs={dst_mac_one},{dst_mac_two}
             """
         log(cmd)
@@ -1331,9 +1327,10 @@ def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
     guest_start_kernel_bridge()
 
     log("ovs kernel datapath PVP performance test Begin Now")
-    trex_port_1 = get_env("TRAFFICGEN_TREX_PORT1")
-    trex_port_2 = get_env("TRAFFICGEN_TREX_PORT2")
-    bonding_test_trex(cont_time,pkt_size,trex_port_1,trex_port_2)
+    # trex_port_1 = get_env("TRAFFICGEN_TREX_PORT1")
+    # trex_port_2 = get_env("TRAFFICGEN_TREX_PORT2")
+    # bonding_test_trex(cont_time,pkt_size,trex_port_1,trex_port_2)
+    bonding_test_trex(cont_time,pkt_size,"52:54:00:11:8f:ea","52:54:00:11:8f:eb")
 
     check_guest_kernel_bridge_result()
 
