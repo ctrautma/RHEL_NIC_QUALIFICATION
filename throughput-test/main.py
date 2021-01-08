@@ -959,7 +959,9 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
             --rate-unit=% \
             --rate=100 \
             --use-device-stats \
-            --no-promisc
+            --no-promisc \
+            --src-macs={dst_mac_one},{dst_mac_one} \
+            --dst-macs={dst_mac_one},{dst_mac_two}
             """
         else:
             cmd = f"""
@@ -974,7 +976,10 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
             --negative-packet-loss=fail \
             --max-loss-pct=0.0 \
             --rate-unit=% \
-            --rate=100
+            --rate=100 \
+            --no-promisc \
+            --src-macs={dst_mac_one},{dst_mac_one} \
+            --dst-macs={dst_mac_one},{dst_mac_two}
             """
         log(cmd)
         py3_run(cmd)
