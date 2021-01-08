@@ -921,7 +921,8 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
         import sys
         sys.path.append('/opt/trex/current/automation/trex_control_plane/interactive')
         import json
-        from trex.stl.api import *
+        from trex.stl.api import STLClient
+        from trex.stl.api import TRexError
         # from trex_tg_lib import *
         c = STLClient(server = trex_server_ip)
         try:
