@@ -886,9 +886,11 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
     #init trex package and lua traffic generator
     # [ -e trafficgen ] || git clone https://github.com/atheurer/trafficgen.git
     # [ -e trafficgen ] || git clone https://github.com/wanghekai/trafficgen.git
+    # Here have a little modify for binary-search to adapt mellanox support
+    # just modify negative-packets-loss to pass as default .
     with pushd("/opt"):
         cmd = fr"""
-        [ -e trafficgen ] || git clone https://github.com/atheurer/trafficgen.git
+        [ -e trafficgen ] || git clone https://github.com/wanghekai/trafficgen.git
         mkdir -p trex
         pushd trex &>/dev/null
         [ -f {trex_name} ] || wget -nv -N --no-check-certificate {trex_url};tar xf {trex_name};ln -sf {trex_dir} current; ls -l;
@@ -954,7 +956,7 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
             --search-runtime={t_time} \
             --search-granularity=0.1 \
             --validation-runtime=10 \
-            --negative-packet-loss=fail \
+            --negative-packet-loss=pass \
             --max-loss-pct=0.0 \
             --rate-unit=% \
             --rate=100 \
