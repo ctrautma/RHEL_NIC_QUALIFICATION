@@ -976,15 +976,20 @@ If there was an error “bash: echo: write error: Cannot allocate memory”, try
 #grubby --args='pci=realloc' --update-kernel=$(grubby --default-kernel)
 ```
 
-Turn off spoof checking on VF:
+Turn off spoof checking and turn on trust on VF:
 ```
 #ip link set <test NIC1> vf 0 spoofchk off 
 #ip link set <test NIC2> vf 0 spoofchk off 
+#ip link set <test NIC1> vf 0 trust on 
+#ip link set <test NIC2> vf 0 trust on
 ```
+
 For example,
 ```
 #ip link set ens1f0 vf 0 spoofchk off 
 #ip link set ens1f1 vf 0 spoofchk off
+#ip link set ens1f0 vf 0 trust on
+#ip link set ens1f1 vf 0 trust on
 ```
 
 Verify the VFs can be seen and spoofchk turned off:
