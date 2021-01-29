@@ -124,7 +124,8 @@ def os_check():
     if getpass.getuser() != "root":
         log("User check ,must be logged in as root")
         return 1
-    check_install("lrzip")
+    #check_install("lrzip")
+    bash(rpm -q lrzip || yum -y install ~/RHEL_NIC_QUALIFICATION/throughput-test/lrzip-0.616-5.el7.x86_64.rpm)
     return 0
 
 
