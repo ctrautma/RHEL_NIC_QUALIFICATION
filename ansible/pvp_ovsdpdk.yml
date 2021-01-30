@@ -12,10 +12,14 @@
 ######################################
 # Install repositories on DUT server #
 ######################################
-
+  - rpm_key:
+      state: present
+      key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8  
   - name: Install FedoraProject Repo
     yum:
       name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm
+      state: present
+      
   - name: Install needed repos stage 1
     yum:
       name: wget,aspell,aspell-en,autoconf,automake,bc,checkpolicy
