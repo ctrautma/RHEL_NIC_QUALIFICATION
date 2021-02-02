@@ -1151,7 +1151,7 @@ To setup these tests git clone the qualification suite onto the Server, the clie
 folder available.
 
 ```
-    git clone https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
+    git clone -b ansible --single-branch https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
 ```
 
 To execute the functional tests you need to expand the rh_nic_cert.tar file on both systems.
