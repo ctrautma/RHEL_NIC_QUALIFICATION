@@ -956,7 +956,7 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
             --traffic-direction=bidirectional \
             --search-runtime={t_time} \
             --search-granularity=0.1 \
-            --validation-runtime=10 \
+            --validation-runtime=600 \
             --negative-packet-loss=pass \
             --max-loss-pct=0.0 \
             --rate-unit=% \
@@ -973,7 +973,7 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
             --traffic-direction=bidirectional \
             --search-runtime={t_time} \
             --search-granularity=0.1 \
-            --validation-runtime=10 \
+            --validation-runtime=600 \
             --negative-packet-loss=fail \
             --max-loss-pct=0.0 \
             --rate-unit=% \
@@ -1407,7 +1407,7 @@ def run_tests(test_list):
     SKIP_KERNEL = int(os.environ.get("SKIP_KERNEL"))
 
     if test_list == "pvp_cont":
-        ovs_dpdk_pvp_test_wrap(1,1500,1500,30)
+        ovs_dpdk_pvp_test_wrap(1,1500,1500,60)
     
     if test_list == "ALL" or test_list == "SRIOV":
         if SKIP_SRIOV == 1:
@@ -1418,40 +1418,40 @@ def run_tests(test_list):
             """
             log(data)
         else:
-            sriov_pci_passthrough_test_wrap(1,64,30)
-            sriov_pci_passthrough_test_wrap(1,1500,30)
+            sriov_pci_passthrough_test_wrap(1,64,60)
+            sriov_pci_passthrough_test_wrap(1,1500,60)
             pass
 
     if test_list == "ALL" or test_list == "1Q":
         if SKIP_1Q == 1:
             log("SKIP running 1500 Byte PVP verify check For 1Q 2PMD Test")
         else:
-            ovs_dpdk_pvp_test_wrap(1,64,64,30)
-            ovs_dpdk_pvp_test_wrap(1,1500,1500,30)
+            ovs_dpdk_pvp_test_wrap(1,64,64,60)
+            ovs_dpdk_pvp_test_wrap(1,1500,1500,60)
             pass
 
     if test_list == "ALL" or test_list == "2Q":
         if SKIP_2Q == 1:
             log("SKIP running 1500 Byte PVP verify check For 2Q 4PMD Test")
         else:
-            ovs_dpdk_pvp_test_wrap(2,64,64,30)
-            ovs_dpdk_pvp_test_wrap(2,1500,1500,30)
+            ovs_dpdk_pvp_test_wrap(2,64,64,60)
+            ovs_dpdk_pvp_test_wrap(2,1500,1500,60)
             pass
 
     if test_list == "ALL" or test_list == "Jumbo":
         if SKIP_JUMBO == 1:
             log("SKIP running 2000/9000 Bytes 2PMD PVP OVS/DPDK Throughput TEST")
         else:
-            ovs_dpdk_pvp_test_wrap(1,2000,2000,30)
-            ovs_dpdk_pvp_test_wrap(2,9000,9000,30)
+            ovs_dpdk_pvp_test_wrap(1,2000,2000,60)
+            ovs_dpdk_pvp_test_wrap(2,9000,9000,60)
             pass
 
     if test_list == "ALL" or test_list == "Kernel":
         if SKIP_KERNEL == 1:
             log("skip running 64/1500 Bytes PVP OVS Kernel Throughput TEST")
         else:
-            ovs_kernel_datapath_test_wrap(1,64,30)
-            ovs_kernel_datapath_test_wrap(2,1500,30)
+            ovs_kernel_datapath_test_wrap(1,64,60)
+            ovs_kernel_datapath_test_wrap(2,1500,60)
             pass
     return 0
 
