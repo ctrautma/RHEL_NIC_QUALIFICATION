@@ -1,0 +1,131 @@
+<domain type="kvm">
+	<name>gg</name>
+	<uuid>37425e76-af6a-44a6-aba0-73434afe34c0</uuid>
+	<memory unit="KiB">8388608</memory>
+	<currentMemory unit="KiB">8388608</currentMemory>
+	<memoryBacking>
+		<hugepages>
+			<page size="1048576" unit="KiB" />
+		</hugepages>
+		<access mode="shared" />
+	</memoryBacking>
+	<vcpu placement="static">3</vcpu>
+	<cputune>
+		<vcpupin cpuset="1" vcpu="0" />
+		<vcpupin cpuset="2" vcpu="1" />
+		<vcpupin cpuset="3" vcpu="2" />
+	</cputune>
+	<numatune>
+		<memory mode="strict" nodeset="0" />
+	</numatune>
+	<resource>
+		<partition>/machine</partition>
+	</resource>
+	<os>
+		<type arch="x86_64" machine="pc-q35-rhel7.5.0">hvm</type>
+		<boot dev="hd" />
+	</os>
+	<features>
+		<acpi />
+		<apic />
+		<pmu state="off" />
+		<vmport state="off" />
+		<ioapic driver="qemu" />
+	</features>
+	<cpu check="none" mode="host-passthrough">
+		<feature name="tsc-deadline" policy="require" />
+		<numa>
+			<cell cpus="0-2" id="0" memAccess="shared" memory="8388608" unit="KiB" />
+		</numa>
+	</cpu>
+	<clock offset="utc">
+		<timer name="rtc" tickpolicy="catchup" />
+		<timer name="pit" tickpolicy="delay" />
+		<timer name="hpet" present="no" />
+	</clock>
+	<on_poweroff>destroy</on_poweroff>
+	<on_reboot>restart</on_reboot>
+	<on_crash>restart</on_crash>
+	<pm>
+		<suspend-to-mem enabled="no" />
+		<suspend-to-disk enabled="no" />
+	</pm>
+	<devices>
+		<emulator>/usr/libexec/qemu-kvm</emulator>
+		<disk device="disk" type="file">
+			<driver name="qemu" type="qcow2" />
+			<source file="/root/rhel.qcow2" />
+			<target bus="virtio" dev="vda" />
+			<address bus="0x01" domain="0x0000" function="0x0" slot="0x00" type="pci" />
+		</disk>
+		<controller index="0" model="none" type="usb" />
+		<controller index="0" model="pcie-root" type="pci" />
+		<controller index="1" model="pcie-root-port" type="pci">
+			<model name="pcie-root-port" />
+			<target chassis="1" port="0x10" />
+			<address bus="0x00" domain="0x0000" function="0x0" slot="0x02" type="pci" />
+		</controller>
+		<controller index="2" model="pcie-root-port" type="pci">
+			<model name="pcie-root-port" />
+			<target chassis="2" port="0x11" />
+			<address bus="0x00" domain="0x0000" function="0x0" slot="0x03" type="pci" />
+		</controller>
+		<controller index="3" model="pcie-root-port" type="pci">
+			<model name="pcie-root-port" />
+			<target chassis="3" port="0x8" />
+			<address bus="0x00" domain="0x0000" function="0x0" slot="0x04" type="pci" />
+		</controller>
+		<controller index="4" model="pcie-root-port" type="pci">
+			<model name="pcie-root-port" />
+			<target chassis="4" port="0x9" />
+			<address bus="0x00" domain="0x0000" function="0x0" slot="0x05" type="pci" />
+		</controller>
+		<controller index="5" model="pcie-root-port" type="pci">
+			<model name="pcie-root-port" />
+			<target chassis="5" port="0xa" />
+			<address bus="0x00" domain="0x0000" function="0x0" slot="0x06" type="pci" />
+		</controller>
+		<controller index="6" model="pcie-root-port" type="pci">
+			<model name="pcie-root-port" />
+			<target chassis="6" port="0xb" />
+			<address bus="0x00" domain="0x0000" function="0x0" slot="0x07" type="pci" />
+		</controller>
+		<controller index="0" type="sata">
+			<address bus="0x00" domain="0x0000" function="0x2" slot="0x1f" type="pci" />
+		</controller>
+		<interface type="bridge">
+			<mac address="52:54:00:bb:63:7b" />
+			<source bridge="virbr0" />
+			<model type="virtio" />
+			<address bus="0x02" domain="0x0000" function="0x0" slot="0x00" type="pci" />
+		</interface>
+		<serial type="pty">
+			<source path="/dev/pts/1" />
+			<target port="0" type="isa-serial">
+				<model name="isa-serial" />
+			</target>
+			<alias name="serial0" />
+		</serial>
+		<console tty="/dev/pts/1" type="pty">
+			<source path="/dev/pts/1" />
+			<target port="0" type="serial" />
+			<alias name="serial0" />
+		</console>
+		<input bus="ps2" type="mouse" />
+		<input bus="ps2" type="keyboard" />
+		<graphics autoport="yes" listen="0.0.0.0" port="-1" type="vnc">
+			<listen address="0.0.0.0" type="address" />
+		</graphics>
+		<video>
+			<model heads="1" primary="yes" type="cirrus" vram="16384" />
+			<address bus="0x05" domain="0x0000" function="0x0" slot="0x00" type="pci" />
+		</video>
+		<memballoon model="virtio">
+			<address bus="0x06" domain="0x0000" function="0x0" slot="0x00" type="pci" />
+		</memballoon>
+		<!-- <iommu model="intel">
+			<driver caching_mode="on" intremap="on" iotlb="on" />
+		</iommu> -->
+	</devices>
+	<seclabel model="selinux" relabel="yes" type="dynamic" />
+</domain>
