@@ -15,8 +15,8 @@ sync_set()
 {
 	local xtrace_state="no"
 	
-    # Disable tracing if it is enabled to avoid excessive output to log file
-    if [ -o xtrace ]; then xtrace_state="yes" && set +x; fi
+	# Disable tracing if it is enabled to avoid excessive output to log file
+	if [ -o xtrace ]; then xtrace_state="yes" && set +x; fi
     
 	local peer=$1
 	local state=$2
@@ -32,22 +32,30 @@ sync_set()
 		*) peer=($peer)
 	esac
 
-	while (($timeout > 0)) && ((${#peer[*]} > 0)); do
+	local start_time=$(date +%s)
+	while ((${#peer[*]} > 0)); do
 		for p in $(echo ${peer[@]}); do
 			if echo "$state@$hn" | ncat $p 54321 2>>$nc_log; then
 				echo "SYNC_NC: sent \"$state\" to $p" | tee -a $nc_log
 				peer=($(echo ${peer[@]#$p}))
 			fi
-			sleep 1
 		done
 
-		let timeout=timeout-1
+		((${#peer[*]} == 0)) && sleep 2 && break
+
+		local end_time=$(date +%s)
+		local run_time=$((end_time-start_time))
+		if ((run_time >= timeout)); then
+			result=1
+			echo "SYNC_NC: timeout to \"sync_set \'${peer[@]}\' $state $timeout\""
+			break;
+		fi
+
+		sleep 1
 	done
 
-	((timeout <= 0)) && (result=1; echo "SYNC_NC: timeout to \"sync_set $@\"")
-
 	# Re-enable tracing if it had been set previously
-    [[ "$xtrace_state" == "yes" ]] && set -x
+	[[ "$xtrace_state" == "yes" ]] && set -x
 
 	return $result
 }
@@ -57,10 +65,7 @@ function sync_cleanup()
 	while lsof -i TCP:54321 >>$nc_log; do
 		local pid=$(lsof -i TCP:54321 | tail -n1 | awk '{print $2}')
 		echo $pid | grep -e "\b[0-9]\+\b" >/dev/null && kill -9 $pid && wait $pid 2>>$nc_log
-		sleep 1
 	done
-
-	[ -e $tmp ] && rm -rf $tmp
 
 	return 0
 }
@@ -79,8 +84,8 @@ sync_wait()
 {
 	local xtrace_state="no"
 	
-    # Disable tracing if it is enabled to avoid excessive output to log file
-    if [ -o xtrace ]; then xtrace_state="yes" && set +x; fi
+	# Disable tracing if it is enabled to avoid excessive output to log file
+	if [ -o xtrace ]; then xtrace_state="yes" && set +x; fi
     
 	local peer=$1
 	local state=${2:-""}
@@ -95,35 +100,101 @@ sync_wait()
 		*) peer=($peer)
 	esac
 
-	let timeout=timeout*1000000
+	trap "sync_ctrl_c" SIGINT SIGQUIT SIGTERM
+
+	local tmp=$(mktemp)
+	echo "SYNC_NC: waiting \"${peer[@]}\"" | tee -a $nc_log
+	ncat -l 54321 -k > $tmp &
+	local start_time=$(date +%s)
+	while [ -e $tmp ] && ((${#peer[*]} > 0)); do
+		if read -r line; then
+			local s=$(echo $line | awk -F '@' '{print $1}')
+			local h=$(echo $line | awk -F '@' '{print $2}')
+			echo "SYNC_NC: got \"$s\" from $h" | tee -a $nc_log
+			peer=($(echo ${peer[@]#$h}))
+			((${#peer[*]} > 0)) && echo "SYNC_NC: waiting \"${peer[@]}\"" | tee -a $nc_log
+		fi
+
+		((${#peer[*]} == 0)) && break
+
+		local end_time=$(date +%s)
+		local run_time=$((end_time-start_time))
+		if ((run_time >= timeout)); then
+			result=1
+			echo "SYNC_NC: timeout to \"sync_wait $@\""
+			break;
+		fi
+		#sleep 0.0001
+	done < $tmp
+
+	sync_cleanup
+	[ -e $tmp ] && rm -rf $tmp
+
+	# Re-enable tracing if it had been set previously
+	[[ "$xtrace_state" == "yes" ]] && set -x
+
+	return $result
+}
+
+# ex.
+# sync_wait1 server "abc" 300
+# sync_wait1 client "abc" 300
+# sync_wait1 "hp-dl380pg8-08.rhts.eng.nay.redhat.com hp-dl380pg8-15.rhts.eng.nay.redhat.com" "abc" 300
+# wait for message "abc" only and ignore other received  message
+sync_wait1()
+{
+	local xtrace_state="no"
+	
+	# Disable tracing if it is enabled to avoid excessive output to log file
+	if [ -o xtrace ]; then xtrace_state="yes" && set +x; fi
+    
+	local peer=$1
+	local state=${2:-""}
+	local timeout=${3:-7200}
+	local result=0
+
+	echo "SYNC_NC: sync_wait $@" | tee -a $nc_log
+
+	case "$peer" in
+		"server" | "SERVER") peer=($(echo $SERVERS));;
+		"client" | "CLIENT") peer=($(echo $CLIENTS));;
+		*) peer=($peer)
+	esac
 
 	trap "sync_ctrl_c" SIGINT SIGQUIT SIGTERM
 
-	tmp=$(mktemp)
-	ncat -l 54321 -k > $tmp &
+	local tmp=$(mktemp)
 	echo "SYNC_NC: waiting \"${peer[@]}\"" | tee -a $nc_log
-
-	{
-		while [ -e $tmp ] && (($timeout > 0)) && ((${#peer[*]} > 0)); do
-			if read -r line; then
-				local s=$(echo $line | awk -F '@' '{print $1}')
-				local h=$(echo $line | awk -F '@' '{print $2}')
-				echo "SYNC_NC: got \"$s\" from $h" | tee -a $nc_log
+	ncat -l 54321 -k > $tmp &
+	local start_time=$(date +%s)
+	while [ -e $tmp ] && ((${#peer[*]} > 0)); do
+		if read -r line; then
+			local s=$(echo $line | awk -F '@' '{print $1}')
+			local h=$(echo $line | awk -F '@' '{print $2}')
+			echo "SYNC_NC: got \"$s\" from $h" | tee -a $nc_log
+			if [[ "$state" == "$s" ]]
+			then
 				peer=($(echo ${peer[@]#$h}))
 				((${#peer[*]} > 0)) && echo "SYNC_NC: waiting \"${peer[@]}\"" | tee -a $nc_log
 			fi
-			#usleep 100
-			sleep 0.0001
-			let timeout=timeout-100
-		done
-	} < $tmp
+		fi
 
-	((timeout <= 0)) && (result=1; echo "SYNC_NC: timeout to \"sync_wait $@\"")
+		((${#peer[*]} == 0)) && break
+
+		local end_time=$(date +%s)
+		local run_time=$((end_time-start_time))
+		if ((run_time >= timeout));then
+			result=1; echo "SYNC_NC: timeout to \"sync_wait $@\""
+			break;
+		fi
+		#sleep 0.0001
+	done < $tmp
 
 	sync_cleanup
+	[ -e $tmp ] && rm -rf $tmp
 	
 	# Re-enable tracing if it had been set previously
-    [[ "$xtrace_state" == "yes" ]] && set -x
+	[[ "$xtrace_state" == "yes" ]] && set -x
 
 	return $result
 }
@@ -139,8 +210,8 @@ sync_wait_choice()
 {
 	local xtrace_state="no"
 	
-    # Disable tracing if it is enabled to avoid excessive output to log file
-    if [ -o xtrace ]; then xtrace_state="yes" && set +x; fi
+	# Disable tracing if it is enabled to avoid excessive output to log file
+	if [ -o xtrace ]; then xtrace_state="yes" && set +x; fi
     
 	local peer=$1
 	local opt_yes=${2:-"yes"}
@@ -156,43 +227,47 @@ sync_wait_choice()
 		*) peer=($peer)
 	esac
 
+	local timeout_original=$timeout
 	let timeout=timeout*1000000
 
 	trap "sync_ctrl_c" SIGINT SIGQUIT SIGTERM
 
-	tmp=$(mktemp)
-	ncat -l 54321 -k > $tmp &
+	local tmp=$(mktemp)
 	echo "SYNC_NC: waiting \"${peer[@]}\"" | tee -a $nc_log
-
-	{
-		while [ -e $tmp ] && (($timeout > 0)) && ((${#peer[*]} > 0)); do
-			if read -r line; then
-				local s=$(echo $line | awk -F '@' '{print $1}')
-				local h=$(echo $line | awk -F '@' '{print $2}')
-				if [ "$s" == "$opt_no" ];then
-					echo "SYNC_NC: got \"$s\" from $h" | tee -a $nc_log
-					let result++
-					peer=($(echo ${peer[@]#$h}))
-				elif [ "$s" == "$opt_yes" ];then
-					echo "SYNC_NC: got \"$s\" from $h" | tee -a $nc_log
-					peer=($(echo ${peer[@]#$h}))
-				else
-					echo " SYNC_NC: warn, got a unexpected option $s from $h"
-				fi
-				((${#peer[*]} > 0)) && echo "SYNC_NC: wait_choice \"${peer[@]}\"" | tee -a $nc_log
+	ncat -l 54321 -k > $tmp &
+	local start_time=$(date +%s)
+	while [ -e $tmp ] && ((${#peer[*]} > 0)); do
+		if read -r line; then
+			local s=$(echo $line | awk -F '@' '{print $1}')
+			local h=$(echo $line | awk -F '@' '{print $2}')
+			if [ "$s" == "$opt_no" ];then
+				echo "SYNC_NC: got \"$s\" from $h" | tee -a $nc_log
+				let result++
+				peer=($(echo ${peer[@]#$h}))
+			elif [ "$s" == "$opt_yes" ];then
+				echo "SYNC_NC: got \"$s\" from $h" | tee -a $nc_log
+				peer=($(echo ${peer[@]#$h}))
+			else
+				echo " SYNC_NC: warn, got a unexpected option $s from $h"
 			fi
-			#usleep 100
-			sleep 0.0001
-			let timeout=timeout-100
-		done
-	} < $tmp
-
-	((timeout <= 0)) && (result=1; echo "SYNC_NC: timeout to \"sync_wait_choice $@\"")
+			((${#peer[*]} > 0)) && echo "SYNC_NC: wait_choice \"${peer[@]}\"" | tee -a $nc_log
+		fi
+		#usleep 100
+		sleep 0.0001
+		local end_time=$(date +%s)
+		local run_time=$((end_time-start_time))
+		if ((run_time >= timeout_original)); then
+			result=1
+			echo "SYNC_NC: timeout to \"sync_wait $@\""
+			break;
+		fi
+	done < $tmp
 
 	sync_cleanup
+	[ -e $tmp ] && rm -rf $tmp
 	
 	# Re-enable tracing if it had been set previously
-    [[ "$xtrace_state" == "yes" ]] && set -x
+	[[ "$xtrace_state" == "yes" ]] && set -x
 
 	return $result
 }
