@@ -203,7 +203,7 @@ create_log_folder()
     fi
 
     touch ${log_folder}"/throughput_logs_folder.txt"
-    echo $nic_log_folder > ${log_folder}"/throughput_logs_folder.txt"
+    echo "NIC_LOG_FOLDER=${nic_log_folder}" > ${log_folder}/throughput_logs_folder.txt
     export NIC_LOG_FOLDER=$nic_log_folder
     echo "Create Log Folder Finished"
     return 0

@@ -181,7 +181,6 @@ if __name__ == "__main__":
     parser.add_argument('--init_percent',type=str,help='init speed percent',required=False)
     args = parser.parse_args()
     print(args)
-    store_file = args.store_file
 
     server_ip="10.73.130.211"
     pkt_size=64
@@ -261,11 +260,6 @@ if __name__ == "__main__":
             last_value=try_vlaue
             last_result=json.dumps(stat,indent=4, sort_keys=False)
             speed_mpps = stat["total"]["tx_pps"]/1e6
-            if last_result:
-                with open(store_file,"a") as fd:
-                    fd.write(f"repeat time cycle {i} with speed {speed_mpps} mpps\n")
-                    fd.write(str(last_result))
-                    fd.write("\n")
             #Get the full speed of the test nic card, So break
             if try_vlaue == cur_max:
                 break
@@ -274,7 +268,7 @@ if __name__ == "__main__":
 
     print("begine long time test begin %s percent " % (last_value))
     default_loss_percent = 2/10000
-    stat = repeat_through_put(c,last_value/2,verify_time,real_ports,s1)
+    stat = repeat_through_put(c,last_value,verify_time,real_ports,s1)
     print(json.dumps(stat,indent=4,sort_keys=False))
     all_tx_packets = int(stat["flow_stats"][1]["tx_pkts"][port_index])
     all_rx_packets = int(stat["flow_stats"][1]["rx_pkts"][port_index])
@@ -283,12 +277,12 @@ if __name__ == "__main__":
     else:
         pass
     last_result=json.dumps(stat,indent=4, sort_keys=False)
-    last_speed_mpps = int(stat["total"]["tx_pps"])*2/1e6
+    last_speed_pps = int(stat["total"]["tx_pps"])
     print("begine long time test end")
     print("************************************************")
     if(0 == last_value):
         print("long time test find lose packets !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    print("last result is",last_speed_mpps,"mpps")
+    print("last result is",last_speed_pps,"pps")
     print(last_result)
     print("************************************************")
 

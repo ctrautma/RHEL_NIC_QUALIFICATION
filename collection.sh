@@ -42,9 +42,9 @@ sosreport --batch &> soscollect.txt
 sosreport_log=`cat soscollect.txt | grep "tar.xz"`
 tar -cf $filename.tar $sosreport_log --force-local
 
-if test -f /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
+if test -f /root/RHEL_NIC_QUAL_LOGS/throughput_logs_folder.txt
 then
-    source /root/RHEL_NIC_QUAL_LOGS/vsperf_logs_folder.txt
+    source /root/RHEL_NIC_QUAL_LOGS/throughput_logs_folder.txt
     tar -rf $filename.tar $NIC_LOG_FOLDER/* --force-local
 fi
 

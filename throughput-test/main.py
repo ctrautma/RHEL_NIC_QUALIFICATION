@@ -79,8 +79,6 @@ def enable_dpdk(nic1_mac, nic2_mac):
     nic1_businfo = my_tool.get_bus_from_name(nic1_name)
     nic2_businfo = my_tool.get_bus_from_name(nic2_name)
     cmd = """
-    modprobe -r vfio-pci
-    modprobe -r vfio
     modprobe vfio-pci
     modprobe vfio
     """
@@ -113,7 +111,13 @@ def clear_hugepage():
 #################################################################################
 #################################################################################
 #################################################################################
-
+# Get test mode for single port or two ports
+def is_single_port_mode():
+    port_mode = get_env("SINGLE_PORT_MODE")
+    if "true" in port_mode.lower():
+        return True
+    else:
+        return False
 
 def os_check():
     log("Begin OS Check Now")
@@ -127,7 +131,6 @@ def os_check():
     check_install("driverctl")
     bash("rpm -q lrzip || yum -y install ~/RHEL_NIC_QUALIFICATION/throughput-test/lrzip-0.616-5.el7.x86_64.rpm")
     return 0
-
 
 def log_folder_check():
     log("Create log folder Now")
@@ -202,6 +205,7 @@ def config_file_checks():
     log("*** Checking Config File ***")
     with pushd(case_path):
         str_all_name = """
+        SINGLE_PORT_MODE
         NIC1
         NIC2
         PMD_CPU_1
@@ -242,8 +246,26 @@ def nic_card_check():
     if local.path("/sys/class/net/" + nic1).exists == False or local.path("/sys/class/net/" + nic2).exists == False:
         log("NIC $NIC1 or NIC $NIC2 cannot be seen by kernel")
         return 1
-    return 0
+    else:
+        return 0
 
+# def nic_card_check():
+#     log("Now Checking for NIC cards")
+#     if is_single_port_mode():
+#         nic1 = get_env("NIC1")
+#         if local.path("/sys/class/net/" + nic1).exists == False:
+#             log("NIC $NIC1 cannot be seen by kernel")
+#             return 1
+#         else:
+#             return 0
+#     else:
+#         nic1 = get_env("NIC1")
+#         nic2 = get_env("NIC2")
+#         if local.path("/sys/class/net/" + nic1).exists == False or local.path("/sys/class/net/" + nic2).exists == False:
+#             log("NIC $NIC1 or NIC $NIC2 cannot be seen by kernel")
+#             return 1
+#         else:
+#             return 0
 
 def rpm_check():
     log("*** Checking for installed RPMS ***")
@@ -469,16 +491,16 @@ def install_rpms():
 
 def ovs_bridge_with_kernel(nic1_name, nic2_name):
     cmd = f"""
-	modprobe openvswitch
-	systemctl stop openvswitch
-	sleep 3
-	systemctl start openvswitch
-	sleep 3
-	ovs-vsctl --if-exists del-br ovsbr0
-	sleep 5
+    modprobe openvswitch
+    systemctl stop openvswitch
+    sleep 3
+    systemctl start openvswitch
+    sleep 3
+    ovs-vsctl --if-exists del-br ovsbr0
+    sleep 5
 
     ovs-vsctl set Open_vSwitch . other_config={{}}
-	systemctl restart openvswitch
+    systemctl restart openvswitch
 
     ovs-vsctl --timeout 10 add-br ovsbr0
     ovs-vsctl --timeout 10 set Open_vSwitch . other_config:max-idle=30000
@@ -514,30 +536,67 @@ def ovs_bridge_with_kernel(nic1_name, nic2_name):
     ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 in_port=4,idle_timeout=0,action=output:2
     ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 in_port=2,idle_timeout=0,action=output:4
 
-	sleep 2
-	ovs-vsctl show
+    sleep 2
+    ovs-vsctl show
     """
     run(cmd)
     return 0
 
-def ovs_bridge_with_dpdk_with_pci_bus(q_num,nic1_bus, nic2_bus, mtu_val, pmd_cpu_mask):
+def ovs_bridge_with_dpdk_pci_bus_single_port(q_num,nic1_bus,mtu_val, pmd_cpu_mask):
     cmd = f"""
-	modprobe openvswitch
-	systemctl stop openvswitch
-	sleep 3
-	systemctl start openvswitch
-	sleep 3
-	ovs-vsctl --if-exists del-br ovsbr0
-	sleep 5
+    modprobe openvswitch
+    systemctl stop openvswitch
+    sleep 3
+    systemctl start openvswitch
+    sleep 3
+    ovs-vsctl --if-exists del-br ovsbr0
+    sleep 5
 
-	ovs-vsctl set Open_vSwitch . other_config={{}}
-	ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-init=true
-	ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-socket-mem="4096,4096"
-	ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask="{pmd_cpu_mask}"
+    ovs-vsctl set Open_vSwitch . other_config={{}}
+    ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-init=true
+    ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-socket-mem="4096,4096"
+    ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask="{pmd_cpu_mask}"
     ovs-vsctl --no-wait set Open_vSwitch . other_config:vhost-iommu-support=true
-	systemctl restart openvswitch
-	sleep 3
-	ovs-vsctl add-br ovsbr0 -- set bridge ovsbr0 datapath_type=netdev
+    systemctl restart openvswitch
+    sleep 3
+    ovs-vsctl add-br ovsbr0 -- set bridge ovsbr0 datapath_type=netdev
+
+    ovs-vsctl add-port ovsbr0 dpdk0 -- set Interface dpdk0 type=dpdk options:dpdk-devargs={nic1_bus} options:n_rxq={q_num} mtu_request={mtu_val}
+
+    ovs-vsctl add-port ovsbr0 vhost0 -- set interface vhost0 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost0 mtu_request={mtu_val}
+
+    ovs-vsctl set Interface dpdk0  ofport_request=1
+    ovs-vsctl set Interface vhost0 ofport_request=2
+
+    ovs-ofctl del-flows ovsbr0
+    /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 idle_timeout=0,in_port=1,action=output:2
+    /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 idle_timeout=0,in_port=2,action=output:1
+
+    sleep 2
+    ovs-vsctl show
+    """
+    run(cmd)
+    return 0
+
+
+def ovs_bridge_with_dpdk_pci_bus(q_num,nic1_bus, nic2_bus, mtu_val, pmd_cpu_mask):
+    cmd = f"""
+    modprobe openvswitch
+    systemctl stop openvswitch
+    sleep 3
+    systemctl start openvswitch
+    sleep 3
+    ovs-vsctl --if-exists del-br ovsbr0
+    sleep 5
+
+    ovs-vsctl set Open_vSwitch . other_config={{}}
+    ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-init=true
+    ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-socket-mem="4096,4096"
+    ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask="{pmd_cpu_mask}"
+    ovs-vsctl --no-wait set Open_vSwitch . other_config:vhost-iommu-support=true
+    systemctl restart openvswitch
+    sleep 3
+    ovs-vsctl add-br ovsbr0 -- set bridge ovsbr0 datapath_type=netdev
 
     ovs-vsctl add-port ovsbr0 dpdk0 -- set Interface dpdk0 type=dpdk options:dpdk-devargs={nic1_bus} options:n_rxq={q_num} mtu_request={mtu_val}
     ovs-vsctl add-port ovsbr0 dpdk1 -- set Interface dpdk1 type=dpdk options:dpdk-devargs={nic2_bus} options:n_rxq={q_num} mtu_request={mtu_val}
@@ -555,32 +614,68 @@ def ovs_bridge_with_dpdk_with_pci_bus(q_num,nic1_bus, nic2_bus, mtu_val, pmd_cpu
     /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 idle_timeout=0,in_port=3,action=output:1
     /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 idle_timeout=0,in_port=2,action=output:4
     /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 idle_timeout=0,in_port=4,action=output:2
-	#ovs-ofctl add-flow ovsbr0 actions=NORMAL
 
-	sleep 2
-	ovs-vsctl show
+    sleep 2
+    ovs-vsctl show
     """
     run(cmd)
     return 0
 
-def ovs_bridge_with_dpdk_with_mac(q_num,nic1_mac, nic2_mac, mtu_val, pmd_cpu_mask):
+def ovs_bridge_with_dpdk_mac_single_port(q_num,nic1_mac,mtu_val, pmd_cpu_mask):
     cmd = f"""
-	modprobe openvswitch
-	systemctl stop openvswitch
-	sleep 3
-	systemctl start openvswitch
-	sleep 3
-	ovs-vsctl --if-exists del-br ovsbr0
-	sleep 5
+    modprobe openvswitch
+    systemctl stop openvswitch
+    sleep 3
+    systemctl start openvswitch
+    sleep 3
+    ovs-vsctl --if-exists del-br ovsbr0
+    sleep 5
 
-	ovs-vsctl set Open_vSwitch . other_config={{}}
-	ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-init=true
-	ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-socket-mem="4096,4096"
-	ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask="{pmd_cpu_mask}"
+    ovs-vsctl set Open_vSwitch . other_config={{}}
+    ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-init=true
+    ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-socket-mem="4096,4096"
+    ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask="{pmd_cpu_mask}"
     ovs-vsctl --no-wait set Open_vSwitch . other_config:vhost-iommu-support=true
-	systemctl restart openvswitch
-	sleep 3
-	ovs-vsctl add-br ovsbr0 -- set bridge ovsbr0 datapath_type=netdev
+    systemctl restart openvswitch
+    sleep 3
+    ovs-vsctl add-br ovsbr0 -- set bridge ovsbr0 datapath_type=netdev
+
+    ovs-vsctl add-port ovsbr0 dpdk0 -- set Interface dpdk0 type=dpdk options:dpdk-devargs="class=eth,mac={nic1_mac}" options:n_rxq={q_num} mtu_request={mtu_val}
+
+    ovs-vsctl add-port ovsbr0 vhost0 -- set interface vhost0 type=dpdkvhostuserclient options:vhost-server-path=/tmp/vhost0 mtu_request={mtu_val}
+
+    ovs-vsctl set Interface dpdk0  ofport_request=1
+    ovs-vsctl set Interface vhost0 ofport_request=2
+
+    ovs-ofctl del-flows ovsbr0
+    /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 idle_timeout=0,in_port=1,action=output:2
+    /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 idle_timeout=0,in_port=2,action=output:1
+
+    sleep 2
+    ovs-vsctl show
+    """
+    run(cmd)
+    return 0
+
+
+def ovs_bridge_with_dpdk_mac(q_num,nic1_mac, nic2_mac, mtu_val, pmd_cpu_mask):
+    cmd = f"""
+    modprobe openvswitch
+    systemctl stop openvswitch
+    sleep 3
+    systemctl start openvswitch
+    sleep 3
+    ovs-vsctl --if-exists del-br ovsbr0
+    sleep 5
+
+    ovs-vsctl set Open_vSwitch . other_config={{}}
+    ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-init=true
+    ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-socket-mem="4096,4096"
+    ovs-vsctl set Open_vSwitch . other_config:pmd-cpu-mask="{pmd_cpu_mask}"
+    ovs-vsctl --no-wait set Open_vSwitch . other_config:vhost-iommu-support=true
+    systemctl restart openvswitch
+    sleep 3
+    ovs-vsctl add-br ovsbr0 -- set bridge ovsbr0 datapath_type=netdev
 
     ovs-vsctl add-port ovsbr0 dpdk0 -- set Interface dpdk0 type=dpdk options:dpdk-devargs="class=eth,mac={nic1_mac}" options:n_rxq={q_num} mtu_request={mtu_val}
     ovs-vsctl add-port ovsbr0 dpdk1 -- set Interface dpdk1 type=dpdk options:dpdk-devargs="class=eth,mac={nic2_mac}" options:n_rxq={q_num} mtu_request={mtu_val}
@@ -598,10 +693,9 @@ def ovs_bridge_with_dpdk_with_mac(q_num,nic1_mac, nic2_mac, mtu_val, pmd_cpu_mas
     /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 idle_timeout=0,in_port=3,action=output:1
     /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 idle_timeout=0,in_port=2,action=output:4
     /usr/bin/ovs-ofctl -O OpenFlow13 --timeout 10 add-flow ovsbr0 idle_timeout=0,in_port=4,action=output:2
-	#ovs-ofctl add-flow ovsbr0 actions=NORMAL
 
-	sleep 2
-	ovs-vsctl show
+    sleep 2
+    ovs-vsctl show
     """
     run(cmd)
     return 0
@@ -642,8 +736,8 @@ def destroy_guest():
 def configure_guest():
     cmd = """
     stty rows 24 cols 120
-    nmcli dev set eth1 managed no
-    nmcli dev set eth2 managed no
+    test -d /sys/class/net/eth1/ && nmcli dev set eth1 managed no
+    test -d /sys/class/net/eth2/ && nmcli dev set eth2 managed no
     systemctl stop firewalld
     iptables -t filter -P INPUT ACCEPT
     iptables -t filter -P FORWARD ACCEPT
@@ -700,10 +794,8 @@ def check_guest_kernel_bridge_result():
     log(ret)
     pass
 
+#single port does not support kernel bridge test
 def guest_start_kernel_bridge():
-    # brctl addbr br0
-    # brctl addif br0 eth1
-    # brctl addif br0 eth2
     cmd = f"""
     ip link add br0 type bridge
     ip addr add 192.168.1.2/24 dev eth1
@@ -714,13 +806,10 @@ def guest_start_kernel_bridge():
     ip link set eth2 master br0
     ip addr add 1.1.1.5/16 dev br0
     ip link set dev br0 up
-    # arp -s 1.1.1.10 3c:fd:fe:ad:bc:e8
-    # arp -s 1.1.2.10 3c:fd:fe:ad:bc:e9
     sysctl -w net.ipv4.ip_forward=1
     yum install -y tuna
     tuned-adm profile network-latency
     sysctl -w net.ipv4.conf.all.rp_filter=0
-    # sysctl -w net.ipv4.conf.eth0.rp_filter=0
     """
     pts = bash("virsh ttyconsole gg").value()
     ret = my_tool.run_cmd_get_output(pts, cmd)
@@ -744,29 +833,30 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     cmd = fr"""
     stty rows 24 cols 120
     /root/one_gig_hugepages.sh 1
-    # rpm -ivh /root//{dpdk_ver}/dpdk*.rpm
-    rpm -ivh /root/driverctl_dir/driverctl*.rpm
-    for i in `ls /root/{dpdk_ver}/`; do rpm -ivh /root/{dpdk_ver}/$i; done
+    rpm -ivh /root/{dpdk_ver}/dpdk*.rpm
+    rpm -q driverctl || yum install -y driverctl
+    rpm -q driverctl || rpm -ivh /root/driverctl_dir/driverctl*.rpm
+    # for i in `ls /root/{dpdk_ver}/`; do rpm -ivh /root/{dpdk_ver}/$i; done
     echo "options vfio enable_unsafe_noiommu_mode=1" > /etc/modprobe.d/vfio.conf
     modprobe -r vfio_iommu_type1
     modprobe -r vfio-pci
     modprobe -r vfio
     modprobe  vfio
     modprobe vfio-pci
-    ip link set eth1 down
-    ip link set eth2 down
+    test -d /sys/class/net/eth1/ && ip link set eth1 down
+    test -d /sys/class/net/eth2/ && ip link set eth2 down
     ip -d link show
     driver=$(lspci -s 0000:03:00.0 -v | grep Kernel | grep modules | awk '{{print $NF}}')
-    echo "Diver is"$driver
-    grep "mlx" <<< $driver || driverctl -v set-override 0000:03:00.0 vfio-pci
-    grep "mlx" <<< $driver || driverctl -v set-override 0000:04:00.0 vfio-pci
-    grep "mlx" <<< $driver && driverctl -v unset-override 0000:03:00.0
-    grep "mlx" <<< $driver && driverctl -v unset-override 0000:04:00.0
+    sleep 3
+    echo "Diver is "$driver
+    grep "mlx" <<< $driver || ( test -d /sys/bus/pci/devices/0000:03:00.0/ && driverctl -v set-override 0000:03:00.0 vfio-pci )
+    grep "mlx" <<< $driver || ( test -d /sys/bus/pci/devices/0000:04:00.0/ && driverctl -v set-override 0000:04:00.0 vfio-pci )
+    grep "mlx" <<< $driver && ( test -d /sys/bus/pci/devices/0000:03:00.0/ && driverctl -v unset-override 0000:03:00.0 )
+    grep "mlx" <<< $driver && ( test -d /sys/bus/pci/devices/0000:04:00.0/ && driverctl -v unset-override 0000:04:00.0 )
     driverctl -v list-overrides
     """
     pts = bash("virsh ttyconsole gg").value()
     ret = my_tool.run_cmd_get_output(pts, cmd)
-    # log(ret)
     print("**********************************")
     print(ret)
     print("**********************************")
@@ -789,15 +879,16 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
         hw_vlan_flag = "--disable-hw-vlan"
     
     extra_parameter = ""
-    if fwd_mode == "mac":
-        port0_peer_mac = get_env("TRAFFICGEN_TREX_PORT1")
-        port1_peer_mac = get_env("TRAFFICGEN_TREX_PORT2")
-        extra_parameter = f""" --eth-peer=0,{port0_peer_mac} --eth-peer=1,{port1_peer_mac} """
 
     if dpdk_version >= 2011:
         testpmd_cmd = "dpdk-testpmd"
     else:
         testpmd_cmd = "testpmd"
+
+    if is_single_port_mode():
+        port_topo="chained"
+    else:
+        port_topo="paired"
 
     cmd_test = f"""{testpmd_cmd} -l {guest_cpu_list}  \
     --socket-mem 1024 \
@@ -806,7 +897,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     -- \
     --burst=64 \
     --forward-mode={fwd_mode} \
-    --port-topology=paired \
+    --port-topology={port_topo} \
     {hw_vlan_flag} \
     --disable-rss \
     -i \
@@ -821,7 +912,6 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     """
     log(cmd_test)
     ret = my_tool.run_cmd_get_output(pts,cmd_test,"testpmd>")
-    # log(ret)
     print("***********************************")
     print(ret)
     print("***********************************")
@@ -855,28 +945,25 @@ def clear_env():
     log_and_run("ip link show")
     return 0
 
-# def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
-#     trex_server_ip = get_env("TRAFFICGEN_TREX_HOST_IP_ADDR")
-#     with pushd(case_path):
-#         ret = bash(f"ping {trex_server_ip} -c 3")
-#         if ret.code != 0:
-#             log("Trex server {} not up please check ".format(trex_server_ip))
+def bonding_test_trex_single_port(t_time,pkt_size,dst_mac):
+    trex_server_ip = get_env("TRAFFICGEN_TREX_HOST_IP_ADDR")
+    trex_url = get_env("TREX_URL")
+    trex_dir = os.path.basename(trex_url).replace(".tar.gz","")
+    trex_name = os.path.basename(trex_url)
 
-#         trex_url = get_env("TREX_URL")
-#         trex_dir = os.path.basename(trex_url).replace(".tar.gz","")
-#         trex_name = os.path.basename(trex_url)
-#         if not os.path.exists(trex_dir):
-#             cmd = f"""
-#             wget {trex_url} > /dev/null 2>&1
-#             tar -xvf {trex_name} > /dev/null 2>&1
-#             """
-#             log_and_run(cmd)
-#         import time
-#         time.sleep(3)
-#         # log_and_run(f""" python ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """)
-#         cmd = f""" python -u ./trex_sport.py -c {trex_server_ip} -d '{dst_mac_one} {dst_mac_two}' -t {t_time} --pkt_size={pkt_size} -m 10 """
-#         py3_run(cmd)
-#     return 0
+    with pushd(case_path):
+        ret = bash(f"ping {trex_server_ip} -c 3")
+        if ret.code != 0:
+            log("Trex server {} not up please check ".format(trex_server_ip))
+        cmd = fr"""
+        [ -f {trex_name} ] || wget -nv -N --no-check-certificate {trex_url};tar xf {trex_name};ln -sf {trex_dir} current; ls -l;
+        """
+        log_and_run(cmd)
+        import time
+        time.sleep(3)
+        cmd = f""" python -u ./trex_sport.py -c {trex_server_ip} -d {dst_mac} -t {t_time} --pkt_size={pkt_size} -m 10 """
+        py3_run(cmd)
+    return 0
 
 #Wtih binary_search version
 def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
@@ -905,21 +992,6 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
         if ret.code != 0:
             log("Trex server {} not up please check ".format(trex_server_ip))
         pass
-    # cmd = f"""
-    # ./binary-search.py \
-    # --trex-host={trex_server_ip} \
-    # --traffic-generator=trex-txrx \
-    # --frame-size={pkt_size} \
-    # --dst-macs={dst_mac_one},{dst_mac_two} \
-    # --traffic-direction=bidirectional \
-    # --search-granularity=5 \
-    # --search-runtime={t_time} \
-    # --validation-runtime=10 \
-    # --max-loss-pct=0.0 \
-    # --rate-unit=% \
-    # --rate=100
-    # """
-    # --search-granularity=1 \
     with pushd("/opt/trafficgen"):
         import sys
         sys.path.append('/opt/trex/current/automation/trex_control_plane/interactive')
@@ -987,26 +1059,23 @@ def bonding_test_trex(t_time,pkt_size,dst_mac_one,dst_mac_two):
 
 def attach_sriov_vf_to_vm(xml_file,vm,vlan_id=0):
     vf1_bus_info = my_tool.get_bus_from_name(get_env("NIC1_VF"))
-    vf2_bus_info = my_tool.get_bus_from_name(get_env("NIC2_VF"))
-    
     vf1_bus_info = vf1_bus_info.replace(":",'_')
     vf1_bus_info = vf1_bus_info.replace(".",'_')
-    
-    vf2_bus_info = vf2_bus_info.replace(":",'_')
-    vf2_bus_info = vf2_bus_info.replace(".",'_')
-
     log(vf1_bus_info)
-    log(vf2_bus_info)
-    
     vf1_domain = vf1_bus_info.split('_')[0]
     vf1_bus    = vf1_bus_info.split('_')[1]
     vf1_slot   = vf1_bus_info.split('_')[2]
     vf1_func   = vf1_bus_info.split('_')[3]
 
-    vf2_domain = vf2_bus_info.split('_')[0]
-    vf2_bus    = vf2_bus_info.split('_')[1]
-    vf2_slot   = vf2_bus_info.split('_')[2]
-    vf2_func   = vf2_bus_info.split('_')[3]
+    if False == is_single_port_mode():
+        vf2_bus_info = my_tool.get_bus_from_name(get_env("NIC2_VF"))
+        vf2_bus_info = vf2_bus_info.replace(":",'_')
+        vf2_bus_info = vf2_bus_info.replace(".",'_')
+        log(vf2_bus_info)
+        vf2_domain = vf2_bus_info.split('_')[0]
+        vf2_bus    = vf2_bus_info.split('_')[1]
+        vf2_slot   = vf2_bus_info.split('_')[2]
+        vf2_func   = vf2_bus_info.split('_')[3]
 
     vlan_item = """
     <interface type='hostdev' managed='yes'>
@@ -1034,81 +1103,92 @@ def attach_sriov_vf_to_vm(xml_file,vm,vlan_id=0):
     """
 
     vf1_xml_path = os.getcwd() + "/vf1.xml"
-    vf2_xml_path = os.getcwd() + "/vf2.xml"
     if os.path.exists(vf1_xml_path):
         os.remove(vf1_xml_path)
-    if os.path.exists(vf2_xml_path):
-        os.remove(vf2_xml_path)
     local.path(vf1_xml_path).touch()
-    local.path(vf2_xml_path).touch()
     vf1_f_obj = local.path(vf1_xml_path)
-    vf2_f_obj = local.path(vf2_xml_path)
-     
+
+    if False == is_single_port_mode():
+        vf2_xml_path = os.getcwd() + "/vf2.xml"
+        if os.path.exists(vf2_xml_path):
+            os.remove(vf2_xml_path)
+        local.path(vf2_xml_path).touch()
+        vf2_f_obj = local.path(vf2_xml_path)
     
     import xml.etree.ElementTree as xml
 
     if vlan_id != 0:
-        vf1_format_list = ['52:54:00:11:8f:ea', vlan_id ,vf1_domain ,vf1_bus, vf1_slot, vf1_func, '0x0000', '0x03', '0x0', '0x0'] 
+        vf1_format_list = ['52:54:00:11:8f:ea', vlan_id ,vf1_domain ,vf1_bus, vf1_slot, vf1_func, '0x0000', '0x03', '0x0', '0x0']
         vf1_vlan_item = vlan_item.format(*vf1_format_list)
         vf1_vlan_obj = xml.fromstring(vf1_vlan_item)
         vf1_f_obj.write(xml.tostring(vf1_vlan_obj))
-
-        vf2_format_list = ['52:54:00:11:8f:eb', vlan_id, vf2_domain, vf2_bus, vf2_slot, vf2_func, '0x0000', '0x04', '0x0', '0x0']
-        vf2_vlan_item = vlan_item.format(*vf2_format_list)
-        vf2_vlan_obj = xml.fromstring(vf2_vlan_item)
-        vf2_f_obj.write(xml.tostring(vf2_vlan_obj))
+        if False == is_single_port_mode():
+            vf2_format_list = ['52:54:00:11:8f:eb', vlan_id, vf2_domain, vf2_bus, vf2_slot, vf2_func, '0x0000', '0x04', '0x0', '0x0']
+            vf2_vlan_item = vlan_item.format(*vf2_format_list)
+            vf2_vlan_obj = xml.fromstring(vf2_vlan_item)
+            vf2_f_obj.write(xml.tostring(vf2_vlan_obj))
     else:
-        vf1_format_list = ['52:54:00:11:8f:ea' ,vf1_domain, vf1_bus, vf1_slot, vf1_func, '0x0000', '0x03', '0x0', '0x0'] 
+        vf1_format_list = ['52:54:00:11:8f:ea' ,vf1_domain, vf1_bus, vf1_slot, vf1_func, '0x0000', '0x03', '0x0', '0x0']
         vf1_novlan_item = item.format(*vf1_format_list)
         vf1_novlan_obj = xml.fromstring(vf1_novlan_item)
         vf1_f_obj.write(xml.tostring(vf1_novlan_obj))
+        if False == is_single_port_mode():
+            vf2_format_list = ['52:54:00:11:8f:eb' ,vf2_domain ,vf2_bus, vf2_slot ,vf2_func, '0x0000', '0x04', '0x0', '0x0']
+            vf2_novlan_item = item.format(*vf2_format_list)
+            vf2_novlan_obj = xml.fromstring(vf2_novlan_item)
+            vf2_f_obj.write(xml.tostring(vf2_novlan_obj))
 
-        vf2_format_list = ['52:54:00:11:8f:eb' ,vf2_domain ,vf2_bus, vf2_slot ,vf2_func, '0x0000', '0x04', '0x0', '0x0']
-        vf2_novlan_item = item.format(*vf2_format_list)
-        vf2_novlan_obj = xml.fromstring(vf2_novlan_item)
-        vf2_f_obj.write(xml.tostring(vf2_novlan_obj))
-    
-    cmd = f"""
-    sleep 10
-    echo "#################################################"
-    cat {vf1_xml_path}
-    echo "#################################################"
-    cat {vf2_xml_path}
-    echo "#################################################"
-    virsh attach-device {vm} {vf1_xml_path}
-    sleep 5
-    virsh dumpxml {vm}
-    sleep 10
-    virsh attach-device {vm} {vf2_xml_path}
-    sleep 5
-    virsh dumpxml {vm}
-    """
-    log_and_run(cmd)
+    if is_single_port_mode():
+        cmd = f"""
+        sleep 10
+        echo "#################################################"
+        cat {vf1_xml_path}
+        echo "#################################################"
+        virsh attach-device {vm} {vf1_xml_path}
+        sleep 5
+        virsh dumpxml {vm}
+        """
+        log_and_run(cmd)
+    else:
+        cmd = f"""
+        sleep 10
+        echo "#################################################"
+        cat {vf1_xml_path}
+        echo "#################################################"
+        cat {vf2_xml_path}
+        echo "#################################################"
+        virsh attach-device {vm} {vf1_xml_path}
+        sleep 5
+        virsh dumpxml {vm}
+        sleep 10
+        virsh attach-device {vm} {vf2_xml_path}
+        sleep 5
+        virsh dumpxml {vm}
+        """
+        log_and_run(cmd)
 
     return 0
 
 def update_xml_sriov_vf_port(xml_file,vlan_id=0):
     vf1_bus_info = my_tool.get_bus_from_name(get_env("NIC1_VF"))
-    vf2_bus_info = my_tool.get_bus_from_name(get_env("NIC2_VF"))
-    
     vf1_bus_info = vf1_bus_info.replace(":",'_')
     vf1_bus_info = vf1_bus_info.replace(".",'_')
-    
-    vf2_bus_info = vf2_bus_info.replace(":",'_')
-    vf2_bus_info = vf2_bus_info.replace(".",'_')
-
     log(vf1_bus_info)
-    log(vf2_bus_info)
-    
     vf1_domain = vf1_bus_info.split('_')[0]
     vf1_bus    = vf1_bus_info.split('_')[1]
     vf1_slot   = vf1_bus_info.split('_')[2]
     vf1_func   = vf1_bus_info.split('_')[3]
 
-    vf2_domain = vf2_bus_info.split('_')[0]
-    vf2_bus    = vf2_bus_info.split('_')[1]
-    vf2_slot   = vf2_bus_info.split('_')[2]
-    vf2_func   = vf2_bus_info.split('_')[3]
+    if False == is_single_port_mode():
+        vf2_bus_info = my_tool.get_bus_from_name(get_env("NIC2_VF"))
+        vf2_bus_info = vf2_bus_info.replace(":",'_')
+        vf2_bus_info = vf2_bus_info.replace(".",'_')
+        log(vf2_bus_info)
+        vf2_domain = vf2_bus_info.split('_')[0]
+        vf2_bus    = vf2_bus_info.split('_')[1]
+        vf2_slot   = vf2_bus_info.split('_')[2]
+        vf2_func   = vf2_bus_info.split('_')[3]
+
 
     vlan_item = """
     <interface type='hostdev' managed='yes'>
@@ -1141,21 +1221,21 @@ def update_xml_sriov_vf_port(xml_file,vlan_id=0):
         vf1_format_list = ['52:54:00:11:8f:ea', vlan_id ,vf1_domain ,vf1_bus, vf1_slot, vf1_func, '0x0000', '0x03', '0x0', '0x0'] 
         vf1_vlan_item = vlan_item.format(*vf1_format_list)
         xml_tool.add_item_from_xml(xml_file,"./devices",vf1_vlan_item)
-
-        vf2_format_list = ['52:54:00:11:8f:eb', vlan_id, vf2_domain, vf2_bus, vf2_slot, vf2_func, '0x0000', '0x04', '0x0', '0x0']
-        vf2_vlan_item = vlan_item.format(*vf2_format_list)
-        xml_tool.add_item_from_xml(xml_file,"./devices" ,vf2_vlan_item)
+        if False == is_single_port_mode():
+            vf2_format_list = ['52:54:00:11:8f:eb', vlan_id, vf2_domain, vf2_bus, vf2_slot, vf2_func, '0x0000', '0x04', '0x0', '0x0']
+            vf2_vlan_item = vlan_item.format(*vf2_format_list)
+            xml_tool.add_item_from_xml(xml_file,"./devices" ,vf2_vlan_item)
     else:
         vf1_format_list = ['52:54:00:11:8f:ea' ,vf1_domain, vf1_bus, vf1_slot, vf1_func, '0x0000', '0x03', '0x0', '0x0'] 
         vf1_novlan_item = item.format(*vf1_format_list)
         xml_tool.add_item_from_xml(xml_file,"./devices",vf1_novlan_item)
-
-        vf2_format_list = ['52:54:00:11:8f:eb' ,vf2_domain ,vf2_bus, vf2_slot ,vf2_func, '0x0000', '0x04', '0x0', '0x0']
-        vf2_novlan_item = item.format(*vf2_format_list)
-        xml_tool.add_item_from_xml(xml_file,"./devices", vf2_novlan_item)
+        if False == is_single_port_mode():
+            vf2_format_list = ['52:54:00:11:8f:eb' ,vf2_domain ,vf2_bus, vf2_slot ,vf2_func, '0x0000', '0x04', '0x0', '0x0']
+            vf2_novlan_item = item.format(*vf2_format_list)
+            xml_tool.add_item_from_xml(xml_file,"./devices", vf2_novlan_item)
     return 0
 
-
+#does not support single port mode
 def update_xml_vnet_port(xml_file):
     append_item = """
         <interface type="bridge">
@@ -1179,7 +1259,6 @@ def update_xml_vnet_port(xml_file):
     xml_tool.remove_item_from_xml(xml_file,"./devices/interface[@type='bridge']")
     xml_tool.add_item_from_xml(xml_file,"./devices", append_item)
 
-    
     vnet_format_list_one = ['52:54:00:11:8f:ea','ovsbr0','0x0000','0x03','0x0','0x0','tap0']
     vnet_format_item_one = item.format(*vnet_format_list_one)
     xml_tool.add_item_from_xml(xml_file,"./devices" ,vnet_format_item_one)
@@ -1214,9 +1293,79 @@ def update_xml_vhostuser(xml_file,q_num):
     f_item_one = item.format(*f_list_one)
     xml_tool.add_item_from_xml(xml_file,"./devices",f_item_one)
 
-    f_list_two = ['52:54:00:11:8f:eb','/tmp/vhost1',q_num,'0x0000','0x04','0x0','0x0']
-    f_item_two = item.format(*f_list_two)
-    xml_tool.add_item_from_xml(xml_file,"./devices",f_item_two)
+    if False == is_single_port_mode():
+        f_list_two = ['52:54:00:11:8f:eb','/tmp/vhost1',q_num,'0x0000','0x04','0x0','0x0']
+        f_item_two = item.format(*f_list_two)
+        xml_tool.add_item_from_xml(xml_file,"./devices",f_item_two)
+    return 0
+
+def ovs_dpdk_pvp_test_single_port(q_num,mtu_val,pkt_size,cont_time):
+    clear_env()
+    nic1_name = get_env("NIC1")
+    nic2_name = get_env("NIC2")
+    nic1_mac = my_tool.get_mac_from_name(nic1_name)
+    nic2_mac = my_tool.get_mac_from_name(nic2_name)
+    nic1_businfo = my_tool.get_bus_from_name(nic1_name)
+    nic2_businfo = my_tool.get_bus_from_name(nic2_name)
+    nic_driver = my_tool.get_nic_driver_from_name(nic1_name)
+
+    numa_node = bash(f"cat /sys/class/net/{nic1_name}/device/numa_node").value()
+
+    log("enable dpdk now")
+    enable_dpdk(nic1_mac,nic2_mac)
+
+    log("config openvswitch with dpdk ")
+    pmd_cpu_2_list = [get_env("PMD_CPU_1"),get_env("PMD_CPU_2")]
+    pmd_cpu_4_list = [get_env("PMD_CPU_1"),get_env("PMD_CPU_2"),get_env("PMD_CPU_3"),get_env("PMD_CPU_4")]
+    if q_num == 1:
+        cpu_mask = my_tool.get_pmd_masks(" ".join(pmd_cpu_2_list))
+        vcpu_list = [get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3")]
+        if "mlx" in nic_driver:
+            ovs_bridge_with_dpdk_mac_single_port(q_num,nic1_mac,mtu_val,cpu_mask)
+        else:
+            ovs_bridge_with_dpdk_pci_bus_single_port(q_num,nic1_businfo,mtu_val,cpu_mask)
+    else:
+        cpu_mask = my_tool.get_pmd_masks(" ".join(pmd_cpu_4_list))
+        vcpu_list = [get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3"),get_env("VCPU4"),get_env("VCPU5")]
+        if "mlx" in nic_driver:
+            ovs_bridge_with_dpdk_mac_single_port(q_num,nic1_mac,mtu_val,cpu_mask)
+        else:
+            ovs_bridge_with_dpdk_pci_bus_single_port(q_num,nic1_businfo,mtu_val,cpu_mask)
+
+    log("update guest xml config file")
+    new_xml = "g1.xml"
+    vcpupin_in_xml(numa_node,"guest.xml",new_xml,vcpu_list)
+    update_xml_vhostuser(new_xml,q_num)
+
+    one_queue_image_name = os.path.basename(get_env("ONE_QUEUE_IMAGE"))
+    two_queue_image_name = os.path.basename(get_env("TWO_QUEUE_IMAGE"))
+
+    if q_num == 1:
+        xml_tool.update_image_source(new_xml,image_dir + "/" + one_queue_image_name)
+    else:
+        xml_tool.update_image_source(new_xml,image_dir + "/" + two_queue_image_name)
+
+    log("start and config guest Now")
+    start_guest(new_xml)
+    configure_guest()
+    log("show vm xml")
+    cmd = f"""
+    virsh dumpxml gg
+    """
+    log_and_run(cmd)
+
+    log("guest start testpmd test Now")
+    if q_num == 1:
+        guest_cpu_list="0,1,2"
+    else:
+        guest_cpu_list="0,1,2,3,4"
+    guest_start_testpmd(q_num,guest_cpu_list,get_env("RXD_SIZE"),get_env("TXD_SIZE"),mtu_val,"macswap")
+
+    log("ovs dpdk PVP performance test Begin Now")
+    bonding_test_trex_single_port(cont_time,pkt_size,"52:54:00:11:8f:ea")
+
+    check_guest_testpmd_result()
+
     return 0
 
 def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
@@ -1241,16 +1390,16 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
         cpu_mask = my_tool.get_pmd_masks(" ".join(pmd_cpu_2_list))
         vcpu_list = [get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3")]
         if "mlx" in nic_driver:
-            ovs_bridge_with_dpdk_with_mac(q_num,nic1_mac,nic2_mac,mtu_val,cpu_mask)
+            ovs_bridge_with_dpdk_mac(q_num,nic1_mac,nic2_mac,mtu_val,cpu_mask)
         else:
-            ovs_bridge_with_dpdk_with_pci_bus(q_num,nic1_businfo,nic2_businfo,mtu_val,cpu_mask)
+            ovs_bridge_with_dpdk_pci_bus(q_num,nic1_businfo,nic2_businfo,mtu_val,cpu_mask)
     else:
         cpu_mask = my_tool.get_pmd_masks(" ".join(pmd_cpu_4_list))
         vcpu_list = [get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3"),get_env("VCPU4"),get_env("VCPU5")]
         if "mlx" in nic_driver:
-            ovs_bridge_with_dpdk_with_mac(q_num,nic1_mac,nic2_mac,mtu_val,cpu_mask)
+            ovs_bridge_with_dpdk_mac(q_num,nic1_mac,nic2_mac,mtu_val,cpu_mask)
         else:
-            ovs_bridge_with_dpdk_with_pci_bus(q_num,nic1_businfo,nic2_businfo,mtu_val,cpu_mask)
+            ovs_bridge_with_dpdk_pci_bus(q_num,nic1_businfo,nic2_businfo,mtu_val,cpu_mask)
     
     log("update guest xml config file")
     new_xml = "g1.xml"
@@ -1293,10 +1442,14 @@ def ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time):
 def ovs_dpdk_pvp_test_wrap(q_num,mtu_val,pkt_size,cont_time):
     pmd_num = q_num * 2
     with enter_phase(f"OVS-DPDK-PVP-{pkt_size}-BYTES-{q_num}Q-{pmd_num}PMD-TEST"):
-        ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time)
+        if is_single_port_mode():
+            ovs_dpdk_pvp_test_single_port(q_num,mtu_val,pkt_size,cont_time)
+        else:
+            ovs_dpdk_pvp_test(q_num,mtu_val,pkt_size,cont_time)
         pass
     pass
 
+#kernel data path test does not support single port mode
 def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
     clear_env()
     nic1_name = get_env("NIC1")
@@ -1339,12 +1492,55 @@ def ovs_kernel_datapath_test(q_num,pkt_size,cont_time):
 
     return 0
 
+#kernel data path test does not support single port mode
 def ovs_kernel_datapath_test_wrap(q_num,pkt_size,cont_time):
     pmd_num = q_num * 2
     with enter_phase(f"OVS-KERNEL-DATAPATH-PVP-{pkt_size}-Bytes-{q_num}Q-{pmd_num}PMD-TEST"):
         ovs_kernel_datapath_test(q_num,pkt_size,cont_time)
         pass
     pass
+
+def sriov_pci_passthrough_test_single_port(q_num,pkt_size,cont_time):
+    clear_env()
+    numa_node = bash("cat /sys/class/net/{}/device/numa_node".format(get_env("NIC1_VF"))).value()
+    vcpu_list = [ get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3")]
+    if q_num != 1:
+        vcpu_list = [ get_env("VCPU1"),get_env("VCPU2"),get_env("VCPU3"),get_env("VCPU4"),get_env("VCPU5")]
+    new_xml = "g1.xml"
+    vcpupin_in_xml(numa_node,"guest.xml",new_xml,vcpu_list)
+    #clear the old hostdev config and update xml file
+    xml_tool.remove_item_from_xml(new_xml,"./devices/interface[@type='hostdev']")
+
+    one_queue_image_name = os.path.basename(get_env("ONE_QUEUE_IMAGE"))
+    two_queue_image_name = os.path.basename(get_env("TWO_QUEUE_IMAGE"))
+
+    if q_num == 1:
+        xml_tool.update_image_source(new_xml,image_dir + "/" + one_queue_image_name)
+    else:
+        xml_tool.update_image_source(new_xml,image_dir + "/" + two_queue_image_name)
+
+    start_guest(new_xml)
+
+    #Here attach vf to vm
+    attach_sriov_vf_to_vm(new_xml,"gg")
+
+    configure_guest()
+
+    log("guest start testpmd test Now")
+    if q_num == 1:
+        guest_cpu_list="0,1,2"
+    else:
+        guest_cpu_list="0,1,2,3,4"
+
+    guest_start_testpmd(q_num,guest_cpu_list,get_env("SRIOV_RXD_SIZE"),get_env("SRIOV_TXD_SIZE"),pkt_size,"macswap")
+
+    log("sriov pci passthrough PVP performance test Begin Now")
+    bonding_test_trex_single_port(cont_time,pkt_size,"52:54:00:11:8f:ea")
+
+    check_guest_testpmd_result()
+
+    return 0
+
 
 def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
     clear_env()
@@ -1373,7 +1569,7 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
     #Here attach vf to vm 
     attach_sriov_vf_to_vm(new_xml,"gg")
 
-    configure_guest
+    configure_guest()
 
     log("guest start testpmd test Now")
     if q_num == 1:
@@ -1381,7 +1577,6 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
     else:
         guest_cpu_list="0,1,2,3,4"
 
-    # guest_start_testpmd(q_num,guest_cpu_list,get_env("SRIOV_RXD_SIZE"),get_env("SRIOV_TXD_SIZE"),pkt_size,"mac")
     guest_start_testpmd(q_num,guest_cpu_list,get_env("SRIOV_RXD_SIZE"),get_env("SRIOV_TXD_SIZE"),pkt_size,"io")
 
     log("sriov pci passthrough PVP performance test Begin Now")
@@ -1394,7 +1589,10 @@ def sriov_pci_passthrough_test(q_num,pkt_size,cont_time):
 def sriov_pci_passthrough_test_wrap(q_num,pkt_size,cont_time):
     pmd_num = q_num * 2
     with enter_phase(f"SRIOV-VF-PCI-PASSTHROUGH-{pkt_size}-Bytes-{q_num}Q-{pmd_num}PMD-TEST"):
-        sriov_pci_passthrough_test(q_num,pkt_size,cont_time)
+        if is_single_port_mode():
+            sriov_pci_passthrough_test_single_port(q_num,pkt_size,cont_time)
+        else:
+            sriov_pci_passthrough_test(q_num,pkt_size,cont_time)
         pass
     pass
 
@@ -1447,17 +1645,22 @@ def run_tests(test_list):
             pass
 
     if test_list == "ALL" or test_list == "Kernel":
-        if SKIP_KERNEL == 1:
+        if is_single_port_mode():
+            log("single port mode does NOT support PVP OVS Kernel Throughput TEST")
             log("skip running 64/1500 Bytes PVP OVS Kernel Throughput TEST")
         else:
-            ovs_kernel_datapath_test_wrap(1,64,60)
-            ovs_kernel_datapath_test_wrap(2,1500,60)
-            pass
+            if SKIP_KERNEL == 1:
+                log("skip running 64/1500 Bytes PVP OVS Kernel Throughput TEST")
+            else:
+                ovs_kernel_datapath_test_wrap(1,64,60)
+                ovs_kernel_datapath_test_wrap(2,1500,60)
+                pass
     return 0
 
 def copy_config_files_to_log_folder():
     log_folder = get_env("NIC_LOG_FOLDER")
-    bash("cp /root/RHEL_NIC_QUALIFICATION/Perf-Verify.conf {}".format(log_folder))
+    cur_pwd = os.path.dirname(os.path.realpath(__file__))
+    bash("cp {}/Perf-Verify.conf {}".format(cur_pwd,log_folder))
     return 0
 
 def usage():

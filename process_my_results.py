@@ -321,8 +321,18 @@ class ResultsSheet(object):
                         break
             return index_start,index_end
 
-        self.vsperf_ws.set_column(0, 2, 30)
+        def is_single_port_mode(all_log_data):
+            for line in all_log_data[0:10]:
+                if "SINGLE_PORT_MODE" in line.decode():
+                    line_val = line.decode().lower()
+                    if "true" in line_val:
+                        return True
+                    else:
+                        return False
+            return False
 
+
+        self.vsperf_ws.set_column(0, 2, 30)
         bold_format = self._workbook.add_format()
         bold_format.set_bold()
 
@@ -366,18 +376,30 @@ class ResultsSheet(object):
                 ovs_dpdk_1500_2q_start,ovs_dpdk_1500_2q_end = get_test_item_line_range('OVS-DPDK-PVP-1500-BYTES-2Q-4PMD-TEST',data)
                 ovs_dpdk_2000_1q_start,ovs_dpdk_2000_1q_end = get_test_item_line_range('OVS-DPDK-PVP-2000-BYTES-1Q-2PMD-TEST',data)
                 ovs_dpdk_9000_2q_start,ovs_dpdk_9000_2q_end = get_test_item_line_range('OVS-DPDK-PVP-9000-BYTES-2Q-4PMD-TEST',data)
-                ovs_kernel_64_1q_start,ovs_kernel_64_1q_end = get_test_item_line_range('OVS-KERNEL-DATAPATH-PVP-64-Bytes-1Q-2PMD-TEST',data)
-                ovs_kernel_1500_2q_start,ovs_kernel_1500_2q_end = get_test_item_line_range('OVS-KERNEL-DATAPATH-PVP-1500-Bytes-2Q-4PMD-TEST',data)
+                if not is_single_port_mode(data):
+                    ovs_kernel_64_1q_start,ovs_kernel_64_1q_end = get_test_item_line_range('OVS-KERNEL-DATAPATH-PVP-64-Bytes-1Q-2PMD-TEST',data)
+                    ovs_kernel_1500_2q_start,ovs_kernel_1500_2q_end = get_test_item_line_range('OVS-KERNEL-DATAPATH-PVP-1500-Bytes-2Q-4PMD-TEST',data)
                 def internal_update_data(line_start,line_end,all_data,row,col,baseline_value):
                     if line_start >=0 and line_end > 0:
-                        for line in data[line_start:line_end]:
-                            if '"rx_pps":' in line.decode():
-                                float_pps = float(line.decode().split()[-1].strip(',')) * 2
-                                int_pps = int(float_pps)
-                                str_pps = str(int_pps)
-                                return self.write_throughput_pass_fail(row, col ,str_pps , baseline_value)
-                            else:
-                                continue
+                        #single port mode test result
+                        if is_single_port_mode(data):
+                            for line in data[line_start:line_end]:
+                                if 'last result is' in line.decode():
+                                    float_pps = float(line.decode().split()[-2])
+                                    int_pps = int(float_pps)
+                                    str_pps = str(int_pps)
+                                    return self.write_throughput_pass_fail(row, col ,str_pps , baseline_value)
+                                else:
+                                    continue
+                        else:
+                            for line in data[line_start:line_end]:
+                                if '"rx_pps":' in line.decode():
+                                    float_pps = float(line.decode().split()[-1].strip(',')) * 2
+                                    int_pps = int(float_pps)
+                                    str_pps = str(int_pps)
+                                    return self.write_throughput_pass_fail(row, col ,str_pps , baseline_value)
+                                else:
+                                    continue
                         return self.write_throughput_pass_fail(row, col, '0' , baseline_value)
                     else:
                         return self.write_throughput_pass_fail(row, col, '0', baseline_value)
@@ -423,15 +445,16 @@ class ResultsSheet(object):
                     self.vsperf_ws.write_string(6, 0, 'OVS-DPDK-PVP-9000-BYTES-2Q-4PMD-TEST', bold_format)
                     test_fail.append(internal_update_data(ovs_dpdk_9000_2q_start,ovs_dpdk_9000_2q_end,data,6,1,250000))
 
-                #for ovs kernel datapath 64 1Q 100000
-                if ovs_kernel_64_1q_start >= 0 and ovs_kernel_64_1q_end > 0:
-                    self.vsperf_ws.write_string(7, 0, 'OVS-KERNEL-DATAPATH-PVP-64-Bytes-1Q-2PMD-TEST', bold_format)
-                    test_fail.append(internal_update_data(ovs_kernel_64_1q_start,ovs_kernel_64_1q_end,data,7,1,100000))
+                if not is_single_port_mode(data):
+                    #for ovs kernel datapath 64 1Q 100000
+                    if ovs_kernel_64_1q_start >= 0 and ovs_kernel_64_1q_end > 0:
+                        self.vsperf_ws.write_string(7, 0, 'OVS-KERNEL-DATAPATH-PVP-64-Bytes-1Q-2PMD-TEST', bold_format)
+                        test_fail.append(internal_update_data(ovs_kernel_64_1q_start,ovs_kernel_64_1q_end,data,7,1,100000))
 
-                #for ovs kernel datapath 1500 2Q 100000
-                if ovs_kernel_1500_2q_start >= 0 and ovs_kernel_1500_2q_end > 0:
-                    self.vsperf_ws.write_string(8, 0, 'OVS-KERNEL-DATAPATH-PVP-1500-Bytes-2Q-4PMD-TEST', bold_format)
-                    test_fail.append(internal_update_data(ovs_kernel_1500_2q_start,ovs_kernel_1500_2q_end,data,8,1,100000))
+                    #for ovs kernel datapath 1500 2Q 100000
+                    if ovs_kernel_1500_2q_start >= 0 and ovs_kernel_1500_2q_end > 0:
+                        self.vsperf_ws.write_string(8, 0, 'OVS-KERNEL-DATAPATH-PVP-1500-Bytes-2Q-4PMD-TEST', bold_format)
+                        test_fail.append(internal_update_data(ovs_kernel_1500_2q_start,ovs_kernel_1500_2q_end,data,8,1,100000))
 
         if any(test_fail):
             self.vsperf_ws.name = self.vsperf_ws.name + ' (FAIL)'
