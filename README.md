@@ -237,6 +237,12 @@ where this was saved.
 
 #### 1.1.2 Setup the TRex traffic generator
 
+Login to Trex server by ssh, use below commands to upgrade pip and manually install the modules:
+```
+python -m pip install -U pip
+pip3 install python-tripleoclient --ignore-installed PyYAML
+```
+
 Use the Ansible script trex_setup.yml to setup the trex server system.
 
     sudo ansible-playbook trex_setup.yml
@@ -804,6 +810,11 @@ $vim test_settings.yml
   trex_interface_2_pciid: "0000:3b:00.1"
 ```
 
+Login to Trex server by ssh, use below commands to upgrade pip and manually install the modules:
+```
+python -m pip install -U pip
+pip3 install python-tripleoclient --ignore-installed PyYAML
+```
 
 Use the Ansible playbook trex_setup.yml to setup the trex server system.
 ```
@@ -881,10 +892,10 @@ They are the NIC names on DUT side, that will receive and forward packets on the
 
 *PMD_CPU*
 
-To specify PMD_CPU, the script cpu_layout.py is needed. If dpdk and dpdk-tools have been installed, the script cpu_layout.py should be under folder /usr/share/dpdk/usertools. 
+To specify PMD_CPU, the script cpu_layout.py is needed. Please download it from dpdk.org here, http://code.dpdk.org/dpdk/v20.11/source/usertools/cpu_layout.py, then run the script.
 
 ```
-#python /usr/share/dpdk/usertools/cpu_layout.py
+#python /YOUR_DOWNLOADED_PATH/cpu_layout.py
 ```
 The command lstopo can tell which numa node the test NICs belong to. 
 ```
