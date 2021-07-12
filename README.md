@@ -810,16 +810,23 @@ $vim test_settings.yml
   trex_interface_2_pciid: "0000:3b:00.1"
 ```
 
-Login to Trex server by ssh, use below commands to upgrade pip and manually install the modules:
+Before run the Ansible playbook, login to Trex server by ssh, use below commands to upgrade pip and manually install the modules:
 ```
 python -m pip install -U pip
 pip3 install python-tripleoclient --ignore-installed PyYAML
 ```
+Set MTU to 9600 for jumbo packets tests:
+```
+ip link set dev <Trex-port#1> mtu 9600
+ip link set dev <Trex-port#2> mtu 9600
+```
 
-Use the Ansible playbook trex_setup.yml to setup the trex server system.
+On your laptop, use the Ansible playbook trex_setup.yml to setup the trex server system.
 ```
 $sudo ansible-playbook ~/RHEL_NIC_QUALIFICATION/ansible/trex_setup.yml
 ```
+
+
 
 #### 2.1.2 Setup the DUT
 
