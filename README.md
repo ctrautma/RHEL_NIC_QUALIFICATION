@@ -243,7 +243,7 @@ python -m pip install -U pip
 pip3 install python-tripleoclient --ignore-installed PyYAML
 ```
 
-Use the Ansible script trex_setup.yml to setup the trex server system.
+On Ansible server (maybe your laptop), use the Ansible script trex_setup.yml to setup the trex server system.
 
     sudo ansible-playbook trex_setup.yml
 
