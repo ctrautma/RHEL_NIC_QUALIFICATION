@@ -57,7 +57,7 @@ proc login_vm { name } {
 
         spawn virsh console $name
         expect {
-                "Escape character is \^]\r" { sleep 1; send "\r" }
+                "Escape character is \^]" { sleep 1; send "\r" }
                 timeout {
                         puts "FAIL: timeout to login vm \"$name\"!"
                         exit 1
