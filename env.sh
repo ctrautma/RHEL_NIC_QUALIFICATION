@@ -21,7 +21,7 @@ DUT=wsfd-advnetlab35.anl.lab.eng.bos.redhat.com
 TESTER=wsfd-advnetlab36.anl.lab.eng.bos.redhat.com
 [[ -z "$ANSIBLE_CONTROLLER" ]] && [[ "$DUT" != "$(hostname)" ]] && [[ "$TESTER" != "$(hostname)" ]] && ANSIBLE_CONTROLLER="$(hostname)"
 
-login_passwd=100yard-
+login_passwd=ROOT_PASSWORD
 
 #nic speed Gb/s
 nic_speed=25
