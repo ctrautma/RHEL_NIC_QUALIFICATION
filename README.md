@@ -908,7 +908,7 @@ The command lstopo can tell which numa node the test NICs belong to.
 ```
 #lstopo
 ```
-
+To choose PMD_CPU and VCPUs, there is a new script pick_cpus.sh under throughput-test might be helpful.
 
 *TESTPMD descriptor size*
 
