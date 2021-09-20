@@ -96,13 +96,13 @@ pft_setup()
 	python3 -m pip install -U pip
 	pip3 install ansible
 
-	git clone https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
-	pushd RHEL_NIC_QUALIFICATION/
-	git checkout -b ansible remotes/origin/ansible
-	git submodule update --init
-	popd
+	git clone -b feature-cert --single-branch https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
+	#pushd RHEL_NIC_QUALIFICATION/
+	#git checkout -b feature-cert remotes/origin/ansible
+	#git submodule update --init
+	#popd
 
-	pushd RHEL_NIC_QUALIFICATION/ansible
+	pushd RHEL_NIC_QUALIFICATION/common
 	cat > ansible.cfg <<-EOF
 		[defaults]
 		inventory=./inventory
@@ -175,7 +175,7 @@ pft_setup()
     
 
     # run ansible play book to install trex
-	pushd RHEL_NIC_QUALIFICATION/ansible
+	pushd RHEL_NIC_QUALIFICATION/common
 	ansible-playbook trex_setup.yml
 	popd
 
