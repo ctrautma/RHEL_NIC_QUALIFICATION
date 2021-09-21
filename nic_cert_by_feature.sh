@@ -57,11 +57,11 @@ sriov_tests()
 
     ssh root@$DUT  <<-EOF
 		echo 1 > /sys/bus/pci/devices/$dut_interface_1_pciid/sriov_numvfs
-        echo 1 > /sys/bus/pci/devices/$dut_interface_2_pciid/sriov_numvfs
-        ip link set $dut_interface_1 vf 0 spoofchk off
-        ip link set $dut_interface_2 vf 0 spoofchk off
-        ip link set $dut_interface_1 vf 0 trust on
-        ip link set $dut_interface_2 vf 0 trust on
+		echo 1 > /sys/bus/pci/devices/$dut_interface_2_pciid/sriov_numvfs
+		ip link set $dut_interface_1 vf 0 spoofchk off
+		ip link set $dut_interface_2 vf 0 spoofchk off
+		ip link set $dut_interface_1 vf 0 trust on
+		ip link set $dut_interface_2 vf 0 trust on
 		ip link show $dut_interface_1
 		ip link show $dut_interface_2
 	EOF
