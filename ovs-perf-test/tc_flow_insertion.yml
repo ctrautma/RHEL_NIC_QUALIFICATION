@@ -1,0 +1,38 @@
+- name: Tc flow insertion
+  hosts: dut
+  vars_files:
+    - ./test_settings.yml
+  tasks:
+  - debug:
+      msg: Debug mode is enabled
+    when: redhat_debug_mode == true
+
+##########################
+# Start to set up #
+##########################
+
+  - name: Install required packages
+    dnf:
+      name:
+        - git
+        - python3
+        - kernel-headers
+        - kernel-debuginfo
+        - gnuplot
+        - perf
+        - iproute-tc
+      state: present
+
+  - name: Git clone perf-flower
+    git:
+      repo: https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
+      dest: ~/RHEL_NIC_QUALIFICATION
+      track_submodules: yes
+      force: yes
+
+  - name: replace kmalloc with __kmalloc in run.sh
+    replace:
+      path: ~/RHEL_NIC_QUALIFICATION/perf-flower/rule-install-rate/run.sh
+      regexp: '\bkmalloc'
+      replace: '__kmalloc'
+
