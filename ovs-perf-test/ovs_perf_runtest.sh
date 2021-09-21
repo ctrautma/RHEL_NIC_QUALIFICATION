@@ -32,8 +32,6 @@
 
 #. /mnt/tests/kernel/networking/common/lib/lib_nc_sync.sh || exit 1
 
-. ../env.sh
-
 
 show_env()
 {
