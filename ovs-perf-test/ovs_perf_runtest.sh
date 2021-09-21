@@ -94,7 +94,7 @@ pft_setup()
 	python3 -m pip install -U pip
 	pip3 install ansible
 
-	git clone -b feature-cert --single-branch https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
+	#git clone -b feature-cert --single-branch https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
 	#pushd RHEL_NIC_QUALIFICATION/
 	#git checkout -b feature-cert remotes/origin/ansible
 	#git submodule update --init
