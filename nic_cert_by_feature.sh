@@ -124,8 +124,8 @@ ovs_kernel_tests()
     scp throughput_test_items.sh root@$DUT:/root/RHEL_NIC_QUALIFICATION/throughput-test
     ssh root@$DUT  <<-EOF
 		pushd /root/RHEL_NIC_QUALIFICATION/throughput-test
-        cp /root/throughput_test_items.sh ./
-        ./main-perf-test.sh
+		cp /root/throughput_test_items.sh ./
+		./main-perf-test.sh
 	EOF
 }
 
