@@ -1,4 +1,5 @@
 #!/bin/bash
+. env.sh
 . ovs-perf-test/ovs_perf_runtest.sh
 
 
