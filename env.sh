@@ -60,7 +60,7 @@ dut_interface_2=ens1f1
 pf_representor=ens1f0
 vf_representor=eth0
 dut_interface_1_pciid=0000:3b:00.0
-dut_interface_1_pciid=0000:3b:00.1
+dut_interface_2_pciid=0000:3b:00.1
 rhel_guest_image_path="/root/rhel8.3.qcow2"
 
 rh_nic_cert=${rh_nic_cert:-"https://github.com/ctrautma/RHEL_NIC_QUALIFICATION/raw/master/rh_nic_cert.tar"}
@@ -74,11 +74,14 @@ iperf_rpm_path=${iperf_rpm_path:-"https://iperf.fr/download/fedora/iperf-2.0.8-2
 
 
 # For example, when dpdk rpm is dpdk-18.11.2-1.el7.x86_64.rpm , DPDK_VER is 1811-2, it must be in this format.
-DPDK_VER="1811-2"
-DPDK_URL="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7/x86_64/dpdk-18.11.2-1.el7.x86_64.rpm"
-DPDK_TOOL_URL="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/18.11.2/1.el7/x86_64/dpdk-tools-18.11.2-1.el7.x86_64.rpm"
+DPDK_VER="1911-3"
+
+# Below varailbles are duplicated ones that should not be changed. 
+
+DPDK_URL=$dpdk_rpm_path
+DPDK_TOOL_URL=$dpdk_tools_rpm_path
 #NOTICE:Both client and server must have same trex verion .
-TREX_URL="https://trex-tgn.cisco.com/trex/release/v2.82.tar.gz"
+TREX_URL=$trex_url
 
 
 #config end 
