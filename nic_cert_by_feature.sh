@@ -140,28 +140,28 @@ hwol_tests()
 
 pft_setup
 
-if [ "$SRIOV_TEST" = true ] then
+if [ "$SRIOV_TEST" = true ]; then
     echo "##########################"
     echo "#start SRIOV tests"
     echo "##########################"
     sriov_tests
 fi    
     
-if [ "$OVS_KERNEL_TEST" = true ] then
+if [ "$OVS_KERNEL_TEST" = true ]; then
     echo "##########################"
     echo "#start OVS-Kernel tests"
     echo "##########################"
     ovs_kernel_tests
 fi  
 
-if [ "$OVS_DPDK_TEST" = true ] then
+if [ "$OVS_DPDK_TEST" = true ]; then
     echo "##########################"
     echo "#start OVS-DPDK tests"
     echo "##########################"
     ovs_dpdk_tests
 fi  
 
-if [ "$HWOL_TEST" = true ] then
+if [ "$HWOL_TEST" = true ]; then
     echo "##########################"
     echo "#starts Hardware offload (HWOL) tests"
     echo "##########################"
