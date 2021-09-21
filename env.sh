@@ -51,7 +51,7 @@ trex_interface_2=ens1f1
 
 #rpm paths should be http url type
 ovs_rpm_path="http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch2.15/2.15.0/38.el8fdp/x86_64/openvswitch2.15-2.15.0-38.el8fdp.x86_64.rpm"
-ovs_selinux_rpm_path="https://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch-selinux-extra-policy/1.0/28.el8fdp/noarch/openvswitch-selinux-extra-policy-1.0-28.el8fdp.noarch.rpm"
+ovs_selinux_rpm_path="http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch-selinux-extra-policy/1.0/28.el8fdp/noarch/openvswitch-selinux-extra-policy-1.0-28.el8fdp.noarch.rpm"
 dpdk_rpm_path="http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/19.11/4.el8fdb.1/x86_64/dpdk-19.11-4.el8fdb.1.x86_64.rpm"
 dpdk_tools_rpm_path=$"http://download-node-02.eng.bos.redhat.com/brewroot/packages/dpdk/19.11/4.el8fdb.1/x86_64/dpdk-tools-19.11-4.el8fdb.1.x86_64.rpm"
 
