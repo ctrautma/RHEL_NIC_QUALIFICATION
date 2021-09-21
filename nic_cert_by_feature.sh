@@ -20,6 +20,7 @@ throughput_dut_init()
 		yum install -y ~/RHEL_NIC_QUALIFICATION/throughput-test/lrzip-0.616-5.el7.x86_64.rpm
 		cp /root/test_env.sh /root/RHEL_NIC_QUALIFICATION/throughput-test/
 		grubby --args='intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32' --update-kernel=$(grubby --default-kernel)
+		pushd ~/RHEL_NIC_QUALIFICATION/throughput-test
 		source Perf-Verify.conf ; echo "isolated_cores=$PMD_CPU_1,$PMD_CPU_2,$PMD_CPU_3,$PMD_CPU_4,$VCPU1,$VCPU2,$VCPU3,$VCPU4,$VCPU5" >> /etc/tuned/cpu-partitioning-variables.conf
 		tuned-adm profile cpu-partitioning
 		systemctl enable tuned
