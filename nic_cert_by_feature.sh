@@ -1,6 +1,6 @@
 #!/bin/bash
 . env.sh
-. ~/ovs_perf/ovs_perf_runtest.sh
+. ~/ovs-perf-test/ovs_perf_runtest.sh
 . ~/throughput/get_cpu_numbers.sh
 
 
