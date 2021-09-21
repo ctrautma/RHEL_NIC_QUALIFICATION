@@ -26,6 +26,8 @@ throughput_dut_init()
 	EOF
 
     ssh root@$DUT "reboot"
+    
+    sleep 60
 
     while ! ping -c 1 $DUT &>/dev/null; do
         sleep 5
