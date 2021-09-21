@@ -582,39 +582,39 @@ _pft_functionality()
 ################################################################
 # main
 
-rlJournalStart
+#rlJournalStart
 
-if [[ x"$ANSIBLE_CONTROLLER" == x"$(hostname)" ]]
-then
-	sync_wait "$DUT $TESTER" pft_start 300
+#if [[ x"$ANSIBLE_CONTROLLER" == x"$(hostname)" ]]
+#then
+#	sync_wait "$DUT $TESTER" pft_start 300
 
-	rlPhaseStartSetup
-	rlRun "pft_setup"
-	rlPhaseEnd
+#	rlPhaseStartSetup
+#	rlRun "pft_setup"
+#	rlPhaseEnd
 
-	_test_list=$(sed -n '/^pft_/ s/(.*$//p' $0)
+#	_test_list=$(sed -n '/^pft_/ s/(.*$//p' $0)
 
-	for i in $_test_list
-	do
-		if echo "$PFT_SKIP" | grep -e "\b${i}\b" &>/dev/null
-		then
-			echo "$i is skipped"
-			continue
-		fi
+#	for i in $_test_list
+#	do
+#		if echo "$PFT_SKIP" | grep -e "\b${i}\b" &>/dev/null
+#		then
+#			echo "$i is skipped"
+#			continue
+#		fi
 
-		if [[ "$PFT_TEST" == "$i" ]] || [[ "$PFT_TEST" == "PFT_ALL" ]]
-		then
-			rlPhaseStartTest "$i"
-			rlRun "$i"
-			rlPhaseEnd
-		fi
-	done
+#		if [[ "$PFT_TEST" == "$i" ]] || [[ "$PFT_TEST" == "PFT_ALL" ]]
+#		then
+#			rlPhaseStartTest "$i"
+#			rlRun "$i"
+#			rlPhaseEnd
+#		fi
+#	done
 
-	sync_set "$DUT $TESTER" pft_end 300
-else
-	(($REBOOTCOUNT == 0)) && sync_set $ANSIBLE_CONTROLLER pft_start 300
+#	sync_set "$DUT $TESTER" pft_end 300
+#else
+#	(($REBOOTCOUNT == 0)) && sync_set $ANSIBLE_CONTROLLER pft_start 300
 	sync_wait1 $ANSIBLE_CONTROLLER pft_end 604800
-fi
+#fi
 
-rlJournalPrintText
-rlJournalEnd
+#rlJournalPrintText
+#rlJournalEnd
