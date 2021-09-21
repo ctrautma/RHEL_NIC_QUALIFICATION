@@ -613,7 +613,7 @@ _pft_functionality()
 #	sync_set "$DUT $TESTER" pft_end 300
 #else
 #	(($REBOOTCOUNT == 0)) && sync_set $ANSIBLE_CONTROLLER pft_start 300
-	sync_wait1 $ANSIBLE_CONTROLLER pft_end 604800
+#	sync_wait1 $ANSIBLE_CONTROLLER pft_end 604800
 #fi
 
 #rlJournalPrintText
