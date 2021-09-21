@@ -100,7 +100,7 @@ pft_setup()
 	#git submodule update --init
 	#popd
 
-	pushd RHEL_NIC_QUALIFICATION/common
+	pushd ~/RHEL_NIC_QUALIFICATION/common
 	cat > ansible.cfg <<-EOF
 		[defaults]
 		inventory=./inventory
@@ -173,7 +173,7 @@ pft_setup()
     
 
     # run ansible play book to install trex
-	pushd RHEL_NIC_QUALIFICATION/common
+	pushd ~/RHEL_NIC_QUALIFICATION/common
 	ansible-playbook trex_setup.yml
 	popd
 
