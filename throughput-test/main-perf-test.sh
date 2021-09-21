@@ -36,8 +36,8 @@ init_main_perf_env()
     source $CASE_PATH/Perf-Verify.conf
     cat $CASE_PATH/Perf-Verify.conf
     echo "#####################################"
-    source $CASE_PATH/env.sh
-    cat $CASE_PATH/env.sh
+    source $CASE_PATH/throughput_test_items.sh
+    cat $CASE_PATH/throughput_test_items.sh
     echo "#####################################"
     set +a
 
