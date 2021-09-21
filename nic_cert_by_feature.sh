@@ -1,7 +1,6 @@
 #!/bin/bash
 . env.sh
 . ovs-perf-test/ovs_perf_runtest.sh
-. throughput-test/get_cpu_numbers.sh
 
 
 #Set up the settings for ovs_perf and throughput tests. And install Trex.
