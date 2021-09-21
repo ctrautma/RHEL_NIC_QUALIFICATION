@@ -40,8 +40,8 @@ guest_image=${guest_image:-http://netqe-infra01.knqe.lab.eng.bos.redhat.com/vm/r
 # http://people.redhat.com/zfang/rhel8.3-vsperf-1Q-viommu.qcow2.tar.lrz
 # http://people.redhat.com/zfang/rhel8.3-vsperf-2Q-viommu.qcow2.tar.lrz
 
-ONE_QUEUE_IMAGE="http://netqe-bj.usersys.redhat.com/share/tli/vsperf_img/rhel7.6-vsperf-1Q-viommu.qcow2"
-TWO_QUEUE_IMAGE="http://netqe-bj.usersys.redhat.com/share/tli/vsperf_img/rhel7.6-vsperf-2Q-viommu.qcow2"
+ONE_QUEUE_IMAGE="http://netqe-infra01.knqe.lab.eng.bos.redhat.com/vm/rhel8.4-vsperf-1Q-noviommu.qcow2"
+TWO_QUEUE_IMAGE="http://netqe-infra01.knqe.lab.eng.bos.redhat.com/vm/rhel8.4-vsperf-2Q-noviommu.qcow2"
 
 
 qe_subscription_command=${qe_subscription_command-"subscription-manager register --serverurl=subscription.rhsm.stage.redhat.com:443/subscription --baseurl=https://cdn.re"}
