@@ -252,7 +252,7 @@ pft_pvp_ovsdpdk()
 	ssh root@$DUT "yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm git wget python3 hwloc hwloc-gui grubby tuned-profiles-cpu-partitioning python3; \
 	python3 -m pip install -U pip; pip3 install lxml"
 	
-	pushd RHEL_NIC_QUALIFICATION/ansible
+	pushd RHEL_NIC_QUALIFICATION/ovs-perf-test
 	ansible-playbook pvp_ovsdpdk.yml
 	popd
 
@@ -333,7 +333,7 @@ pft_pvp_kernel()
 		popd
 	EOF
 
-	pushd RHEL_NIC_QUALIFICATION/ansible
+	pushd RHEL_NIC_QUALIFICATION/ovs-perf-test
 	ansible-playbook pvp_kernel.yml
 	popd
 
@@ -412,7 +412,7 @@ pft_pvp_tcflower_offload()
 		popd
 	EOF
 
-	pushd RHEL_NIC_QUALIFICATION/ansible
+	pushd RHEL_NIC_QUALIFICATION/ovs-perf-test
 	ansible-playbook pvp_tcflower_offload.yml
 	popd
 
@@ -481,7 +481,7 @@ pft_tc_flow_insertion()
 	[[ -f /root/test_env.sh ]] && source /root/test_env.sh
 	show_env
 
-	pushd RHEL_NIC_QUALIFICATION/ansible
+	pushd RHEL_NIC_QUALIFICATION/ovs-perf-test
 	ansible-playbook tc_flow_insertion.yml
 	popd
 
