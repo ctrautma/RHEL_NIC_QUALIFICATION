@@ -218,7 +218,17 @@ pft_setup()
 		RPM_DPDK_TOOLS=$dpdk_tools_rpm_path
 		#RPM_DRIVERCTL=
 
+		# throughput test variables
 		QE_SKIP_OVS_BOND_TEST="yes"
+		ONE_QUEUE_IMAGE=$ONE_QUEUE_IMAGE
+		TWO_QUEUE_IMAGE=$TWO_QUEUE_IMAGE
+		DPDK_VER=$DPDK_VER
+		DPDK_URL=$dpdk_rpm_path
+		DPDK_TOOL_URL=$dpdk_tools_rpm_path
+		TREX_URL=$trex_url
+		TRAFFICGEN_TREX_HOST_IP_ADDR=$TESTER
+		
+		
 	EOF
 	scp /root/test_env.sh root@$DUT:/root/
 	scp /root/test_env.sh root@$TESTER:/root/
