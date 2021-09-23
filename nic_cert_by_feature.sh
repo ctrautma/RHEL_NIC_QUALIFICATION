@@ -146,13 +146,13 @@ pft_setup
 
 if [ "$SKIP_TREX_INSTALL" = true ]; then
     echo "##########################"
+    echo "# Trex installation skipped"
+    echo "##########################"
+else 
+    echo "##########################"
     echo "# Start Trex installation"
     echo "##########################"
     trex_install
-else 
-    echo "##########################"
-    echo "# Trex installation skipped"
-    echo "##########################"
 fi    
 
 if [ "$SRIOV_TEST" = true ]; then
