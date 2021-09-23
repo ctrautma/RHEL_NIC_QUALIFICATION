@@ -104,8 +104,7 @@ ovs_dpdk_tests()
   
     ssh root@$DUT  <<-EOF
 		pushd /root/RHEL_NIC_QUALIFICATION/throughput-test
-        cp /root/throughput_test_items.sh ./
-        ./main-perf-test.sh
+		./main-perf-test.sh
 	EOF
 
 }
