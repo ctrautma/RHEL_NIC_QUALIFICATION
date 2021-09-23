@@ -8,6 +8,9 @@ OVS_KERNEL_TEST=false
 OVS_DPDK_TEST=false
 HWOL_TEST=false
 
+# Trex installation can be skipped by setting below vairalble to "true"
+SKIP_TREX_INSTALL=false
+
 # Each module has sub-test module(s):
 #   SR-IOV test module include throughput test
 #   OVS-Kernel test module include ovs-perf, throughput and functional tests
