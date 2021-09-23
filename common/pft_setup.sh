@@ -124,6 +124,10 @@ pft_setup()
 		trex_linux_cmdline: "intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32"
 		dut_linux_cmdline: "intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32"
 	EOF
+	
+	cp test_settings.yml ~/RHEL_NIC_QUALIFICATION/ovs-perf-test/
+	cp inventory ~/RHEL_NIC_QUALIFICATION/ovs-perf-test/
+	
 	popd
 
 	[[ -f /root/.ssh/id_rsa ]] || ssh-keygen -b 2048 -t rsa -f /root/.ssh/id_rsa -q -N ""
