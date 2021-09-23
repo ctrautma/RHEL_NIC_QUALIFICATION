@@ -58,7 +58,7 @@ pft_pvp_ovsdpdk()
 	python3 -m pip install -U pip; pip3 install lxml"
 	
 	pushd /root/RHEL_NIC_QUALIFICATION/ovs-perf-test/
-	ansible-playbook pvp_ovsdpdk.yml
+	ansible-playbook pvp_ovsdpdk.yml -i /root/RHEL_NIC_QUALIFICATION/common/inventory
 	popd
 
 	local dut_ip=$(getent hosts $DUT | awk '{ print $1 }')
@@ -139,7 +139,7 @@ pft_pvp_kernel()
 	EOF
 
 	pushd RHEL_NIC_QUALIFICATION/ovs-perf-test
-	ansible-playbook pvp_kernel.yml
+	ansible-playbook pvp_kernel.yml -i /root/RHEL_NIC_QUALIFICATION/common/inventory
 	popd
 
 	local dut_ip=$(getent hosts $DUT | awk '{ print $1 }')
@@ -218,7 +218,7 @@ pft_pvp_tcflower_offload()
 	EOF
 
 	pushd RHEL_NIC_QUALIFICATION/ovs-perf-test
-	ansible-playbook pvp_tcflower_offload.yml
+	ansible-playbook pvp_tcflower_offload.yml -i /root/RHEL_NIC_QUALIFICATION/common/inventory
 	popd
 
 	local dut_ip=$(getent hosts $DUT | awk '{ print $1 }')
@@ -287,7 +287,7 @@ pft_tc_flow_insertion()
 	show_env
 
 	pushd RHEL_NIC_QUALIFICATION/ovs-perf-test
-	ansible-playbook tc_flow_insertion.yml
+	ansible-playbook tc_flow_insertion.yml -i /root/RHEL_NIC_QUALIFICATION/common/inventory
 	popd
 
 	ssh -tt root@$DUT <<-EOF
