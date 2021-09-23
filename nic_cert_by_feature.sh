@@ -19,13 +19,13 @@ throughput_dut_init()
 		git clone -b feature-cert --single-branch https://github.com/ctrautma/RHEL_NIC_QUALIFICATION.git
 		yum install -y ~/RHEL_NIC_QUALIFICATION/throughput-test/lrzip-0.616-5.el7.x86_64.rpm
 		cp /root/test_env.sh /root/RHEL_NIC_QUALIFICATION/throughput-test/
-		grubby --args='intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32' --update-kernel=$(grubby --default-kernel)
-		pushd ~/RHEL_NIC_QUALIFICATION/throughput-test
-		bash -x write_tuned_cpu-partitioning-variables_conf.sh
-		tuned-adm profile cpu-partitioning
-		systemctl enable tuned
+	#	grubby --args='intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32' --update-kernel=$(grubby --default-kernel)
+	#	pushd ~/RHEL_NIC_QUALIFICATION/throughput-test
+	#	bash -x write_tuned_cpu-partitioning-variables_conf.sh
+	#	tuned-adm profile cpu-partitioning
+	#	systemctl enable tuned
 	EOF
-
+    ssh root@$DUT "bash -x /root/RHEL_NIC_QUALIFICATION/throughput-test/tuned_hugepage_conf.sh"
     ssh root@$DUT "reboot"
     
     sleep 60
