@@ -124,7 +124,7 @@ pft_setup()
 		trex_linux_cmdline: "intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32"
 		dut_linux_cmdline: "intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=32"
 	EOF
-	
+	cp ansible.cfg ~/RHEL_NIC_QUALIFICATION/ovs-perf-test/
 	cp test_settings.yml ~/RHEL_NIC_QUALIFICATION/ovs-perf-test/
 	cp inventory ~/RHEL_NIC_QUALIFICATION/ovs-perf-test/
 	
