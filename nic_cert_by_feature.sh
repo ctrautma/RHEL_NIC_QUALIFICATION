@@ -1,5 +1,6 @@
 #!/bin/bash
 . env.sh
+. common/pft_setup.sh
 . ovs-perf-test/ovs_perf_runtest.sh
 
 
@@ -142,6 +143,17 @@ hwol_tests()
 }
 
 pft_setup
+
+if [ "$SKIP_TREX_INSTALL" = true ]; then
+    echo "##########################"
+    echo "# Start Trex installation"
+    echo "##########################"
+    trex_install
+else 
+    echo "##########################"
+    echo "# Trex installation skipped"
+    echo "##########################"
+fi    
 
 if [ "$SRIOV_TEST" = true ]; then
     echo "##########################"
