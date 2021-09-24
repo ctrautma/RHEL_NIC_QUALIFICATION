@@ -75,9 +75,7 @@ sriov_tests()
 	EOF
 }
 
-echo "#############"
-echo "#OVS-DPDK tests"
-echo "#############"
+
 
 
 
