@@ -334,12 +334,20 @@
     virt_net:
       name: default
       command: undefine
+      
+  - name: importing the file contents to variable
+    slurp:
+      src: /usr/share/libvirt/networks/default.xml
+    register: default_virt_net_xml
+    become: true
   - name: define virt-net default
     virt_net:
       name: default
       command: define
-      xml: "{{ lookup('file', '/usr/share/libvirt/networks/default.xml') }}"
+      xml: "{{default_virt_net_xml.content | b64decode }}"
+#      xml: "{{ lookup('file', '/usr/share/libvirt/networks/default.xml') }}"
       autostart: yes
+      
   - name: set IP address for internet access in guest
     virt_net:
       name: default
