@@ -40,7 +40,7 @@
       name: python3-six,rpm-build,selinux-policy-devel,sshpass,sysstat
   - name: Install needed repos stage 7
     yum:
-      name: systemd-units,tcpdump,time,tmux,tuned-profiles-cpu-partitioning
+      name: systemd-units,tcpdump,time,tmux,tuned-profiles-cpu-partitioning,efibootmgr
   - name: Install needed repos stage 8
     yum:
       name: virt-install,virt-manager,wget
