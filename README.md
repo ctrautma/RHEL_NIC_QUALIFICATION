@@ -836,7 +836,7 @@ $sudo ansible-playbook ~/RHEL_NIC_QUALIFICATION/ansible/trex_setup.yml
 Install some tools
 ```
 #yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
-#yum -y install git wget python3 hwloc hwloc-gui grubby tuned-profiles-cpu-partitioning
+#yum -y install git wget python3 hwloc hwloc-gui grubby tuned-profiles-cpu-partitioning efibootmgr
 #alternatives --set python /usr/bin/python3
 #pip install lxml
 ```
@@ -956,6 +956,7 @@ Depending on your settings in throughput-test/Perf-Verify.conf, add all these co
 #echo "isolated_cores=2,4,6,14,16,24,26,34,36" >> /etc/tuned/cpu-partitioning-variables.conf
 # tuned-adm profile cpu-partitioning
 # systemctl enable tuned
+# efibootmgr -v &>/dev/null && efibootmgr -n $(efibootmgr -v | grep BootCurrent | sed 's/.*: //')
 # reboot
 ```
 
