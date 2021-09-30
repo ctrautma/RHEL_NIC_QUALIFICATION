@@ -83,6 +83,7 @@ install_python()
     yum -y install python3-devel
     yum -y install python3-pyelftools
     yum -y install python3-pip
+    yum -y install python3-libvirt
     if (( $SYSTEM_VERSION_ID < 80 ))
     then
         yum -y install python2
