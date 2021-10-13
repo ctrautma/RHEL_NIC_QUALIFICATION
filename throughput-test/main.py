@@ -343,7 +343,7 @@ def ovs_running_check():
 
 def download_VNF_image():
     cmd = f"""
-    chmod +w {image_dir}
+    chmod 777 {image_dir}
     """
     log_and_run(cmd)
     with pushd(case_path):
