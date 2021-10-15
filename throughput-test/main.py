@@ -906,7 +906,7 @@ def guest_start_testpmd(queue_num, guest_cpu_list, rxd_size, txd_size,max_pkt_le
     --rxd={rxd_size} \
     --txd={txd_size} \
     --nb-cores={num_core} \
-    --max-pkt-len={max_pkt_len} \
+    --max-pkt-len={int(max_pkt_len) + 4} \
     {extra_parameter} \
     --auto-start
     """
