@@ -170,7 +170,7 @@ synergy_throughput_tests()
 
     ssh root@$DUT  <<-EOF
 		pushd /root/RHEL_NIC_QUALIFICATION/throughput-test
-		#cp /root/throughput_test_items.sh ./
+		sed -i 's/SINGLE_PORT_MODE=\"false\"/SINGLE_PORT_MODE=\"true\"/' Perf-Verify.conf
 		./main-perf-test.sh
 	EOF
 }
