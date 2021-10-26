@@ -139,6 +139,44 @@ hwol_tests()
 
 }
 
+synergy_throughput_tests()
+{
+   throughput_dut_init
+    
+    #yum -y install $ovs_rpm_path $ovs_selinux_rpm_path $dpdk_rpm_path $dpdk_tools_rpm_path
+
+    cat > throughput_test_items.sh <<-EOF
+		SKIP_SRIOV=0
+		SKIP_1Q=0
+		SKIP_2Q=0
+		SKIP_JUMBO=0
+		SKIP_KERNEL=0
+	EOF
+
+    scp throughput_test_items.sh root@$DUT:/root/RHEL_NIC_QUALIFICATION/throughput-test
+    
+
+
+    ssh root@$DUT  <<-EOF
+		echo 1 > /sys/bus/pci/devices/$dut_interface_1_pciid/sriov_numvfs
+		echo 1 > /sys/bus/pci/devices/$dut_interface_2_pciid/sriov_numvfs
+		ip link set $dut_interface_1 vf 0 spoofchk off
+		ip link set $dut_interface_2 vf 0 spoofchk off
+		ip link set $dut_interface_1 vf 0 trust on
+		ip link set $dut_interface_2 vf 0 trust on
+		ip link show $dut_interface_1
+		ip link show $dut_interface_2
+	EOF
+
+    ssh root@$DUT  <<-EOF
+		pushd /root/RHEL_NIC_QUALIFICATION/throughput-test
+		#cp /root/throughput_test_items.sh ./
+		./main-perf-test.sh
+	EOF
+}
+
+
+
 pft_setup
 
 if [ "$SKIP_TREX_INSTALL" = true ]; then
@@ -178,4 +216,11 @@ if [ "$HWOL_TEST" = true ]; then
     echo "#starts Hardware offload (HWOL) tests"
     echo "##########################"
     hwol_tests
+fi  
+
+if [ "$SYN_THOU_TEST" = true ]; then
+    echo "##########################"
+    echo "#synergy throughput tests"
+    echo "##########################"
+    synergy_throughput_tests
 fi  
