@@ -86,6 +86,8 @@ DPDK_TOOL_URL=$dpdk_tools_rpm_path
 #NOTICE:Both client and server must have same trex verion .
 TREX_URL=$trex_url
 
+# Redhat internal test parameters
+SYN_THOU_TEST=false
 
 #config end 
 ################################################################################
