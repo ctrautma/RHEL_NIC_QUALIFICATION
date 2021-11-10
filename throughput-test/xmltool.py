@@ -129,7 +129,7 @@ class XmlTool(object):
             <emulator>/usr/libexec/qemu-kvm</emulator>
             <disk device="disk" type="file">
                     <driver name="qemu" type="qcow2" />
-                    <source file="/root/rhel.qcow2" />
+                    <source file="/root/guest_image/rhel.qcow2" />
                     <target bus="virtio" dev="vda" />
                     <address bus="0x01" domain="0x0000" function="0x0" slot="0x00" type="pci" />
             </disk>
