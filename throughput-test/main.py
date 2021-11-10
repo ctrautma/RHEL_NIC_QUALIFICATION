@@ -342,6 +342,9 @@ def ovs_running_check():
     return 0
 
 def download_VNF_image():
+    os.makedirs(image_dir, exist_ok=False)
+    log("The new image_dir is created!")
+    
     cmd = f"""
     chmod 777 {image_dir}
     """
