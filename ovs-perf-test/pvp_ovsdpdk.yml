@@ -414,6 +414,8 @@
 
   - name: subscribing to appstream on VM {{ guest_name }}
     shell: ~/vm.sh run_cmd {{ guest_name }} "subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms || subscription-manager repos --enable rhel-8-for-x86_64-appstream*-rpms"
+    ignore_errors: yes
+    
   - name: Running yum commandset step 1 on {{ guest_name }}
     shell: ~/vm.sh run_cmd {{ guest_name }} "yum -y clean all"
   #- name: Running yum commandset step 2 on {{ guest_name }}
