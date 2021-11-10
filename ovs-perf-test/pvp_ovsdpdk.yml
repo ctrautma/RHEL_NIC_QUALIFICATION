@@ -228,9 +228,11 @@
     shell: >
       efibootmgr -v && efibootmgr -n $(efibootmgr -v | grep BootCurrent | sed 's/.*: //')
     register: re
-    failed_when:
-      - re.rc != 0
-      - '"efibootmgr: command not found" not in re.stderr'
+    failed_when: >
+      (re.rc != 0) or
+      ("efibootmgr: command not found" in re.stderr) or
+      ("EFI variables are not supported on this system." in re.stderr)
+    ignore_errors: yes
 
   - name: reboot
     reboot:
