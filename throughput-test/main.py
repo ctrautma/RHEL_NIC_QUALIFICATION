@@ -28,7 +28,7 @@ case_path = os.environ.get("CASE_PATH")
 system_version_id = int(os.environ.get("SYSTEM_VERSION_ID"))
 my_tool = tools.Tools()
 xml_tool = xmltool.XmlTool()
-image_dir = "/root/"
+image_dir = "/root/guest_image/"
 # nic1_name = get_env("NIC1")
 # nic1_driver = my_tool.get_nic_driver_from_name(nic1_name)
 
