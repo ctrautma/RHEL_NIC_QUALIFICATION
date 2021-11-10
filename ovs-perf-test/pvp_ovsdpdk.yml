@@ -410,6 +410,7 @@
     retries: 5
     delay: 3
     when: qe_subscription_mode
+    ignore_errors: yes
 
   - name: subscribing to appstream on VM {{ guest_name }}
     shell: ~/vm.sh run_cmd {{ guest_name }} "subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms || subscription-manager repos --enable rhel-8-for-x86_64-appstream*-rpms"
