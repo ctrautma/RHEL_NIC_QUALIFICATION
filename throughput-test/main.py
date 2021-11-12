@@ -423,6 +423,7 @@ def download_VNF_image():
 
 
     cmd = f"""
+    export LIBGUESTFS_BACKEND=direct
     virt-copy-in -a {image_dir}/{one_queue_image_name} {udev_file} /etc/udev/rules.d/
     virt-copy-in -a {image_dir}/{two_queue_image_name} {udev_file} /etc/udev/rules.d/
     """
