@@ -935,6 +935,7 @@ def clear_env():
     cmd = """
     systemctl start openvswitch
     ovs-vsctl --if-exists del-br ovsbr0
+    ovs-vsctl --if-exists del-br ovs_pvp_br0
     virsh destroy gg
     virsh undefine gg
     systemctl stop openvswitch
