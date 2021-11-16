@@ -722,6 +722,9 @@ def start_guest(guest_xml):
         download_VNF_image()
         cmd = f"""
         virsh net-start default
+        """
+        run(cmd,"0,1")
+        cmd = f"""
         virsh define {case_path}/{guest_xml}
         virsh start gg
         """
