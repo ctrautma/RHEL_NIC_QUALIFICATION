@@ -721,6 +721,7 @@ def start_guest(guest_xml):
         run("systemctl list-units --state=stop --type=service | grep libvirtd || systemctl restart libvirtd")
         download_VNF_image()
         cmd = f"""
+        virsh net-start default
         virsh define {case_path}/{guest_xml}
         virsh start gg
         """
