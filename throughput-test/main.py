@@ -28,7 +28,7 @@ case_path = os.environ.get("CASE_PATH")
 system_version_id = int(os.environ.get("SYSTEM_VERSION_ID"))
 my_tool = tools.Tools()
 xml_tool = xmltool.XmlTool()
-image_dir = "/root/guest_image/"
+image_dir = "/var/tmp/"
 # nic1_name = get_env("NIC1")
 # nic1_driver = my_tool.get_nic_driver_from_name(nic1_name)
 
@@ -342,8 +342,8 @@ def ovs_running_check():
     return 0
 
 def download_VNF_image():
-    os.makedirs(image_dir, exist_ok=False)
-    log("The new image_dir is created!")
+    #os.makedirs(image_dir, exist_ok=False)
+    #log("The new image_dir is created!")
     
     cmd = f"""
     chmod 777 {image_dir}
@@ -423,7 +423,7 @@ def download_VNF_image():
 
 
     cmd = f"""
-    export LIBGUESTFS_BACKEND=direct
+    #export LIBGUESTFS_BACKEND=direct
     virt-copy-in -a {image_dir}/{one_queue_image_name} {udev_file} /etc/udev/rules.d/
     virt-copy-in -a {image_dir}/{two_queue_image_name} {udev_file} /etc/udev/rules.d/
     """
