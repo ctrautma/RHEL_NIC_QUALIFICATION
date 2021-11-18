@@ -159,6 +159,8 @@ pft_setup()
 		trex_url=$trex_url
 		trex_interface_1=$trex_interface_1
 		trex_interface_2=$trex_interface_2
+		trex_interface_1_mac=$trex_interface_1_mac
+		trex_interface_2_mac=$trex_interface_2_mac
 		dut_interface_1=$dut_interface_1
 		dut_interface_2=$dut_interface_2
 		dut_interface_1_pciid=$dut_interface_1_pciid
