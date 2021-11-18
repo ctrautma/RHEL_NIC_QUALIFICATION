@@ -51,6 +51,8 @@ qe_subscription_command=${qe_subscription_command-"subscription-manager register
 trex_url=${trex_url:-"https://trex-tgn.cisco.com/trex/release/v2.82.tar.gz"}
 trex_interface_1=ens1f0
 trex_interface_2=ens1f1
+trex_interface_1_mac=
+trex_interface_2_mac=
 
 #rpm paths should be http url type
 ovs_rpm_path="http://download-node-02.eng.bos.redhat.com/brewroot/packages/openvswitch2.15/2.15.0/38.el8fdp/x86_64/openvswitch2.15-2.15.0-38.el8fdp.x86_64.rpm"
