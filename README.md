@@ -239,7 +239,7 @@ where this was saved.
 
 Login to Trex server by ssh, use below commands to upgrade pip and manually install the modules:
 ```
-python -m pip install -U pip
+python -m pip install -U pip (or yum install pip)
 pip3 install python-tripleoclient --ignore-installed PyYAML
 ```
 
