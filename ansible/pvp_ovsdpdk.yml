@@ -37,7 +37,7 @@
       name: lshw,openssl,openssl-devel,procps-ng,python3
   - name: Install needed repos stage 6
     yum:
-      name: python3-six,rpm-build,selinux-policy-devel,sshpass,sysstat
+      name: python3-six,rpm-build,selinux-policy-devel,sshpass,sysstat,pip
   - name: Install needed repos stage 7
     yum:
       name: systemd-units,tcpdump,time,tmux,tuned-profiles-cpu-partitioning
