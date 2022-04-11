@@ -35,7 +35,7 @@
     # Install EPEL repositories
     - rpm_key:
         state: present
-        key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8
+        key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-{{ ansible_distribution_major_version }}
     - name: Install EPEL repositories
       dnf:
         name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm
@@ -59,6 +59,7 @@
         src: "/usr/bin/pip3"
         dest: "/usr/bin/pip"
         state: link
+      ignore_errors: yes 
     - name: Install required python modules
       pip:
         name:
