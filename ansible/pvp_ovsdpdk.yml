@@ -59,6 +59,7 @@
       src: "/usr/bin/pip3"
       dest: "/usr/bin/pip"
       state: link
+    ignore_errors: yes 
   - name: copying vm.sh to default location
     copy:
       src: ./vm.sh
