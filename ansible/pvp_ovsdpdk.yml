@@ -60,6 +60,9 @@
       dest: "/usr/bin/pip"
       state: link
     ignore_errors: yes 
+  - name: Install python module lxml
+    pip:
+      name: lxml
   - name: copying vm.sh to default location
     copy:
       src: ./vm.sh
