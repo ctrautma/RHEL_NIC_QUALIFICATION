@@ -24,13 +24,48 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+#usage ver_equal 8.00 8.000 && echo "TRUE"
+ver_equal()
+{
+    (( $(bc -ql <<< "$1 == $2") == 1 )) && return 0
+}
+
+#usage ver_not_equal 8.01 8.000 && echo "TRUE"
+ver_not_equal()
+{
+    (( $(bc -ql <<< "$1 != $2") == 1 )) && return 0
+}
+
+#usage ver_gt 9.01 9.000 && echo "TRUE"
+ver_gt()
+{
+    (( $(bc -ql <<< "$1 > $2") == 1 )) && return 0
+}
+
+#usage ver_ge 9.01 9.000 && echo "TRUE"
+ver_ge()
+{
+    (( $(bc -ql <<< "$1 >= $2") == 1 )) && return 0
+}
+
+#usage ver_lt 8.01 9.000 && echo "TRUE"
+ver_lt()
+{
+    (( $(bc -ql <<< "$1 < $2") == 1 )) && return 0
+}
+
+#usage ver_le 9.0 9.000 && echo "TRUE"
+ver_le()
+{
+    (( $(bc -ql <<< "$1 <= $2") == 1 )) && return 0
+}
+
 # Detect OS name and version from systemd based os-release file
 init_main_perf_env()
 {
     set -a
     CASE_PATH="$(dirname $(readlink -f $0))"
     source /etc/os-release
-    SYSTEM_VERSION_ID=`echo $VERSION_ID | tr -d '.'`
     echo "All Config Begin"
     echo "#####################################"
     source $CASE_PATH/Perf-Verify.conf
@@ -61,7 +96,7 @@ ctrl_c()
 
 install_python()
 {
-    if (( $SYSTEM_VERSION_ID < 80 ))
+    if ver_lt $VERSION_ID 8.0
     then
         yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     else
@@ -71,7 +106,7 @@ install_python()
     # yum clean all
     yum makecache
 
-    if (( $SYSTEM_VERSION_ID < 80 ))
+    if ver_lt $VERSION_ID 8.0
     then
         yum -y install python-netifaces
         yum -y install python2-devel
@@ -83,7 +118,7 @@ install_python()
     yum -y install python3-devel
     yum -y install python3-pyelftools
     yum -y install python3-pip
-    if (( $SYSTEM_VERSION_ID < 80 ))
+    if ver_lt $VERSION_ID 8.0
     then
         yum -y install python2
         yum -y install python-pip
@@ -99,7 +134,7 @@ install_python_and_init_env()
     install_python
 
     pushd $CASE_PATH
-    if (($SYSTEM_VERSION_ID > 76)); then
+    if ver_gt $VERSION_ID 7.6; then
         python3 -m venv ${CASE_PATH}/venv
     else
         python36 -m venv ${CASE_PATH}/venv

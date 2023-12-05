@@ -25,7 +25,7 @@ def get_env(var_name):
     return os.environ.get(var_name)
 
 case_path = os.environ.get("CASE_PATH")
-system_version_id = int(os.environ.get("SYSTEM_VERSION_ID"))
+version_id = int(os.environ.get("VERSION_ID"))
 my_tool = tools.Tools()
 xml_tool = xmltool.XmlTool()
 image_dir = "/var/tmp/"
@@ -291,7 +291,7 @@ def rpm_check():
     log("Please make sure qemu-kvm qemu-kvm-tools version >= 2.12 !!!!")
     log("Please make sure qemu-kvm qemu-kvm-tools version >= 2.12 !!!!")
     log("Please make sure qemu-kvm qemu-kvm-tools version >= 2.12 !!!!")
-    if system_version_id < 80:
+    if version_id < 8.0:
         if bash("rpm -qa | grep qemu-kvm-tools").value() == "":
             log("Please install qemu-kvm-tools rpm ")
             return 1
